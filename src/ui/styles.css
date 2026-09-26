@@ -209,3 +209,8 @@ body {
   border-bottom: 1px solid var(--border);
   transform: rotate(45deg);
 }
+
+/* Hover feedback shows at once; the short fades in each component only play on the way out. */
+button:hover:not(:disabled) {
+  transition-duration: 0s !important;
+}

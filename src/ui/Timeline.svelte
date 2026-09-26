@@ -38,6 +38,29 @@
   let zoomLabel = $state('');
   let canZoomIn = $state(true);
   let canZoomOut = $state(true);
+  let zoomPos = $state(0);
+  /** Pointer x while dragging the zoom label, which zooms like a pinch. */
+  let zoomDragX: number | null = null;
+
+  const zoomDown = (e: PointerEvent) => {
+    zoomDragX = e.clientX;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  // Dragging right widens the span shown, as scrubbing a number up would: ×2.7 per 50 px.
+  const zoomMove = (e: PointerEvent) => {
+    if (zoomDragX === null) return;
+    view?.zoomBy(Math.exp((e.clientX - zoomDragX) / 50));
+    zoomDragX = e.clientX;
+  };
+  const zoomUp = () => (zoomDragX = null);
+  const zoomKey = (e: KeyboardEvent) => {
+    const dir = e.key === 'ArrowRight' || e.key === 'ArrowUp' ? -1 : e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? 1 : 0;
+    if (!dir) return;
+    view?.zoomStep(dir);
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   let leftW = $state(0);
   let rightW = $state(0);
@@ -56,6 +79,12 @@
 
   const dateText = $derived(fmtDate(ms));
   const timeText = $derived(new Date(ms).toISOString().slice(11, 19) + ' UTC');
+  // At an hour a second the seconds are a blur, and at a month a second so is the time of day.
+  const shownTime = $derived(
+    Math.abs(rate) >= RATES[5] ? '' : Math.abs(rate) >= RATES[2] ? timeText.slice(0, 5) + ' UTC' : timeText,
+  );
+  // At a year a second the month and day are a blur too: just the year.
+  const shownDate = $derived(Math.abs(rate) >= RATES[6] ? String(new Date(ms).getUTCFullYear()) : dateText);
   const live = $derived(!paused && rate === 1 && Math.abs(ms - Date.now()) < 5000);
   const backward = $derived(rate < 0);
   const valueText = $derived(`${dateText} ${timeText}${here ? `, ${here.name}` : ''}`);
@@ -108,6 +137,7 @@
       zoomLabel = v.zoomLabel;
       canZoomIn = v.canZoomIn;
       canZoomOut = v.canZoomOut;
+      zoomPos = Math.round(v.zoomFraction * 100);
       // The date rides the playhead, kept clear of the corner controls.
       let lo = leftW + 12 + stampW / 2;
       let hi = v.width - rightW - 12 - stampW / 2;
@@ -199,7 +229,22 @@
         <button class="btn zb" onclick={() => view?.zoomStep(-1)} disabled={!canZoomOut} title="Zoom out (−) · showing {zoomLabel}" aria-label="Zoom out">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
         </button>
-        <span class="zl">{zoomLabel}</span>
+        <span
+          class="zl"
+          role="slider"
+          tabindex="0"
+          aria-label="Time span shown"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={zoomPos}
+          aria-valuetext={zoomLabel}
+          title="Drag sideways to zoom"
+          onpointerdown={zoomDown}
+          onpointermove={zoomMove}
+          onpointerup={zoomUp}
+          onpointercancel={zoomUp}
+          onkeydown={zoomKey}>{zoomLabel}</span
+        >
         <button class="btn zb" onclick={() => view?.zoomStep(1)} disabled={!canZoomIn} title="Zoom in (+) · showing {zoomLabel}" aria-label="Zoom in">
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" /></svg>
         </button>
@@ -236,7 +281,7 @@
     <div class="stamp" bind:this={stamp} bind:offsetWidth={stampW}>
       <div class="lm">{here?.name ?? ''}</div>
       <button class="when" bind:this={whenBtn} onclick={toggleDate} aria-haspopup="dialog" aria-expanded={dateOpen} title="Pick a date and time (UTC)">
-        <span class="d">{dateText}</span><span class="t">{timeText}</span>
+        <span class="d">{shownDate}</span>{#if shownTime}<span class="t">{shownTime}</span>{/if}
       </button>
     </div>
 
@@ -457,10 +502,19 @@
   }
   .zl {
     min-width: 44px;
+    padding: 6px 2px;
+    border-radius: 6px;
     text-align: center;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
     font-size: 11.5px;
     color: var(--muted);
     text-shadow: 0 1px 8px rgb(0 0 0 / 0.85);
+  }
+  .zl:hover,
+  .zl:focus-visible {
+    color: var(--text);
   }
 
   .live {

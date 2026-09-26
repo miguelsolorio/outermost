@@ -118,8 +118,8 @@ const CORBEL08 = { name: 'Corbel, Koerding & Kaaret 2008, MNRAS 389, 1697', url:
 const KALUZIENSKI77 = { name: 'Kaluzienski et al. 1977, ApJ 212, 203', url: 'https://doi.org/10.1086/155036' };
 const EHT22_V = { name: 'Event Horizon Telescope Collaboration 2022, ApJL 930, L16', url: 'https://doi.org/10.3847/2041-8213/ac6672' };
 
-const THIN_ARTISTIC = 'Colors follow NASA’s visualizations. The disk shines mostly in X-rays; in visible light it would look blue-white. The streaks and their speed are illustrative.';
-const EHT_ARTISTIC = 'Colors follow the Event Horizon Telescope’s false-color images. The real glow is radio light (1.3 mm) and has no visible color. The flow is drawn smooth; the real one flickers.';
+const THIN_ARTISTIC = 'Colors follow NASA’s visualizations. The disk shines mostly in X-rays; in visible light it would look blue-white. The streaks are illustrative, but they orbit at the gas’s real speed as time runs: 100 to 300 turns a second at the inner edge, so they blur unless time is paused.';
+const EHT_ARTISTIC = 'Colors follow the Event Horizon Telescope’s false-color images. The real glow is radio light (1.3 mm) and has no visible color. The clumps are illustrative; they circle with the gas as time runs.';
 
 /** Thin disk shown only during recorded outbursts, for V404 Cygni and A0620-00. */
 const outburstDisk = (

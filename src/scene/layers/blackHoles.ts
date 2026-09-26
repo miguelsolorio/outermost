@@ -4,7 +4,8 @@
 
 import { einsteinAngle, lensRow, shadowAngularRadius } from '../../astro/blackHole.ts';
 import { clamp, cross, dot, length, normalize, scale, type Vec3 } from '../../astro/vec.ts';
-import { MAX_LENSES, type LensingPass } from '../../engine/lensingPass.ts';
+import { C } from '../../astro/units.ts';
+import { DISK_CYCLE, MAX_LENSES, type LensingPass } from '../../engine/lensingPass.ts';
 import type { DepthMode } from '../../engine/renderer.ts';
 import type { FrameCtx } from '../frame.ts';
 import type { LensDisk, LensSource } from '../providers/blackHoles.ts';
@@ -63,6 +64,7 @@ export function selectLenses(
 export class BlackHoleLayer {
   lenses: Lens[] = [];
   private pose: FrameCtx['pose'] | null = null;
+  private lastMs: number | null = null;
 
   constructor(
     private pass: LensingPass,
@@ -99,7 +101,11 @@ export class BlackHoleLayer {
       u.uDiskE1.value.set(e1[0], e1[1], e1[2]);
       u.uDiskParams.value.set(d.rIn, d.rOut, d.ro, d.brightness);
       u.uDiskKind.value = d.kind === 'thick' ? 1 : 0;
-      u.uTime.value = performance.now() / 1000;
+      // Sim time in the hole's own unit r_s/c, wrapped in float64 so the GPU keeps precision.
+      const rs = sources.find((x) => x.id === this.lenses[k].id)!.rs;
+      const tau = ((ctx.world.ms / 1000) * C) / rs;
+      u.uDiskPhase.value = tau / DISK_CYCLE - Math.floor(tau / DISK_CYCLE);
+      u.uDiskDTau.value = this.lastMs === null ? 0 : (Math.abs(ctx.world.ms - this.lastMs) / 1000) * (C / rs);
     }
     this.lenses.forEach((l, i) => {
       u.uDir.value[i].set(l.dir[0], l.dir[1], l.dir[2]);
@@ -113,6 +119,7 @@ export class BlackHoleLayer {
     u.uTanHalf.value.set(tanH, tanV);
     u.uPx.value = radPerPx;
     this.pass.enabled = this.lenses.length > 0;
+    this.lastMs = ctx.world.ms;
   }
 
   /**

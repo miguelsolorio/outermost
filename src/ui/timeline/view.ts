@@ -123,6 +123,17 @@ export class TimelineView {
     return this.zoomSpan < FULL * 0.98;
   }
 
+  /** Where the zoom sits between the closest (0) and the whole timeline (1), on a log scale. */
+  get zoomFraction(): number {
+    return Math.log(this.zoomSpan / STEPS[0]) / Math.log(FULL / STEPS[0]);
+  }
+
+  /** Zoom by a factor at once, as a pinch does, around the playhead if it's in view, else the middle. */
+  zoomBy(f: number): void {
+    const p = (this.clock.ms - this.start) / this.span;
+    this.zoomAt(f, PAD + (p >= 0 && p <= 1 ? p : 0.5) * this.inner());
+  }
+
   /** Step to the next zoom level in (1) or out (-1). */
   zoomStep(dir: 1 | -1): void {
     const s = this.zoomSpan;

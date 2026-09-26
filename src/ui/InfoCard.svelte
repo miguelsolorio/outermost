@@ -160,8 +160,8 @@
     color: var(--muted);
     opacity: 0.7;
     transition:
-      opacity 0.15s,
-      color 0.15s;
+      opacity 0.08s,
+      color 0.08s;
   }
   .title:disabled .icon-wrap {
     display: none;
@@ -198,7 +198,7 @@
   .title:not(:disabled):hover .tip {
     opacity: 1;
     transform: translate(0, -50%);
-    transition-delay: 0.25s;
+    transition-delay: 0.1s;
   }
   @media (hover: none) {
     .tip {
