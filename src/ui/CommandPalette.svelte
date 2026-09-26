@@ -1,18 +1,17 @@
 <script lang="ts">
-  import { actions, ui, type SearchEntry } from './state.svelte.ts';
-  import { findMatches, go as goTo, PAGE, type Match } from './searchMatch.ts';
+  import { actions, ui } from './state.svelte.ts';
+  import { findMatches, findNearest, go as goTo, PAGE, type Match } from './searchMatch.ts';
   import ResultRow from './ResultRow.svelte';
 
   // A centered "go to" palette on ⌘K or ⌘⇧P (Ctrl on other platforms), a second way into the same search.
-  const LIMIT = 10;
   const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
   let query = $state('');
   let active = $state(0);
-  // How many search results to show; "Show more" adds another page.
+  // How many results to show; "Show more" adds another page.
   let shown = $state(PAGE);
   // Ordered once when it opens, like the search box, so rows stay put while you pick one.
-  let nearest = $state.raw<SearchEntry[]>([]);
+  let nearest = $state.raw<{ matches: Match[]; more: boolean }>({ matches: [], more: false });
   // Bumped every second while open so distances follow the camera and the clock.
   let tick = $state(0);
   let input = $state<HTMLInputElement>();
@@ -20,17 +19,17 @@
   const open = $derived(ui.paletteOpen);
   const searching = $derived(query.trim() !== '');
   const result = $derived(searching ? findMatches(ui.searchIndex, query.trim(), shown) : null);
+  const list = $derived(result ?? nearest);
   const rows = $derived.by(() => {
     void tick;
-    const entries = result ? result.matches : nearest;
-    return entries.map((entry: Match) => ({ entry, dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id) }));
+    return list.matches.map((entry: Match) => ({ entry, dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id) }));
   });
 
   $effect(() => {
     if (!open) return;
     input?.focus();
     const t = setInterval(() => {
-      if (!nearest.length) nearest = actions.nearby(LIMIT);
+      if (!nearest.matches.length) nearest = findNearest([], shown);
       tick++;
     }, 1000);
     return () => clearInterval(t);
@@ -42,7 +41,7 @@
     query = '';
     active = 0;
     shown = PAGE;
-    nearest = actions.nearby(LIMIT);
+    nearest = findNearest([], PAGE);
     ui.paletteOpen = true;
   }
 
@@ -57,12 +56,13 @@
 
   function showMore() {
     active = shown;
+    if (!searching) nearest = findNearest(nearest.matches, shown + PAGE);
     shown += PAGE;
     input?.focus();
   }
 
   function move(to: number) {
-    active = Math.max(0, Math.min(rows.length - (result?.more ? 0 : 1), to));
+    active = Math.max(0, Math.min(rows.length - (list.more ? 0 : 1), to));
     document.getElementById(`palette-opt-${active}`)?.scrollIntoView({ block: 'nearest' });
   }
 
@@ -70,7 +70,7 @@
     if (e.key === 'ArrowDown') move(active + 1);
     else if (e.key === 'ArrowUp') move(active - 1);
     else if (e.key === 'Enter' && !e.isComposing && rows[active]) go(rows[active].entry);
-    else if (e.key === 'Enter' && !e.isComposing && result?.more && active === rows.length) showMore();
+    else if (e.key === 'Enter' && !e.isComposing && list.more && active === rows.length) showMore();
     else if (e.key === 'Escape') close();
     else return;
     e.preventDefault();
@@ -105,7 +105,7 @@
       role="combobox"
       aria-expanded={rows.length > 0}
       aria-controls="palette-list"
-      aria-activedescendant={rows[active] || (result?.more && active === rows.length) ? `palette-opt-${active}` : undefined}
+      aria-activedescendant={rows[active] || (list.more && active === rows.length) ? `palette-opt-${active}` : undefined}
       aria-label="Search the universe"
     />
     {#if rows.length || searching}
@@ -128,7 +128,7 @@
                 </button>
               </li>
             {/each}
-            {#if result?.more}
+            {#if list.more}
               <li id="palette-opt-{rows.length}" role="option" aria-selected={active === rows.length}>
                 <button
                   tabindex="-1"

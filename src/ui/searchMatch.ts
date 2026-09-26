@@ -68,6 +68,13 @@ export function findMatches(index: SearchEntry[], query: string, limit: number):
   return { matches: cached.sorted.slice(0, limit), more: cached.sorted.length > limit, total: cached.sorted.length };
 }
 
+/** The `limit` places nearest the camera, with `keep` (rows already on screen) held in place at the top. */
+export function findNearest(keep: SearchEntry[], limit: number): { matches: Match[]; more: boolean } {
+  const ids = new Set(keep.map((e) => e.id));
+  const all = [...keep, ...actions.nearby(limit + 1).filter((e) => !ids.has(e.id))];
+  return { matches: all.slice(0, limit), more: all.length > limit };
+}
+
 /** Fly to a place, or move the clock to a landmark and fly to its object. */
 export function go(m: Match): void {
   if (m.event) nav.visit(m.event);

@@ -1,16 +1,14 @@
 <script lang="ts">
-  import { actions, ui, type SearchEntry } from './state.svelte.ts';
-  import { findMatches, go, PAGE, type Match } from './searchMatch.ts';
+  import { actions, ui } from './state.svelte.ts';
+  import { findMatches, findNearest, go, PAGE, type Match } from './searchMatch.ts';
   import ResultRow from './ResultRow.svelte';
-
-  const LIMIT = 8;
 
   let query = $state('');
   let active = $state(0);
-  // How many search results to show; "Show more" adds another page.
+  // How many results to show; "Show more" adds another page.
   let shown = $state(PAGE);
   // The nearest list is ordered once when it opens, so rows stay put while you click through them.
-  let nearest = $state.raw<SearchEntry[]>([]);
+  let nearest = $state.raw<{ matches: Match[]; more: boolean }>({ matches: [], more: false });
   // Bumped every second while open so distances follow the camera and the clock.
   let tick = $state(0);
   let input: HTMLInputElement;
@@ -19,9 +17,10 @@
   const open = $derived(ui.openMenu === 'search');
   const searching = $derived(query.trim() !== '');
   const result = $derived(searching ? findMatches(ui.searchIndex, query.trim(), shown) : null);
+  const list = $derived(result ?? nearest);
   const rows = $derived.by(() => {
     void tick;
-    return (result ? result.matches : nearest).map((entry: Match) => ({
+    return list.matches.map((entry: Match) => ({
       entry,
       dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id),
     }));
@@ -30,7 +29,7 @@
   $effect(() => {
     if (!open) return;
     const t = setInterval(() => {
-      if (!nearest.length) nearest = actions.nearby(LIMIT);
+      if (!nearest.matches.length) nearest = findNearest([], shown);
       tick++;
     }, 1000);
     return () => clearInterval(t);
@@ -41,7 +40,7 @@
     ui.openMenu = 'search';
     active = 0;
     shown = PAGE;
-    nearest = actions.nearby(LIMIT);
+    nearest = findNearest([], PAGE);
   }
 
   function close() {
@@ -53,17 +52,18 @@
     ui.openMenu = 'search';
     active = 0;
     shown = PAGE;
-    if (!searching) nearest = actions.nearby(LIMIT);
+    if (!searching) nearest = findNearest([], PAGE);
   }
 
   function showMore() {
     active = shown;
+    if (!searching) nearest = findNearest(nearest.matches, shown + PAGE);
     shown += PAGE;
     input.focus();
   }
 
   function move(to: number) {
-    active = Math.max(0, Math.min(rows.length - (result?.more ? 0 : 1), to));
+    active = Math.max(0, Math.min(rows.length - (list.more ? 0 : 1), to));
     document.getElementById(`search-opt-${active}`)?.scrollIntoView({ block: 'nearest' });
   }
 
@@ -77,7 +77,7 @@
       e.preventDefault();
     } else if (e.key === 'Enter' && open && rows[active]) {
       go(rows[active].entry);
-    } else if (e.key === 'Enter' && open && result?.more && active === rows.length) {
+    } else if (e.key === 'Enter' && open && list.more && active === rows.length) {
       showMore();
     }
   }
@@ -119,7 +119,7 @@
     role="combobox"
     aria-expanded={open && rows.length > 0}
     aria-controls="search-list"
-    aria-activedescendant={open && (rows[active] || (result?.more && active === rows.length)) ? `search-opt-${active}` : undefined}
+    aria-activedescendant={open && (rows[active] || (list.more && active === rows.length)) ? `search-opt-${active}` : undefined}
     aria-label="Search the universe"
   />
   {#if open && (rows.length || searching)}
@@ -142,7 +142,7 @@
               </button>
             </li>
           {/each}
-          {#if result?.more}
+          {#if list.more}
             <li id="search-opt-{rows.length}" role="option" aria-selected={active === rows.length}>
               <button
                 tabindex="-1"
