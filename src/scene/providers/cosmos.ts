@@ -2,6 +2,7 @@
 
 import { ageGyr, comovingDistanceMpc, particleHorizonMpc, Z_STAR } from '../../astro/cosmology.ts';
 import { EQJ_TO_GAL, galaxyFrame } from '../../astro/galactic.ts';
+import { centralBlackHoleFact } from '../../data/blackHoles.ts';
 import { GLY, KPC, LY, MPC } from '../../astro/units.ts';
 import { add, normalize, scale, type Vec3 } from '../../astro/vec.ts';
 import type { FocusTarget } from '../../engine/camera/controller.ts';
@@ -23,6 +24,7 @@ const DERIVED_Z = { name: 'Comoving distance from redshift, Planck 2018 cosmolog
 /** Friendly names for well-known galaxies (catalog name -> display, aliases). */
 const FAMOUS: Record<string, { name: string; aliases: string[] }> = {
   MESSIER031: { name: 'Andromeda Galaxy', aliases: ['M31', 'NGC 224', 'Andromeda'] },
+  MESSIER032: { name: 'M32', aliases: ['NGC 221', 'Le Gentil'] },
   MESSIER033: { name: 'Triangulum Galaxy', aliases: ['M33', 'NGC 598', 'Triangulum'] },
   LMC: { name: 'Large Magellanic Cloud', aliases: ['LMC'] },
   SMC: { name: 'Small Magellanic Cloud', aliases: ['SMC', 'NGC 292'] },
@@ -32,7 +34,9 @@ const FAMOUS: Record<string, { name: string; aliases: string[] }> = {
   NGC5128: { name: 'Centaurus A', aliases: ['NGC 5128', 'Cen A'] },
   NGC5194: { name: 'Whirlpool Galaxy', aliases: ['M51', 'M51a', 'NGC 5194'] },
   MESSIER101: { name: 'Pinwheel Galaxy', aliases: ['M101', 'NGC 5457'] },
+  NGC4258: { name: 'M106', aliases: ['NGC 4258'] },
   NGC4594: { name: 'Sombrero Galaxy', aliases: ['M104', 'NGC 4594'] },
+  CIRCINUS: { name: 'Circinus Galaxy', aliases: ['Circinus'] },
   NGC5236: { name: 'Southern Pinwheel Galaxy', aliases: ['M83', 'NGC 5236'] },
   Maffei1: { name: 'Maffei 1', aliases: [] },
   Maffei2: { name: 'Maffei 2', aliases: [] },
@@ -326,6 +330,8 @@ export class CosmosProvider implements Provider {
             },
           ]
         : [{ text: 'Shown as a glow at its measured position and size.', kind: 'model' }];
+      const bh = centralBlackHoleFact(id);
+      if (bh) facts.push(bh);
       if (photo) facts.push({ label: 'Photograph', value: photo.title, kind: 'measured', source: { name: 'Image page', url: photo.url } });
       return { id, name: f?.name ?? g.name, subtitle: f ? `${f.aliases[0] ?? g.name} · Galaxy` : 'Galaxy', facts, notes };
     }
@@ -338,6 +344,7 @@ export class CosmosProvider implements Provider {
         facts: [
           ...p.facts,
           { label: 'Distance (comoving)', value: `${p.dist.toFixed(0)} Mpc (${((p.dist * MPC) / LY / 1e6).toLocaleString('en-US', { maximumSignificantDigits: 3 })} million ly)`, kind: p.id === 'virgo-cluster' ? 'measured' : 'derived', source: p.id === 'virgo-cluster' ? MEI : p.id === 'laniakea' ? TULLY : DERIVED_Z },
+          ...[centralBlackHoleFact(p.id)].filter((f) => !!f),
         ],
         notes: [{ text: p.note, kind: 'measured' }],
       };

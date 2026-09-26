@@ -14,6 +14,10 @@ export const JULIAN_YEAR = 365.25 * 86_400;
 export const LY = C * JULIAN_YEAR;
 export const GLY = 1e9 * LY;
 export const KM = 1_000;
+/** IAU 2015 Resolution B3 nominal solar mass parameter GM☉ (m³/s²). */
+export const GM_SUN = 1.3271244e20;
+/** IAU 2015 Resolution B3 nominal solar radius (m). */
+export const R_SUN = 6.957e8;
 
 export const DEG = Math.PI / 180;
 export const RAD = 180 / Math.PI;

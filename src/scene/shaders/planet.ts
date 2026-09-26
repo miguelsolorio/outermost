@@ -10,8 +10,12 @@
 // Mosaics that mix close-up and distant imagery (Pluto, Charon, Triton) carry
 // a sharpness mask; where it is low the shader adds synthetic craters and
 // rolling relief below the source's resolution, so the far side is not a smear.
+//
+// Planets also get an enhanced look (color grade, animated atmospheres; see
+// look.ts and scene/looks.ts). Moons keep the identity defaults.
 
 import { atmosphereChunk } from './atmosphere.ts';
+import { lookChunk } from './look.ts';
 import { ringChunk } from './rings.ts';
 
 export const planetVertex = /* glsl */ `
@@ -92,6 +96,24 @@ uniform vec4 occluders[4];
 uniform float occluderRed[4]; // > 0: sunlight refracted red through its atmosphere
 uniform int occluderCount;
 uniform float sunRadius;
+${lookChunk}
+
+// The base map, with local contrast raised against a blurred read of itself
+// (brightness only, so the colors don't fringe).
+vec3 mapAt(vec2 uv) {
+  vec3 c = texture2D(map, uv).rgb;
+  if (gradeSharp > 0.0) {
+    vec3 d = c - texture2D(map, uv, 2.5).rgb;
+    c = max(c + gradeSharp * dot(d, vec3(0.2126, 0.7152, 0.0722)), 0.0);
+  }
+  return c;
+}
+
+// Cloud cover, carried along by the two flow copies when Earth's clouds move.
+float cloudAt(vec2 uv, vec2 flowA, vec2 flowB, float w) {
+  if (atmo != 2) return texture2D(cloudMap, uv).r;
+  return mix(texture2D(cloudMap, uv + flowA).r, texture2D(cloudMap, uv + flowB).r, w);
+}
 
 // Area of overlap of two disks (radii r1, r2, centers d apart), small angles.
 float diskOverlap(float r1, float r2, float d) {
@@ -271,7 +293,22 @@ void main() {
     muL = max(dot(Nr, V), 1e-4);
   }
 
-  vec3 albA = hasMap ? texture2D(map, vUv).rgb : tint;
+  // Winds (see look.ts). The surface itself never moves: only Jupiter's and
+  // Saturn's maps, Earth's clouds and the procedural atmospheres do.
+  vec3 bodyDir = normalize(vObj);
+  float lat = asin(clamp(bodyDir.z, -1.0, 1.0));
+  float fpB = length(fwidth(vObj));
+  vec3 fl = atmo > 0 ? flowPhases(lat, 1.0) : vec3(0.0);
+  vec2 sw = (atmo == 1 || atmo == 2) ? swirlUv(bodyDir, lat, fpB) : vec2(0.0);
+  vec2 flowA = vec2(fl.x / PI2, 0.0) + sw;
+  vec2 flowB = vec2(fl.y / PI2, 0.0) + sw;
+
+  vec3 albA;
+  if (atmo == 1 && hasMap) albA = mix(mapAt(vUv + flowA), mapAt(vUv + flowB), fl.z);
+  else if (atmo == 3) albA = venusAlbedo(bodyDir, lat, fl, fpB);
+  else if (atmo == 4) albA = uranusAlbedo(bodyDir, lat, fl, fpB);
+  else if (atmo == 5) albA = neptuneAlbedo(bodyDir, lat, fl, fpB);
+  else albA = hasMap ? mapAt(vUv) : tint;
   vec3 albB = albA;
   if (hasMap && mapBlend > 0.0) albB = texture2D(map2, vUv).rgb;
   vec3 albedo = mix(albA, albB, mapBlend) * synthAlbedo;
@@ -298,6 +335,13 @@ void main() {
       albedo = mix(albedo, max(d + albedo - same, 0.0), 1.0 - smoothstep(0.5, 1.5, lod));
     }
   }
+  // The water mask for sun glint reads the imagery's own colors.
+  vec3 albedoTrue = albedo;
+  albedo = gradeColor(albedo);
+  // Toward the poles, blend to poleTint at the same brightness.
+  float lumA = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
+  vec3 cool = poleTint.rgb * lumA / max(dot(poleTint.rgb, vec3(0.2126, 0.7152, 0.0722)), 1e-4);
+  albedo = mix(albedo, cool, poleTint.a * smoothstep(0.55, 0.95, abs(bodyDir.z)));
 
   float f;
   if (model == 0) {
@@ -350,8 +394,8 @@ void main() {
     // Sun glint on open water. The imagery marks water by its deep blue (Blue
     // Marble open ocean is about sRGB 2,5,20: blue ≈ 4.7× green in linear
     // light, while land, ice and cloud stay below 1.2×).
-    float lum = dot(albedo, vec3(0.2126, 0.7152, 0.0722));
-    float blueRatio = albedo.b / max(max(albedo.r, albedo.g), 1e-4);
+    float lum = dot(albedoTrue, vec3(0.2126, 0.7152, 0.0722));
+    float blueRatio = albedoTrue.b / max(max(albedoTrue.r, albedoTrue.g), 1e-4);
     float water = smoothstep(1.6, 2.6, blueRatio) * (1.0 - smoothstep(0.1, 0.3, lum));
     // Cox & Munk (1954) Gaussian wave slopes with Fresnel reflection off water,
     // in the same units as the Lambert term above: F·exp(-tan²β/σ²)/(4σ²·μ·cos⁴β).
@@ -364,7 +408,7 @@ void main() {
   }
 
   if (hasClouds) {
-    float c = texture2D(cloudMap, vUv).r;
+    float c = cloudAt(vUv, flowA, flowB, fl.z);
     // Cloud shadows: a ground point is shaded by the cloud a horizontal distance
     // h·tan(zenith) toward the Sun, with h the cloud height over the body radius.
     vec3 p = normalize(vObj);
@@ -375,7 +419,7 @@ void main() {
     float up = max(dot(sunDirBody, p), 0.08);
     vec2 horiz = vec2(dot(sunDirBody, east), dot(sunDirBody, north)) / up;
     vec2 duv = horiz * cloudHeight / vec2(6.2831853 * cl, 3.1415927);
-    float shade = texture2D(cloudMap, vUv + duv).r;
+    float shade = cloudAt(vUv + duv, flowA, flowB, fl.z);
     color *= 1.0 - cloudShadow * shade * step(0.0, mu0);
     vec3 cloudLit = vec3(0.95) * max(mu0, 0.0) * irradiance * sunT;
     color = mix(color, cloudLit, c);
@@ -395,6 +439,6 @@ void main() {
     color = color * transmit + inscatter * ecl.x;
   }
 
-  gl_FragColor = vec4(color, 1.0);
+  gl_FragColor = vec4(agxVivid(color, gradeVivid), 1.0);
 }
 `;

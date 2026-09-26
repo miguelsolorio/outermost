@@ -147,7 +147,7 @@ export const BODIES: BodyDef[] = [
     shading: { type: 'minnaert', k: 0.85 },
     color: [0xda / 255, 0xd8 / 255, 0xd2 / 255],
     tint: [0xda / 255, 0xd8 / 255, 0xd2 / 255],
-    appearanceSource: 'Featureless cloud deck (Limaye et al. 2018); color from Mallama et al. 2017 photometry. Limb haze: single-scattering model with approximate haze properties.',
+    appearanceSource: 'Cloud-deck color from Mallama et al. 2017 photometry. Limb haze: single-scattering model with approximate haze properties.',
     atmosphere: VENUS_ATMOSPHERE,
   }),
   planet('earth', 'Earth', A.Body.Earth, {
@@ -204,7 +204,7 @@ export const BODIES: BodyDef[] = [
     shading: { type: 'minnaert', k: 0.78 },
     color: [0x87 / 255, 0xb7 / 255, 0xcb / 255],
     tint: [0x87 / 255, 0xb7 / 255, 0xcb / 255],
-    appearanceSource: 'True color per Irwin et al. 2024: similar to Uranus, not the deep blue of enhanced Voyager images. Limb haze: single-scattering model with approximate haze properties.',
+    appearanceSource: 'True color per Irwin et al. 2024: a pale cyan similar to Uranus. Limb haze: single-scattering model with approximate haze properties.',
     atmosphere: NEPTUNE_ATMOSPHERE,
   }),
   planet(

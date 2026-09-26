@@ -1,5 +1,5 @@
 {
-  "$comment": "Corrections applied on top of HYG v4.4 when building the star catalog. Every entry cites its source. Stars whose HYG distance is flagged unknown (dist = 100000) first fall back to AT-HYG v4.0 Gaia DR3 distances; the explicit distances below take precedence where Gaia/Hipparcos parallaxes are consistent with zero.",
+  "$comment": "Corrections applied on top of HYG v4.4 when building the star catalog. Every entry cites its source. Stars whose HYG distance is flagged unknown (dist = 100000) first fall back to AT-HYG v4.0 Gaia DR3 distances; the explicit distances below take precedence, either where Gaia/Hipparcos parallaxes are consistent with zero or where a better measurement replaces an outdated Hipparcos one. `names` replaces a star's HYG proper name.",
   "aliases": [
     {
       "hip": 55203,
@@ -22,6 +22,20 @@
       "dist_pc": 1500,
       "source": "Gaia DR3 parallaxes of physical companions μ Sgr D (0.646 ± 0.063 mas) and E (0.644 ± 0.038 mas)",
       "note": "The primary's own parallax (0.09 ± 0.28 mas, van Leeuwen 2007) is consistent with zero."
+    },
+    {
+      "hip": 98298,
+      "name": "HD 226868 (Cygnus X-1)",
+      "dist_pc": 2220,
+      "source": "Miller-Jones et al. 2021, Science 371, 1046 (VLBA parallax of the X-ray binary)",
+      "note": "Hipparcos gives 595 pc from a parallax of 1.68 mas; the VLBA parallax and Gaia DR3 (0.44 ± 0.01 mas) both place it near 2.2 kpc."
+    }
+  ],
+  "names": [
+    {
+      "hip": 98298,
+      "name": "HD 226868",
+      "note": "HYG names the star 'Cygnus X-1', which is the X-ray binary; the black hole (src/data/blackHoles.ts) carries that name."
     }
   ]
 }

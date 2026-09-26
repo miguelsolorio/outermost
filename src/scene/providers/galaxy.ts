@@ -5,6 +5,7 @@ import type { FocusTarget } from '../../engine/camera/controller.ts';
 import type { ObjectInfo, Provider, SearchEntry } from '../registry.ts';
 import type { World } from '../world.ts';
 import { galaxyFrame } from '../../astro/galactic.ts';
+import { centralBlackHoleFact } from '../../data/blackHoles.ts';
 
 const REID = { name: 'Reid et al. 2019, ApJ 885, 131', url: 'https://doi.org/10.3847/1538-4357/ab4a11' };
 const GRAVITY = { name: 'GRAVITY Collaboration 2019, A&A 625, L10', url: 'https://doi.org/10.1051/0004-6361/201935656' };
@@ -57,6 +58,7 @@ export class GalaxyProvider implements Provider {
         { label: 'Bar half-length and angle', value: '≈ 5.0 kpc at 27°', kind: 'measured', source: WEGG },
         { label: 'Spiral arms mapped', value: 'Norma–Outer, Scutum–Centaurus, Sagittarius–Carina, Perseus, Local', kind: 'measured', source: REID },
         { label: 'Most distant disk stars', value: '≈ 26 kpc from the center', kind: 'measured', source: LC },
+        ...[centralBlackHoleFact('milky-way')].filter((f) => !!f),
       ],
       notes: [
         {
@@ -69,7 +71,7 @@ export class GalaxyProvider implements Provider {
 
   search(): SearchEntry[] {
     return [
-      { id: 'milky-way', name: 'Milky Way', aliases: ['Galaxy', 'Our galaxy', 'Galactic Center', 'Sagittarius A*', 'Sgr A*'], kind: 'Galaxy', detail: 'Our galaxy', rank: 0 },
+      { id: 'milky-way', name: 'Milky Way', aliases: ['Galaxy', 'Our galaxy', 'Galactic Center'], kind: 'Galaxy', detail: 'Our galaxy', rank: 0 },
     ];
   }
 }

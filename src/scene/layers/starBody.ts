@@ -41,8 +41,11 @@ export class StarBodyLayer {
     this.group.visible = false;
   }
 
-  /** Radius (m) set by the caller from the star's catalog data. */
-  update(ctx: FrameCtx, index: number, radius: number): void {
+  /**
+   * Radius (m) set by the caller from the star's catalog data. `tint` (linear
+   * RGB) replaces the catalog color, which interstellar dust reddens.
+   */
+  update(ctx: FrameCtx, index: number, radius: number, tint?: [number, number, number]): void {
     const cat = this.stars.catalog;
     if (!cat || index < 0) {
       this.group.visible = false;
@@ -65,7 +68,7 @@ export class StarBodyLayer {
     const u8 = cat.u8;
     const o = index * 32 + 28;
     const lin = (c: number) => Math.pow(c / 255, 2.2);
-    const color = [lin(u8[o]), lin(u8[o + 1]), lin(u8[o + 2])];
+    const color = tint ?? [lin(u8[o]), lin(u8[o + 1]), lin(u8[o + 2])];
     this.mesh.position.set(p[0], p[1], p[2]);
     this.mesh.scale.setScalar(radius);
     this.material.uniforms.tint.value.set(color[0], color[1], color[2]);

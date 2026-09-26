@@ -3,6 +3,7 @@
 // Coefficients are set from Neckel & Labs (1994) via the `limb` uniforms.
 // Catalog stars use it; the Sun itself uses the 304 Å shaders below.
 
+import { agxChunk } from './agx.ts';
 import { noiseChunk } from './noise.ts';
 
 export const sunVertex = /* glsl */ `
@@ -50,17 +51,12 @@ void main() {
 
 // Brightness → linear color, approximating the SDO 304 Å color table: black,
 // deep red, orange, then yellow and white where active regions saturate.
-// AgX tone mapping (engine/renderer.ts) mixes the channels before its log
-// curve, so no ordinary color comes out as saturated as this palette: pure
-// red lands on salmon. The ramp is written in AgX's working space and mapped
-// back through the inverse of that mix (sRGB → Rec.2020 → AgX inset). Some
-// channels go negative there and come out near zero on screen. On screen,
-// x = 0.5 is deep red, 1 orange, 2 yellow-orange, 4 nearly white.
+// No ordinary color survives AgX tone mapping this saturated (see agx.ts), so
+// the ramp is written in AgX's working space and mapped back through the
+// inverse of its channel mix. On screen, x = 0.5 is deep red, 1 orange,
+// 2 yellow-orange, 4 nearly white.
 const sunRamp = /* glsl */ `
-const mat3 AGX_INSET_INV = mat3(
-  2.11451, -0.37054, -0.16595,
-  -1.02747, 1.55299, -0.25469,
-  -0.08711, -0.18233, 1.42063);
+${agxChunk}
 vec3 sunRamp(float x) {
   x = max(x, 0.0);
   vec3 u = vec3(0.75 * pow(x, 2.3), 0.168 * pow(x, 2.25) + 0.01 * pow(x, 4.0), 0.001 * pow(x, 5.0));
@@ -134,7 +130,8 @@ void main() {
   I *= 1.0 - 0.5 * fil * filMask;
 
   // Active regions: two bands at about ±20° latitude (+Z is the north pole).
-  float band = exp(-pow((abs(p.z) - 0.34) / 0.13, 2.0));
+  float bz = (abs(p.z) - 0.34) / 0.13;
+  float band = exp(-bz * bz);
   float arN = fbm(p * 3.4 + vec3(31.0), 3, fp * 3.4);
   float ar = band * smoothstep(0.12, 0.3, arN);
   // Bright plage with loop-like streaks and flickering hot footpoints.

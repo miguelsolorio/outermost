@@ -142,11 +142,19 @@ export async function processStars(ctx: StepContext): Promise<void> {
   const overrides = JSON.parse(await readFile(join(ROOT, 'data', 'star-overrides.json'), 'utf8')) as {
     aliases: Array<{ hip: number; hygId: number }>;
     distances: Array<{ hip: number; dist_pc: number }>;
+    names?: Array<{ hip: number; name: string }>;
   };
   for (const a of overrides.aliases) {
     const s = all.find((x) => x.id === a.hygId);
     if (s) s.hip = a.hip;
   }
+  for (const n of overrides.names ?? []) {
+    const s = all.find((x) => x.hip === n.hip);
+    if (!s) throw new Error(`name override HIP ${n.hip} not found`);
+    s.proper = n.name;
+  }
+  // HYG's visual luminosity (× Sun) from absolute magnitude; recomputed wherever the distance changes.
+  const lumOf = (absmag: number) => 10 ** ((4.85 - absmag) / 2.5);
   // Unknown HYG distances (flagged 100000 pc) fall back to AT-HYG Gaia DR3 distances.
   const athyg = new Map<number, HygStar>();
   for (const s of await readHyg(await ensureFile('athyg-v40', 'hyglike_from_athyg_v40.csv.gz'))) {
@@ -158,21 +166,35 @@ export async function processStars(ctx: StepContext): Promise<void> {
     if (s.dist > 0 && s.dist < 100_000) continue;
     const g = athyg.get(s.id);
     if (!g) continue;
-    Object.assign(s, { dist: g.dist, x: g.x, y: g.y, z: g.z, absmag: g.absmag, distSrc: 'gaia' as const });
+    // Everything derived from the distance comes along: HYG computed luminosity and
+    // space velocity for these stars at its 100,000 pc placeholder.
+    Object.assign(s, { dist: g.dist, x: g.x, y: g.y, z: g.z, vx: g.vx, vy: g.vy, vz: g.vz, absmag: g.absmag, lum: lumOf(g.absmag), distSrc: 'gaia' as const });
     gaiaFilled++;
   }
-  // Cited literature distances where every parallax is consistent with zero.
+  // Cited literature distances: where every parallax is consistent with zero,
+  // or where a newer measurement replaces the Hipparcos one.
   for (const o of overrides.distances) {
     const s = all.find((x) => x.hip === o.hip);
     if (!s) throw new Error(`override HIP ${o.hip} not found`);
     const ra = s.ra * 15 * (Math.PI / 180);
     const dec = s.dec * (Math.PI / 180);
+    const u = [Math.cos(dec) * Math.cos(ra), Math.cos(dec) * Math.sin(ra), Math.sin(dec)];
+    // Proper motion is an angle: the tangential velocity scales with distance (HYG
+    // derived it at s.dist, even the 100,000 pc placeholder), the radial one doesn't.
+    const k = s.dist > 0 ? o.dist_pc / s.dist : 1;
+    const v = [s.vx, s.vy, s.vz].map((c) => (Number.isFinite(c) ? c : 0));
+    const vr = v[0] * u[0] + v[1] * u[1] + v[2] * u[2];
+    const absmag = s.mag - 5 * Math.log10(o.dist_pc / 10);
     Object.assign(s, {
       dist: o.dist_pc,
-      x: o.dist_pc * Math.cos(dec) * Math.cos(ra),
-      y: o.dist_pc * Math.cos(dec) * Math.sin(ra),
-      z: o.dist_pc * Math.sin(dec),
-      absmag: s.mag - 5 * Math.log10(o.dist_pc / 10),
+      x: o.dist_pc * u[0],
+      y: o.dist_pc * u[1],
+      z: o.dist_pc * u[2],
+      vx: vr * u[0] + (v[0] - vr * u[0]) * k,
+      vy: vr * u[1] + (v[1] - vr * u[1]) * k,
+      vz: vr * u[2] + (v[2] - vr * u[2]) * k,
+      absmag,
+      lum: lumOf(absmag),
       distSrc: 'override' as const,
     });
   }

@@ -131,6 +131,12 @@ body {
   font-size: 10.5px;
 }
 
+.label-blackhole {
+  color: rgb(214 200 255 / 0.85);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
 /* The viewer's position on Earth. The engine sets a matrix that lays it flat
    on the ground; the double shadow outlines it over ocean, land and cloud. */
 .user-location {
