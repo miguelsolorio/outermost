@@ -62,6 +62,50 @@
     e.stopPropagation();
   };
 
+  // Dragging the speed button sideways steps through the presets, one per 24 px; a press
+  // that barely moves is still a click and opens the menu.
+  const SPEED_STEP_PX = 24;
+  let speedDrag: { x: number; i: number; moved: boolean } | null = null;
+  let speedDragged = false;
+  const rateIndex = (r: number) => {
+    let best = 0;
+    for (let i = 1; i < RATES.length; i++) if (Math.abs(Math.log(RATES[i] / r)) < Math.abs(Math.log(RATES[best] / r))) best = i;
+    return best;
+  };
+  const setRateIndex = (i: number) => {
+    const next = RATES[Math.max(0, Math.min(RATES.length - 1, i))];
+    if (next !== Math.abs(rate)) actions.setSpeed((rate < 0 ? -1 : 1) * next);
+  };
+  const speedDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    speedDrag = { x: e.clientX, i: rateIndex(Math.abs(rate)), moved: false };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+  const speedMove = (e: PointerEvent) => {
+    if (!speedDrag) return;
+    const dx = e.clientX - speedDrag.x;
+    if (!speedDrag.moved && Math.abs(dx) < 4) return;
+    speedDrag.moved = true;
+    speedOpen = dateOpen = false;
+    setRateIndex(speedDrag.i + Math.trunc(dx / SPEED_STEP_PX));
+  };
+  const speedUp = () => {
+    speedDragged = !!speedDrag?.moved;
+    speedDrag = null;
+  };
+  const speedClick = () => {
+    if (speedDragged) return void (speedDragged = false);
+    speedOpen = !speedOpen;
+    dateOpen = false;
+  };
+  const speedKey = (e: KeyboardEvent) => {
+    const dir = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (!dir || speedOpen) return;
+    setRateIndex(rateIndex(Math.abs(rate)) + dir);
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   let leftW = $state(0);
   let rightW = $state(0);
   let railW = $state(0);
@@ -184,10 +228,15 @@
         <button
           class="btn speed-btn"
           class:open={speedOpen}
-          onclick={() => ((speedOpen = !speedOpen), (dateOpen = false))}
+          onclick={speedClick}
+          onpointerdown={speedDown}
+          onpointermove={speedMove}
+          onpointerup={speedUp}
+          onpointercancel={speedUp}
+          onkeydown={speedKey}
           aria-haspopup="true"
           aria-expanded={speedOpen}
-          title="Choose how fast time runs"
+          title="Choose how fast time runs, or drag sideways to change it"
         >
           <span>{shortRate}</span>
           <svg class="chev" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true">
@@ -402,6 +451,9 @@
     font-size: 12px;
     color: var(--muted);
     white-space: nowrap;
+    cursor: ew-resize;
+    touch-action: none;
+    user-select: none;
   }
   .speed-btn:hover,
   .speed-btn.open {
