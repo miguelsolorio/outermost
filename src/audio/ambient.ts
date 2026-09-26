@@ -6,7 +6,8 @@
 //   cosmos  – a very low swell under a soft hiss (galaxies and beyond)
 // Nothing here is a recording or data sonification; it's mood only.
 // Browsers only allow audio after a user gesture, so it starts on the first
-// interaction and can be muted from the HUD.
+// interaction and can be muted from the HUD. It fades out and pauses whenever
+// the page is hidden or the window loses focus, and fades back in on return.
 
 type LayerName = 'planet' | 'system' | 'stars' | 'cosmos';
 
@@ -22,6 +23,7 @@ export class Ambient {
   private layers = new Map<LayerName, GainNode>();
   private enabled = true;
   private started = false;
+  private suspendTimer = 0;
   /** Layer weights from the view scale, smoothed. */
   private weights: Record<LayerName, number> = { planet: 0, system: 0, stars: 0, cosmos: 0 };
 
@@ -38,11 +40,10 @@ export class Ambient {
     };
     window.addEventListener('pointerdown', start);
     window.addEventListener('keydown', start);
-    document.addEventListener('visibilitychange', () => {
-      if (!this.ctx) return;
-      if (document.hidden) void this.ctx.suspend();
-      else if (this.enabled) void this.ctx.resume();
-    });
+    const sync = () => this.syncActive();
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('blur', sync);
+    window.addEventListener('focus', sync);
   }
 
   get on(): boolean {
@@ -60,8 +61,29 @@ export class Ambient {
     if (!this.ctx || !this.master) return;
     const t = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(t);
-    this.master.gain.setTargetAtTime(on ? this.volume : 0, t, 0.4);
-    if (on) void this.ctx.resume();
+    this.master.gain.setTargetAtTime(on && this.pageActive() ? this.volume : 0, t, 0.4);
+    if (on) this.syncActive();
+  }
+
+  private pageActive(): boolean {
+    return !document.hidden && document.hasFocus();
+  }
+
+  /** Fade out and suspend while the page is hidden or unfocused; resume and fade back in when it returns. */
+  private syncActive(): void {
+    const ctx = this.ctx;
+    const master = this.master;
+    if (!ctx || !master) return;
+    clearTimeout(this.suspendTimer);
+    master.gain.cancelScheduledValues(ctx.currentTime);
+    if (this.pageActive()) {
+      if (!this.enabled) return;
+      void ctx.resume().then(() => master.gain.setTargetAtTime(this.volume, ctx.currentTime, 0.4));
+    } else {
+      master.gain.setTargetAtTime(0, ctx.currentTime, 0.1);
+      // A hidden tab may throttle timers, but suspending late is harmless: it's already silent.
+      this.suspendTimer = window.setTimeout(() => void ctx.suspend(), 500);
+    }
   }
 
   private start(): void {
