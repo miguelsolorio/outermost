@@ -1,0 +1,27 @@
+{
+  "$comment": "Corrections applied on top of HYG v4.4 when building the star catalog. Every entry cites its source. Stars whose HYG distance is flagged unknown (dist = 100000) first fall back to AT-HYG v4.0 Gaia DR3 distances; the explicit distances below take precedence where Gaia/Hipparcos parallaxes are consistent with zero.",
+  "aliases": [
+    {
+      "hip": 55203,
+      "hygId": 118742,
+      "name": "ξ UMa (Alula Australis)",
+      "note": "HYG lists this star as Gl 423 without a HIP number; SIMBAD identifies '* ksi UMa' as HIP 55203."
+    }
+  ],
+  "distances": [
+    {
+      "hip": 107259,
+      "name": "μ Cep (Garnet Star)",
+      "dist_pc": 870,
+      "source": "Mauron & Josselin 2011, A&A 526, A156 (membership in Cep OB2)",
+      "note": "Gaia DR3 parallax 0.119 ± 0.264 mas and Hipparcos parallax are consistent with zero; literature estimates range from ~640 to ~1,800 pc."
+    },
+    {
+      "hip": 89341,
+      "name": "μ Sgr (Polis)",
+      "dist_pc": 1500,
+      "source": "Gaia DR3 parallaxes of physical companions μ Sgr D (0.646 ± 0.063 mas) and E (0.644 ± 0.038 mas)",
+      "note": "The primary's own parallax (0.09 ± 0.28 mas, van Leeuwen 2007) is consistent with zero."
+    }
+  ]
+}

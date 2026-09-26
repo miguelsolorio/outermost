@@ -1,0 +1,392 @@
+{
+  "2mrs/ReadMe": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/199/26/ReadMe",
+    "bytes": 18658,
+    "sha256": "b4fc43f8e6c91c835c68f02a98255cbd0ea7ef570edd1094bf12d28057d54590",
+    "retrieved": "2026-09-25"
+  },
+  "2mrs/table3.dat.gz": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/199/26/table3.dat.gz",
+    "bytes": 3367217,
+    "sha256": "14a40e14dea131afbc2ff525e42b39fdc4094cf9d06d9a43952257eff80f1790",
+    "retrieved": "2026-09-25"
+  },
+  "athyg-v40/hyglike_from_athyg_v40.csv.gz": {
+    "url": "https://codeberg.org/astronexus/athyg/media/branch/main/data/subsets/hyglike_from_athyg_v40.csv.gz",
+    "bytes": 14096722,
+    "sha256": "fa59658677ebb4331056d99ee01a519102123081d1d89f2add77c15076eb9053",
+    "retrieved": "2026-09-25"
+  },
+  "black-marble-2016/BlackMarble_2016_3km.jpg": {
+    "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_3km.jpg",
+    "bytes": 8106233,
+    "sha256": "230aac448ae68c358be433dd518888cccb3a85ccf66f7b44326441c324ad6725",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200401.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/january/world.200401.3x21600x10800.jpg",
+    "bytes": 23716627,
+    "sha256": "c2f2c80a352518cfea23d462dad6f6e778375ddd74bbec5786bcfc85cc49c61d",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200402.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/february/world.200402.3x21600x10800.jpg",
+    "bytes": 23369623,
+    "sha256": "8800081f38b53bfa1e3f0c2fa17be694b7646942fe5add009ea0dcd64c03e70b",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200403.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/march/world.200403.3x21600x10800.jpg",
+    "bytes": 22848375,
+    "sha256": "af37f61a9715c59dc86763df19f588a20c9d92b3d0a8034a0b00acd6b97ccb7d",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200404.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/april/world.200404.3x21600x10800.jpg",
+    "bytes": 22209925,
+    "sha256": "3bd13f173555eb24451c45d3a83ca177baca02e9a8bdd9fa3e4989f7b496ce6b",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200405.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/may/world.200405.3x21600x10800.jpg",
+    "bytes": 21829549,
+    "sha256": "0de40c868680ab9e86fef42406d76386b243b32444ff50edfd406b296638c206",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200406.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/june/world.200406.3x21600x10800.jpg",
+    "bytes": 21793655,
+    "sha256": "282608580a290723655bfbe917e69ea2f93f4da068dfa96ff4a152b1c6ec36be",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200407.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/july/world.200407.3x21600x10800.jpg",
+    "bytes": 21125326,
+    "sha256": "dea8b4dc8a4f93f5f8bce0c8c85a508a178e7901e9ed8e6bf86e6ce7ef6d61e2",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200408.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/august/world.200408.3x21600x10800.jpg",
+    "bytes": 21206743,
+    "sha256": "926be7253be90a1fd57071a33afbfe7a712a2dfe0d5b5b4602bc5dfbcfdc2c89",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200409.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/september/world.200409.3x21600x10800.jpg",
+    "bytes": 22359549,
+    "sha256": "7cf788e13a3a7b4a926b524f8f71d635c56a18c48ba0bfe35695b05a305db3f3",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200410.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/october/world.200410.3x21600x10800.jpg",
+    "bytes": 22853895,
+    "sha256": "bf568ceca2ad55e9c8dd7bcedfd0e419201d03bb560206a7bfa2cc57c1e04c64",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200411.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/november/world.200411.3x21600x10800.jpg",
+    "bytes": 23766556,
+    "sha256": "1959bbe72897d3e9526c440dae3ec04cfdbdc4080c8ff0b14632925ae31167b1",
+    "retrieved": "2026-09-25"
+  },
+  "bmng-2004/world.200412.jpg": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/december/world.200412.3x21600x10800.jpg",
+    "bytes": 23931114,
+    "sha256": "b0ffc9d12205689aeaec66116bbae2c4c263fcd98a0cbadba8d5488567b53278",
+    "retrieved": "2026-09-25"
+  },
+  "cassini-iss-saturn-rgb/Cassini_ISS_RGB_Saturn_global_color_map_original.fits": {
+    "url": "https://atmos.nmsu.edu/PDS/data/PDS4/co_iss_global-maps/data_derived/Cassini_ISS_RGB_Saturn_global_color_map_original.fits",
+    "bytes": 77829120,
+    "sha256": "32a62eca9b82255c7dd763ba0752cee1664ae73d5ec4d5d5260227deecd422af",
+    "retrieved": "2026-09-25"
+  },
+  "gebco-2008-elev/gebco_08_rev_elev_21600x10800.png": {
+    "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73934/gebco_08_rev_elev_21600x10800.png",
+    "bytes": 18414843,
+    "sha256": "4a70590d40dd7b9c69b9ab359d1dc4475ce97c1d2d13625223b248364112c699",
+    "retrieved": "2026-09-25"
+  },
+  "hyg-v44/hyg_v44.csv.gz": {
+    "url": "https://codeberg.org/astronexus/hyg/media/branch/main/data/hyg/CURRENT/hyg_v44.csv.gz",
+    "bytes": 13636362,
+    "sha256": "00b349893b9a53106dd488d8371e8d2fa586043e500bb3cdb8bff3931682197d",
+    "retrieved": "2026-09-25"
+  },
+  "iau-boundaries-vi49/bound_20.dat.gz": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/VI/49/bound_20.dat.gz",
+    "bytes": 121254,
+    "sha256": "879cd6e7a1c908f1e19a5f5fe8cc75fb1d1077564e3890f9152a3680affe9aac",
+    "retrieved": "2026-09-25"
+  },
+  "img-cena/eso1221a.jpg": {
+    "url": "https://cdn.eso.org/images/publicationjpg/eso1221a.jpg",
+    "bytes": 3404178,
+    "sha256": "6c0e4465655cc2524871270fc9d7d323f4c2544cd776bca836d32100c45c8023",
+    "retrieved": "2026-09-25"
+  },
+  "img-ic342/noao0703a.jpg": {
+    "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao0703a.jpg",
+    "bytes": 5313435,
+    "sha256": "ac1b48098088d55eafca34cc26b327fd56f6d424cdba014ae3f589c82726ac16",
+    "retrieved": "2026-09-25"
+  },
+  "img-lmc/magellan-ch17-bardon-cc.jpg": {
+    "url": "https://cdn.eso.org/images/large/magellan-ch17-bardon-cc.jpg",
+    "bytes": 1940137,
+    "sha256": "00f3d456669d20bc73c2eeb555ad9706b7409d06e3783c2c6af395c6ff6c09c5",
+    "retrieved": "2026-09-25"
+  },
+  "img-m101/heic0602a.jpg": {
+    "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0602a.jpg",
+    "bytes": 5824085,
+    "sha256": "dd357e7843fc2d8a3c8050668c9605f61bd9ffd1d731d05b8cc5d5a811c9775d",
+    "retrieved": "2026-09-25"
+  },
+  "img-m104/opo0328a.jpg": {
+    "url": "https://cdn.esahubble.org/archives/images/publicationjpg/opo0328a.jpg",
+    "bytes": 2275620,
+    "sha256": "729b1cb002266cfb84bed3757b992c314fc60767be112714fbc591ae7b1dfbaf",
+    "retrieved": "2026-09-25"
+  },
+  "img-m31/heic1112f.jpg": {
+    "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic1112f.jpg",
+    "bytes": 6419451,
+    "sha256": "b2f56235d2b2df514eba9d7840898e60e8006cdc4cd82412de30367456e811bb",
+    "retrieved": "2026-09-25"
+  },
+  "img-m33/noao-m33_opt.jpg": {
+    "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao-m33_opt.jpg",
+    "bytes": 6718708,
+    "sha256": "fcab1ece9f3571f25342afda095d9849c4bc4e042afb93be64cccb48e0db0084",
+    "retrieved": "2026-09-25"
+  },
+  "img-m51/heic0506a.jpg": {
+    "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0506a.jpg",
+    "bytes": 4060187,
+    "sha256": "7b13a932bcf54653c591d369e8d1c4cbdbeb693ecc468242facb239fde52e4c2",
+    "retrieved": "2026-09-25"
+  },
+  "img-m81/heic0710a.jpg": {
+    "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0710a.jpg",
+    "bytes": 6366363,
+    "sha256": "d76fdccba31e7364c0b5d8c1f721b4226bd6265146ee1dbd3933e8f12278b261",
+    "retrieved": "2026-09-25"
+  },
+  "img-m82/noao-m82final.jpg": {
+    "url": "https://storage.noirlab.edu/media/archives/images/large/noao-m82final.jpg",
+    "bytes": 663859,
+    "sha256": "fe970a2db8deb82ddfa0e849ca4e2dcc6a4601fa4725828ec8f0b3dfc3d439f4",
+    "retrieved": "2026-09-25"
+  },
+  "img-m83/eso0825a.jpg": {
+    "url": "https://cdn.eso.org/images/publicationjpg/eso0825a.jpg",
+    "bytes": 5142000,
+    "sha256": "d4497ee13c373365e510b24412df4507877be2c967645b132011e33c8428b6f9",
+    "retrieved": "2026-09-25"
+  },
+  "img-m87/eso1907b.jpg": {
+    "url": "https://cdn.eso.org/images/large/eso1907b.jpg",
+    "bytes": 541160,
+    "sha256": "65efeac4931f83fd13a8233d2140fd4f234652535963b36e07619a5ef21070c1",
+    "retrieved": "2026-09-25"
+  },
+  "img-ngc253/eso1152a.jpg": {
+    "url": "https://cdn.eso.org/images/publicationjpg/eso1152a.jpg",
+    "bytes": 2194589,
+    "sha256": "52caf079d6876131d598f8ff6a94a099928ac7035eb11453e2e1359a15fa8eeb",
+    "retrieved": "2026-09-25"
+  },
+  "img-ngc6946/noao-ngc6946kpno.jpg": {
+    "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao-ngc6946kpno.jpg",
+    "bytes": 4303609,
+    "sha256": "b12d851e5cd4d8b22f5557c5c19d3b28b29a8084be15d182551ffdc368b8bfea",
+    "retrieved": "2026-09-25"
+  },
+  "img-smc/noirlab2030b.jpg": {
+    "url": "https://storage.noirlab.edu/media/archives/images/large/noirlab2030b.jpg",
+    "bytes": 9987998,
+    "sha256": "64d20570308bb61388272097fa95d9ab1f4dd68689ab908854305f9b2fa0bb57",
+    "retrieved": "2026-09-25"
+  },
+  "lvdb/comb_all.csv": {
+    "url": "https://github.com/apace7/local_volume_database/releases/download/v1.1.1/comb_all.csv",
+    "bytes": 835074,
+    "sha256": "7d2f231646bfee843e549818f9b3332929afd9c14d5eb450d59e051d07dcebd6",
+    "retrieved": "2026-09-25"
+  },
+  "modis-clouds/cloud_combined_8192.tif": {
+    "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57747/cloud_combined_8192.tif",
+    "bytes": 35870468,
+    "sha256": "d137775d8966ab8d443fd5126dc6e7ad72072bc1ed50555c5818d221735daf0f",
+    "retrieved": "2026-09-25"
+  },
+  "mola-megdr-16/megt90n000eb.img": {
+    "url": "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img",
+    "bytes": 33177600,
+    "sha256": "d18d9b9ab8c5516d02e157dd2cde0f1d0d160c21940e953ba22391269a545e7b",
+    "retrieved": "2026-09-25"
+  },
+  "opal-jupiter-2025a/jupiter-2025a-globalmap.tif": {
+    "url": "https://archive.stsci.edu/missions/hlsp/opal/cycle32/jupiter/hlsp_opal_hst_wfc3-uvis_jupiter-2025a_f395n-f502n-f631n_v1_globalmap.tif",
+    "bytes": 19444834,
+    "sha256": "52b6cc32639f699ff5614b169c4c2727fff98e7eb432aff7c718177191716e6c",
+    "retrieved": "2026-09-25"
+  },
+  "pia17214-mimas/PIA17214.tif": {
+    "url": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia17/pia17214/PIA17214.tif",
+    "bytes": 14222264,
+    "sha256": "60c83198b40892c70a1d72250f31a621b8aca62cfbdd5ef3e2b9d188c067a110",
+    "retrieved": "2026-09-25"
+  },
+  "planck-smica/COM_CMB_IQU-smica-nosz_2048_R3.00_full.fits": {
+    "url": "https://irsa.ipac.caltech.edu/data/Planck/release_3/all-sky-maps/maps/component-maps/cmb/COM_CMB_IQU-smica-nosz_2048_R3.00_full.fits",
+    "bytes": 402661440,
+    "sha256": "8dca51299f2b0e53187810db6edead9c369757b519a66fe7c41288fa45b4cd98",
+    "retrieved": "2026-09-25"
+  },
+  "stellarium-modern-iau/index.json": {
+    "url": "https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/modern_iau/index.json",
+    "bytes": 134936,
+    "sha256": "2b7aa4fa2860566ea68aca0c0b087ba815aea38a92d1bb9b3c04b6c0758f726b",
+    "retrieved": "2026-09-25"
+  },
+  "svs-cgi-moon-kit/ldem_16_uint.tif": {
+    "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_16_uint.tif",
+    "bytes": 33201026,
+    "sha256": "45a2b32d56e81ed30db07fead8abc842b249b6511219d9ca2c53f81bc2dc5d62",
+    "retrieved": "2026-09-25"
+  },
+  "svs-cgi-moon-kit/lroc_color_poles_16k.tif": {
+    "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_16k.tif",
+    "bytes": 187004094,
+    "sha256": "dbff4356479764d89f9fd7722140043eddbc2cafbad4dec5950858e2df77ac54",
+    "retrieved": "2026-09-25"
+  },
+  "svs-deep-star-maps-2020/milkyway_2020_8k.exr": {
+    "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/milkyway_2020_8k.exr",
+    "bytes": 137307727,
+    "sha256": "361d1961647af073b3b3e4aea4fca85f15b3c9d915e0c8c4befb02520dadd10a",
+    "retrieved": "2026-09-25"
+  },
+  "ungc/ReadMe": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/ReadMe",
+    "bytes": 23187,
+    "sha256": "cbf378cafcdbf529a98297a8e86cf04a9f2e5e2f55e5f23ab09976591ff18af7",
+    "retrieved": "2026-09-25"
+  },
+  "ungc/table1.dat": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/table1.dat",
+    "bytes": 107589,
+    "sha256": "0d98691e4b04189e0359be7e55e8e9fa6c6d75fe085d833aad4ef5d1e101ce17",
+    "retrieved": "2026-09-25"
+  },
+  "ungc/table2.dat": {
+    "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/table2.dat",
+    "bytes": 107963,
+    "sha256": "5fb2fb2c5aac2fa7bb1e47d8861a57b7d873523f4e0c34b76657084d9bb9cde5",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-callisto/Callisto_Voyager_GalileoSSI_global_mosaic_1km.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Callisto_Voyager_GalileoSSI_global_mosaic_1km.tif",
+    "bytes": 114640717,
+    "sha256": "e1f0bd2e0e05de605d067d6b5f5ededddaf31ca6c064562a1ca770f15a7dbaa3",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-ceres/Ceres_Dawn_FC_DLR_global_20ppd_Oct2015.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Ceres_Dawn_FC_DLR_global_20ppd_Oct2015.tif",
+    "bytes": 27280830,
+    "sha256": "920f65e7d0718c9f8d5e86783f35e0b466096251a8c1f2d01a7748a6d534c154",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-charon/Charon_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Charon_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif",
+    "bytes": 80613890,
+    "sha256": "4a874809e0a33a851cd026b8e4647f5875ed15807e677d413812367509564b00",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-dione/Dione_Cassini_Voyager_mosaic_global_154m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Dione_Cassini_Voyager_mosaic_global_154m.tif",
+    "bytes": 265490551,
+    "sha256": "5c5d796c02e3c99fde5dd034e01dd1f25905699a4885843aed445ded955e08b5",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-enceladus/Enceladus_Cassini_mosaic_global_110m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Enceladus_Cassini_mosaic_global_110m.tif",
+    "bytes": 103759864,
+    "sha256": "c9d29292141dd986e52b2a24b692df34701d1dabaee69bcb9fb64ebc6baba335",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-europa/Europa_Voyager_GalileoSSI_global_mosaic_500m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Europa_Voyager_GalileoSSI_global_mosaic_500m.tif",
+    "bytes": 192777263,
+    "sha256": "a323f0c9ccb47d5af9902ea8297fe81f9a9708795645b80801f103c3f7c9a624",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-ganymede/Ganymede_Voyager_GalileoSSI_Global_ClrMosaic_1435m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Ganymede_Voyager_GalileoSSI_Global_ClrMosaic_1435m.tif",
+    "bytes": 199204541,
+    "sha256": "da47087e75bc530456d8206d5100ad3c687706353700b0cb44a8400957005a33",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-iapetus/Iapetus_Cassini_Voyager_mosaic_global_783m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Iapetus_Cassini_Voyager_mosaic_global_783m.tif",
+    "bytes": 16612487,
+    "sha256": "eb8acdbed3af495102b6ec6d3efce1f03dc6bc39bb43323c23231ce590494d6e",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-io/Io_GalileoSSI-Voyager_Global_Mosaic_ClrMerge_1km.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Io_GalileoSSI-Voyager_Global_Mosaic_ClrMerge_1km.tif",
+    "bytes": 196637696,
+    "sha256": "135f88cb645bfdb4e045b380971ab2ba14e230590c96c9c86cfe7310fda881ac",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-mars-viking-color/Mars_Viking_ClrMosaic_global_925m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Mars_Viking_ClrMosaic_global_925m.tif",
+    "bytes": 797888177,
+    "sha256": "5b3c6bea36cec0ec65b9ce5927db6b1c555c5fae60a227c774f9fcaecdf5bb33",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-mercury-messenger-md3/Mercury_MD3Color_665m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Mercury_MESSENGER_MDIS_Basemap_MD3Color_Mosaic_Global_665m.tif",
+    "bytes": 796539539,
+    "sha256": "1f7af8fe53a02e46d9dca74b68b4eead8a451bf2578845a5a303a695bfd1c666",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-phobos/Phobos_Viking_Mosaic_40ppd_DLRcontrol.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Phobos_Viking_Mosaic_40ppd_DLRcontrol.tif",
+    "bytes": 103738243,
+    "sha256": "d7934d5b209e5f31ed26297e1e85a4713d8d0aa2906111ffe4b3d60d02ae0ccb",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-pluto/Pluto_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Pluto_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif",
+    "bytes": 309806463,
+    "sha256": "592b7fb0f88cafa0bedf9f33bb71e983952a250ee8577edf2abfe814b473356b",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-rhea/Rhea_Cassini_Voyager_mosaic_global_417m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Rhea_Cassini_Voyager_mosaic_global_417m.tif",
+    "bytes": 66401915,
+    "sha256": "ce537c3c93670a0d4ea5a64b99bffb76ff308727eb3eabeee0a38cf9f6f1abc7",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-tethys/Tethys_Cassini_mosaic_global_293m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Tethys_Cassini_mosaic_global_293m.tif",
+    "bytes": 66401923,
+    "sha256": "40723c3ebfaaa52a657827b37309bc84234811db1cf26a21d086e26aba2b3640",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-triton/Triton_Voyager2_ClrMosaic_GlobalFill_600m.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Triton_Voyager2_ClrMosaic_GlobalFill_600m.tif",
+    "bytes": 299994887,
+    "sha256": "f20ed332e85df469725629b81d3a73ad026897fe561ec59d6245d249a09507db",
+    "retrieved": "2026-09-25"
+  },
+  "usgs-vesta/Vesta_Dawn_FC_HAMO_Mosaic_Global_74ppd.tif": {
+    "url": "https://planetarymaps.usgs.gov/mosaic/Vesta_Dawn_FC_HAMO_Mosaic_Global_74ppd.tif",
+    "bytes": 356659263,
+    "sha256": "e7a5dab2924ed590947230e70b11fd42e61e6582f94c01180ddb64b3a9f86ff4",
+    "retrieved": "2026-09-25"
+  }
+}

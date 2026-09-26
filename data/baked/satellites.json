@@ -1,0 +1,859 @@
+{
+  "fits": {
+    "phobos": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.44615138447588687,
+        -0.4059665240016253,
+        0.7975839288252284
+      ],
+      "a_km": 9378.543818872533,
+      "e": 0.015116653520515602,
+      "i_rad": 0.018777500331451858,
+      "node_rad": -71.46311332780618,
+      "node_rate": -0.00760597544241702,
+      "varpi_rad": 68.50122713095705,
+      "varpi_rate": 0.007595389609865574,
+      "lambda_rad": 179920.9492305473,
+      "lambda_rate": 19.702060147116303,
+      "lambda_accel": 1.6447260071861562e-10,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "deimos": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.43218317056989514,
+        -0.408695307918729,
+        0.8038568606172173
+      ],
+      "a_km": 23458.95516847111,
+      "e": 0.00026733459485219147,
+      "i_rad": 0.03124960041994584,
+      "node_rad": -1.3510265565605175,
+      "node_rate": -0.0003174851890825516,
+      "varpi_rad": 0.36598742221924285,
+      "varpi_rate": 0.0003127073846713643,
+      "lambda_rad": 45449.58911914958,
+      "lambda_rate": 4.977013531557252,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "mimas": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.0859519521120686,
+        0.07366973283178838,
+        0.9935718556765875
+      ],
+      "a_km": 186020.2059244596,
+      "e": 0.019593826203587385,
+      "i_rad": 0.027470316855452686,
+      "node_rad": -162.11948136912721,
+      "node_rate": -0.017444287886601545,
+      "varpi_rad": 161.57847456740268,
+      "varpi_rate": 0.01746910224849974,
+      "lambda_rad": 60885.851161284816,
+      "lambda_rate": 6.66706273318815,
+      "lambda_accel": 0,
+      "lib_omega": 0.00023826071799111414,
+      "lib_sin": -0.35902596240606377,
+      "lib_cos": -0.6917229486999359,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "enceladus": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.0859519521120686,
+        0.07366973283178838,
+        0.9935718556765875
+      ],
+      "a_km": 238411.29471319952,
+      "e": 0.0047378520593996535,
+      "i_rad": 0.0006538042918022855,
+      "node_rad": -3.0567005390492126,
+      "node_rate": 0.0000022414914485626183,
+      "varpi_rad": 52.36951570023094,
+      "varpi_rate": 0.005898628907461271,
+      "lambda_rad": 41872.02188797729,
+      "lambda_rate": 4.585536701043376,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "tethys": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.0859519521120686,
+        0.07366973283178838,
+        0.9935718556765875
+      ],
+      "a_km": 294975.2128384867,
+      "e": 0.001023751313626243,
+      "i_rad": 0.019060456356850775,
+      "node_rad": -33.25839758179419,
+      "node_rate": -0.003453243233534425,
+      "varpi_rad": 1705.0583155025179,
+      "varpi_rate": 0.18671619359068312,
+      "lambda_rad": 30394.082360123954,
+      "lambda_rate": 3.328308838663688,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "dione": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.0859519521120686,
+        0.07366973283178838,
+        0.9935718556765875
+      ],
+      "a_km": 377650.4063425858,
+      "e": 0.0021928864454950764,
+      "i_rad": 0.0007536338762944595,
+      "node_rad": 3.322724892910266,
+      "node_rate": -0.000001680866595495798,
+      "varpi_rad": 14.491978041217353,
+      "varpi_rate": 0.0014702852591156992,
+      "lambda_rad": 20965.33721860208,
+      "lambda_rate": 2.295717613719914,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "rhea": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.0859519521120686,
+        0.07366973283178838,
+        0.9935718556765875
+      ],
+      "a_km": 527233.0054670561,
+      "e": 0.0009858723758929533,
+      "i_rad": 0.005762350391790864,
+      "node_rad": -3.701544574491903,
+      "node_rate": -0.0004804468145975725,
+      "varpi_rad": -2.521185605738417,
+      "varpi_rate": 0.000021907372661100294,
+      "lambda_rad": 12700.198906015792,
+      "lambda_rate": 1.3908536773128373,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "titan": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.08413431173127978,
+        0.06202916429068682,
+        0.9945218953682733
+      ],
+      "a_km": 1221947.030256202,
+      "e": 0.02869580969678205,
+      "i_rad": 0.006056621989500671,
+      "node_rad": 0.24428571539047983,
+      "node_rate": -0.000022873692544375663,
+      "varpi_rad": -2.4690572690178922,
+      "varpi_rate": 0.000024726313899628238,
+      "lambda_rad": 3595.1657280025074,
+      "lambda_rate": 0.39404256246346653,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "iapetus": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.06172504344130664,
+        -0.18235878538521647,
+        0.9812926639922451
+      ],
+      "a_km": 3561721.1778125074,
+      "e": 0.028451356603241953,
+      "i_rad": 0.13221048859176418,
+      "node_rad": 1.2650742914271818,
+      "node_rate": -0.000005511538608437364,
+      "varpi_rad": -0.11277649736876448,
+      "varpi_rate": 0.000004726687882984861,
+      "lambda_rad": 720.337669499019,
+      "lambda_rate": 0.07920215647488105,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "ariel": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.2118201387965121,
+        0.9415951790111547,
+        0.2617837803668851
+      ],
+      "a_km": 190945.88565900654,
+      "e": 0.000865165633251023,
+      "i_rad": 0.00022583015847995057,
+      "node_rad": -8.61954949006743,
+      "node_rate": -0.0009707153648291694,
+      "varpi_rad": 3.4655127532290377,
+      "varpi_rate": 0.00039361997044230356,
+      "lambda_rad": 22764.834804190337,
+      "lambda_rate": 2.4929523208526203,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "umbriel": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.2111789816293388,
+        0.941644273836428,
+        0.2621249688012606
+      ],
+      "a_km": 265998.7947117139,
+      "e": 0.003808259639737849,
+      "i_rad": 0.0008013256555013313,
+      "node_rad": -3.9187811947947666,
+      "node_rate": -0.0002682832158217077,
+      "varpi_rad": 0.8310891193465079,
+      "varpi_rate": 0.00014929877294659537,
+      "lambda_rad": 13845.20469364424,
+      "lambda_rate": 1.5161478796705055,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "titania": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.2120984853118928,
+        0.9418221198602882,
+        0.26073996063180227
+      ],
+      "a_km": 436297.6003863743,
+      "e": 0.0016815999860517387,
+      "i_rad": 0.000509428705625482,
+      "node_rad": -2.157573038943918,
+      "node_rate": -0.0002679617005276906,
+      "varpi_rad": -1.8613995861959787,
+      "varpi_rate": 0.00006582044482782963,
+      "lambda_rad": 6590.613329796408,
+      "lambda_rate": 0.7217183418319643,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "oberon": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.21067266986907798,
+        0.9426604288564834,
+        0.2588596956622358
+      ],
+      "a_km": 583517.9889654504,
+      "e": 0.001262284080681575,
+      "i_rad": 0.00047018911449124844,
+      "node_rad": 0.4340317190569129,
+      "node_rate": -0.0002590377175995246,
+      "varpi_rad": -15.261630110324884,
+      "varpi_rate": -0.00005385186072887747,
+      "lambda_rad": 4263.801419045632,
+      "lambda_rate": 0.46669200825863755,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "miranda": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        0.20816456805037076,
+        0.9431574488436859,
+        0.25907824937472557
+      ],
+      "a_km": 129873.48634997883,
+      "e": 0.001354601331171176,
+      "i_rad": 0.07704540344055741,
+      "node_rad": -11.58941754280936,
+      "node_rate": -0.0009692281115307438,
+      "varpi_rad": 11.46257263303654,
+      "varpi_rate": 0.0009571259288604134,
+      "lambda_rad": 40597.95093860709,
+      "lambda_rate": 4.445191211572695,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "triton": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        -0.36287163880511303,
+        0.6336095990046959,
+        -0.6832737736807991
+      ],
+      "a_km": 354766.3704540009,
+      "e": 0.00012638499933712708,
+      "i_rad": 0.3975575617216279,
+      "node_rad": -3.2710454199783343,
+      "node_rate": -0.000025440222003143445,
+      "varpi_rad": 1.5360894235060056,
+      "varpi_rate": 0.0000227491765125714,
+      "lambda_rad": 9765.749910143848,
+      "lambda_rate": 1.0691442664309165,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    },
+    "charon": {
+      "epoch_jd_tdb": 2458850.5,
+      "pole_icrf": [
+        -0.6780591016989976,
+        0.7269149702695133,
+        -0.10876801276671762
+      ],
+      "a_km": 19590.28663927219,
+      "e": 3.69390228609936e-8,
+      "i_rad": 0.000023982428898654743,
+      "node_rad": -2.649402002764443,
+      "node_rate": -0.00026596291831432125,
+      "varpi_rad": 6476.471656578857,
+      "varpi_rate": 0.708027967655006,
+      "lambda_rad": 8988.805001629682,
+      "lambda_rate": 0.9837117340599124,
+      "lambda_accel": 0,
+      "lib_omega": 0,
+      "lib_sin": 0,
+      "lib_cos": 0,
+      "window": [
+        2449718.5,
+        2467980.5
+      ]
+    }
+  },
+  "source": "JPL Solar System Dynamics: Planetary Satellite Mean Elements and Physical Parameters",
+  "urls": [
+    "https://ssd.jpl.nasa.gov/sats/elem/",
+    "https://ssd.jpl.nasa.gov/sats/phys_par/"
+  ],
+  "license": "Public domain (U.S. Government work)",
+  "retrieved": "2026-09-25",
+  "elements": {
+    "phobos": {
+      "naif": 401,
+      "planet": "mars",
+      "name": "Phobos",
+      "ephemeris": "MAR099",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 9375,
+      "e": 0.015,
+      "w_deg": 216.3,
+      "M_deg": 189.7,
+      "i_deg": 1.1,
+      "node_deg": 169.2,
+      "P_days": 0.3187,
+      "Papsis_yr": 1.1,
+      "Pnode_yr": 2.3,
+      "laplace_ra_deg": 317.7,
+      "laplace_dec_deg": 52.9
+    },
+    "deimos": {
+      "naif": 402,
+      "planet": "mars",
+      "name": "Deimos",
+      "ephemeris": "MAR099",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 23457,
+      "e": 0,
+      "w_deg": 0,
+      "M_deg": 205,
+      "i_deg": 1.8,
+      "node_deg": 54.3,
+      "P_days": 1.2625,
+      "Papsis_yr": 0,
+      "Pnode_yr": 56.2,
+      "laplace_ra_deg": 316.6,
+      "laplace_dec_deg": 53.5
+    },
+    "mimas": {
+      "naif": 601,
+      "planet": "saturn",
+      "name": "Mimas",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 186000,
+      "e": 0.02,
+      "w_deg": 160.4,
+      "M_deg": 275.3,
+      "i_deg": 1.6,
+      "node_deg": 66.2,
+      "P_days": 0.942422,
+      "Papsis_yr": 0.493,
+      "Pnode_yr": 0.986,
+      "laplace_ra_deg": 40.6,
+      "laplace_dec_deg": 83.5
+    },
+    "enceladus": {
+      "naif": 602,
+      "planet": "saturn",
+      "name": "Enceladus",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 238400,
+      "e": 0.005,
+      "w_deg": 119.5,
+      "M_deg": 57,
+      "i_deg": 0,
+      "node_deg": 0,
+      "P_days": 1.370218,
+      "Papsis_yr": 2.916,
+      "Pnode_yr": 0,
+      "laplace_ra_deg": 40.6,
+      "laplace_dec_deg": 83.5
+    },
+    "tethys": {
+      "naif": 603,
+      "planet": "saturn",
+      "name": "Tethys",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 295000,
+      "e": 0.001,
+      "w_deg": 335.3,
+      "M_deg": 0,
+      "i_deg": 1.1,
+      "node_deg": 273,
+      "P_days": 1.887802,
+      "Papsis_yr": 0.005,
+      "Pnode_yr": 4.982,
+      "laplace_ra_deg": 40.6,
+      "laplace_dec_deg": 83.5
+    },
+    "dione": {
+      "naif": 604,
+      "planet": "saturn",
+      "name": "Dione",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 377700,
+      "e": 0.002,
+      "w_deg": 116,
+      "M_deg": 212,
+      "i_deg": 0,
+      "node_deg": 0,
+      "P_days": 2.736916,
+      "Papsis_yr": 11.698,
+      "Pnode_yr": 0,
+      "laplace_ra_deg": 40.6,
+      "laplace_dec_deg": 83.5
+    },
+    "rhea": {
+      "naif": 605,
+      "planet": "saturn",
+      "name": "Rhea",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 527200,
+      "e": 0.001,
+      "w_deg": 44.3,
+      "M_deg": 31.5,
+      "i_deg": 0.3,
+      "node_deg": 133.7,
+      "P_days": 4.517503,
+      "Papsis_yr": 33.939,
+      "Pnode_yr": 35.775,
+      "laplace_ra_deg": 40.6,
+      "laplace_dec_deg": 83.5
+    },
+    "titan": {
+      "naif": 606,
+      "planet": "saturn",
+      "name": "Titan",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 1221900,
+      "e": 0.029,
+      "w_deg": 78.3,
+      "M_deg": 11.7,
+      "i_deg": 0.3,
+      "node_deg": 78.6,
+      "P_days": 15.945448,
+      "Papsis_yr": 346.68,
+      "Pnode_yr": 687.37,
+      "laplace_ra_deg": 36.4,
+      "laplace_dec_deg": 84
+    },
+    "iapetus": {
+      "naif": 608,
+      "planet": "saturn",
+      "name": "Iapetus",
+      "ephemeris": "SAT441",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 3561700,
+      "e": 0.028,
+      "w_deg": 254.5,
+      "M_deg": 74.8,
+      "i_deg": 7.6,
+      "node_deg": 86.5,
+      "P_days": 79.331002,
+      "Papsis_yr": 1662.9,
+      "Pnode_yr": 3130.302,
+      "laplace_ra_deg": 288.7,
+      "laplace_dec_deg": 78.9
+    },
+    "ariel": {
+      "naif": 701,
+      "planet": "uranus",
+      "name": "Ariel",
+      "ephemeris": "URA182",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 190929,
+      "e": 0.001,
+      "w_deg": 9.6,
+      "M_deg": 193.5,
+      "i_deg": 0,
+      "node_deg": 0,
+      "P_days": 2.520379,
+      "Papsis_yr": 28.901,
+      "Pnode_yr": 0,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    },
+    "umbriel": {
+      "naif": 702,
+      "planet": "uranus",
+      "name": "Umbriel",
+      "ephemeris": "URA182",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 265986,
+      "e": 0.004,
+      "w_deg": 183.4,
+      "M_deg": 253,
+      "i_deg": 0.1,
+      "node_deg": 174.8,
+      "P_days": 4.144177,
+      "Papsis_yr": 64.126,
+      "Pnode_yr": 129.745,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    },
+    "titania": {
+      "naif": 703,
+      "planet": "uranus",
+      "name": "Titania",
+      "ephemeris": "URA182",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 436298,
+      "e": 0.002,
+      "w_deg": 184,
+      "M_deg": 68.1,
+      "i_deg": 0.1,
+      "node_deg": 29.5,
+      "P_days": 8.705869,
+      "Papsis_yr": 579.928,
+      "Pnode_yr": 1644.649,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    },
+    "oberon": {
+      "naif": 704,
+      "planet": "uranus",
+      "name": "Oberon",
+      "ephemeris": "URA182",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 583511,
+      "e": 0.002,
+      "w_deg": 132.2,
+      "M_deg": 143.6,
+      "i_deg": 0.1,
+      "node_deg": 76.8,
+      "P_days": 13.463237,
+      "Papsis_yr": 158.604,
+      "Pnode_yr": 192.798,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    },
+    "miranda": {
+      "naif": 705,
+      "planet": "uranus",
+      "name": "Miranda",
+      "ephemeris": "URA182",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 129846,
+      "e": 0.001,
+      "w_deg": 154.8,
+      "M_deg": 73,
+      "i_deg": 4.4,
+      "node_deg": 100.9,
+      "P_days": 1.413479,
+      "Papsis_yr": 8.939,
+      "Pnode_yr": 17.787,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    },
+    "triton": {
+      "naif": 801,
+      "planet": "neptune",
+      "name": "Triton",
+      "ephemeris": "NEP097",
+      "frame": "Laplace",
+      "epoch": "2000-01-01.5",
+      "a_km": 354800,
+      "e": 0,
+      "w_deg": 0,
+      "M_deg": 63,
+      "i_deg": 157.3,
+      "node_deg": 178.1,
+      "P_days": 5.876994,
+      "Papsis_yr": 0,
+      "Pnode_yr": 340.379,
+      "laplace_ra_deg": 299.8,
+      "laplace_dec_deg": 43.1
+    },
+    "charon": {
+      "naif": 901,
+      "planet": "pluto",
+      "name": "Charon",
+      "ephemeris": "PLU060",
+      "frame": "equatorial",
+      "epoch": "2000-01-01.5",
+      "a_km": 19600,
+      "e": 0,
+      "w_deg": 0,
+      "M_deg": 304.1,
+      "i_deg": 0,
+      "node_deg": 0,
+      "P_days": 6.387222,
+      "Papsis_yr": null,
+      "Pnode_yr": null,
+      "laplace_ra_deg": null,
+      "laplace_dec_deg": null
+    }
+  },
+  "physical": {
+    "phobos": {
+      "naif": 401,
+      "name": "Phobos",
+      "gm_km3_s2": 0.0007087,
+      "radius_km": 11.08,
+      "density_g_cm3": 1.872
+    },
+    "deimos": {
+      "naif": 402,
+      "name": "Deimos",
+      "gm_km3_s2": 0.0000962,
+      "radius_km": 6.2,
+      "density_g_cm3": 1.471
+    },
+    "io": {
+      "naif": 501,
+      "name": "Io",
+      "gm_km3_s2": 5959.91547,
+      "radius_km": 1821.49,
+      "density_g_cm3": 3.5276
+    },
+    "europa": {
+      "naif": 502,
+      "name": "Europa",
+      "gm_km3_s2": 3202.7121,
+      "radius_km": 1560.8,
+      "density_g_cm3": 3.013
+    },
+    "ganymede": {
+      "naif": 503,
+      "name": "Ganymede",
+      "gm_km3_s2": 9887.83275,
+      "radius_km": 2631.2,
+      "density_g_cm3": 1.9416
+    },
+    "callisto": {
+      "naif": 504,
+      "name": "Callisto",
+      "gm_km3_s2": 7179.2834,
+      "radius_km": 2410.3,
+      "density_g_cm3": 1.834
+    },
+    "mimas": {
+      "naif": 601,
+      "name": "Mimas",
+      "gm_km3_s2": 2.50349,
+      "radius_km": 198.2,
+      "density_g_cm3": 1.1501
+    },
+    "enceladus": {
+      "naif": 602,
+      "name": "Enceladus",
+      "gm_km3_s2": 7.21037,
+      "radius_km": 252.1,
+      "density_g_cm3": 1.6097
+    },
+    "tethys": {
+      "naif": 603,
+      "name": "Tethys",
+      "gm_km3_s2": 41.21353,
+      "radius_km": 531.1,
+      "density_g_cm3": 0.984
+    },
+    "dione": {
+      "naif": 604,
+      "name": "Dione",
+      "gm_km3_s2": 73.11607,
+      "radius_km": 561.4,
+      "density_g_cm3": 1.4781
+    },
+    "rhea": {
+      "naif": 605,
+      "name": "Rhea",
+      "gm_km3_s2": 153.94175,
+      "radius_km": 763.5,
+      "density_g_cm3": 1.2372
+    },
+    "titan": {
+      "naif": 606,
+      "name": "Titan",
+      "gm_km3_s2": 8978.1371,
+      "radius_km": 2574.76,
+      "density_g_cm3": 1.8814
+    },
+    "iapetus": {
+      "naif": 608,
+      "name": "Iapetus",
+      "gm_km3_s2": 120.51511,
+      "radius_km": 734.3,
+      "density_g_cm3": 1.0887
+    },
+    "ariel": {
+      "naif": 701,
+      "name": "Ariel",
+      "gm_km3_s2": 83.5,
+      "radius_km": 578.9,
+      "density_g_cm3": 1.539
+    },
+    "umbriel": {
+      "naif": 702,
+      "name": "Umbriel",
+      "gm_km3_s2": 85.1,
+      "radius_km": 584.7,
+      "density_g_cm3": 1.523
+    },
+    "titania": {
+      "naif": 703,
+      "name": "Titania",
+      "gm_km3_s2": 226.9,
+      "radius_km": 788.9,
+      "density_g_cm3": 1.653
+    },
+    "oberon": {
+      "naif": 704,
+      "name": "Oberon",
+      "gm_km3_s2": 205.3,
+      "radius_km": 761.4,
+      "density_g_cm3": 1.664
+    },
+    "miranda": {
+      "naif": 705,
+      "name": "Miranda",
+      "gm_km3_s2": 4.3,
+      "radius_km": 235.8,
+      "density_g_cm3": 1.178
+    },
+    "triton": {
+      "naif": 801,
+      "name": "Triton",
+      "gm_km3_s2": 1428.49546,
+      "radius_km": 1352.6,
+      "density_g_cm3": 2.0649
+    },
+    "charon": {
+      "naif": 901,
+      "name": "Charon",
+      "gm_km3_s2": 106.1,
+      "radius_km": 606,
+      "density_g_cm3": 1.853
+    }
+  }
+}

@@ -1,0 +1,6 @@
+[project]
+name = "space-exploration-pipeline"
+version = "0.1.0"
+description = "Python steps of the asset pipeline (HEALPix reprojection of the Planck CMB map)"
+requires-python = "==3.12.*"
+dependencies = ["healpy>=1.17", "numpy>=2.0", "astropy>=6.1", "pillow>=10"]

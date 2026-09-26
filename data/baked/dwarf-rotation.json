@@ -1,0 +1,38 @@
+{
+  "source": "JPL SBDB + JPL Horizons",
+  "retrieved": "2026-09-25",
+  "bodies": {
+    "ceres": {
+      "pole_ra_deg": 291.421,
+      "pole_dec_deg": 66.758,
+      "w0_deg": 170.3183185127261,
+      "rate_deg_per_day": 952.1531996865829,
+      "radii_km": [
+        482.2,
+        482.1,
+        445.9
+      ],
+      "gm_km3_s2": 62.6284,
+      "sources": {
+        "pole_period_shape": "JPL SBDB (1 Ceres (A801 AA))",
+        "w0": "Anchored to JPL Horizons IAU sub-observer longitude at J2000"
+      }
+    },
+    "vesta": {
+      "pole_ra_deg": 309.0611,
+      "pole_dec_deg": 42.232386,
+      "w0_deg": 284.64925366599334,
+      "rate_deg_per_day": 1617.3331292052762,
+      "radii_km": [
+        284.62,
+        277.24,
+        226.33
+      ],
+      "gm_km3_s2": 17.2882844,
+      "sources": {
+        "pole_period_shape": "JPL SBDB (4 Vesta (A807 FA))",
+        "w0": "Anchored to JPL Horizons IAU sub-observer longitude at J2000"
+      }
+    }
+  }
+}

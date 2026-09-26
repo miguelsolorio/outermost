@@ -1,0 +1,887 @@
+{
+  "$comment": "Registry of every external source. Facts and assets reference these ids. The credits page is generated from this file. License must be one of: PD, CC0, CC-BY-4.0, CC-BY-SA-4.0, CC-BY-SA-3.0-IGO, MIT, BSD-3, custom-attribution.",
+  "sources": [
+    {
+      "id": "nssdca",
+      "kind": "data",
+      "title": "Planetary Fact Sheets",
+      "publisher": "NASA Space Science Data Coordinated Archive (D. R. Williams, NASA GSFC)",
+      "url": "https://nssdc.gsfc.nasa.gov/planetary/factsheet/",
+      "license": "PD",
+      "credit": "NASA/GSFC NSSDCA"
+    },
+    {
+      "id": "jpl-horizons",
+      "kind": "data",
+      "title": "Horizons On-Line Ephemeris System",
+      "publisher": "NASA/JPL-Caltech Solar System Dynamics",
+      "url": "https://ssd.jpl.nasa.gov/horizons/",
+      "license": "PD",
+      "credit": "JPL Horizons, NASA/JPL-Caltech"
+    },
+    {
+      "id": "celestrak",
+      "kind": "data",
+      "title": "CelesTrak GP element sets (ISS, NORAD 25544)",
+      "publisher": "CelesTrak (T.S. Kelso), from 18th/19th Space Defense Squadron data",
+      "url": "https://celestrak.org/NORAD/elements/",
+      "license": "Free to use with attribution",
+      "credit": "CelesTrak"
+    },
+    {
+      "id": "jpl-sbdb",
+      "kind": "data",
+      "title": "Small-Body Database (SBDB) Query API: osculating orbital elements",
+      "publisher": "NASA/JPL-Caltech Solar System Dynamics",
+      "url": "https://ssd-api.jpl.nasa.gov/doc/sbdb_query.html",
+      "license": "PD",
+      "credit": "JPL Small-Body Database, NASA/JPL-Caltech"
+    },
+    {
+      "id": "astronomy-engine",
+      "kind": "software",
+      "title": "Astronomy Engine",
+      "publisher": "Don Cross",
+      "url": "https://github.com/cosinekitty/astronomy",
+      "license": "MIT",
+      "credit": "Astronomy Engine by Don Cross (MIT License)"
+    },
+    {
+      "id": "wgccre-2015",
+      "kind": "data",
+      "title": "Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements: 2015",
+      "publisher": "Archinal et al. 2018, Celestial Mechanics and Dynamical Astronomy 130:22",
+      "url": "https://doi.org/10.1007/s10569-017-9805-5",
+      "license": "custom-attribution",
+      "credit": "IAU WGCCRE (Archinal et al. 2018)"
+    },
+    {
+      "id": "iau-2012-au",
+      "kind": "data",
+      "title": "IAU 2012 Resolution B2: re-definition of the astronomical unit",
+      "publisher": "International Astronomical Union",
+      "url": "https://www.iau.org/static/resolutions/IAU2012_English.pdf",
+      "license": "custom-attribution",
+      "credit": "IAU"
+    },
+    {
+      "id": "bmng-2004",
+      "kind": "imagery",
+      "title": "Blue Marble: Next Generation (2004 monthly, base)",
+      "publisher": "NASA Earth Observatory (R. Stöckli, NASA GSFC)",
+      "url": "https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/",
+      "license": "PD",
+      "credit": "NASA Earth Observatory, Blue Marble Next Generation (Reto Stöckli)",
+      "files": [
+        {
+          "name": "world.200401.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/january/world.200401.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200402.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/february/world.200402.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200403.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/march/world.200403.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200404.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/april/world.200404.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200405.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/may/world.200405.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200406.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/june/world.200406.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200407.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/july/world.200407.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200408.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/august/world.200408.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200409.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/september/world.200409.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200410.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/october/world.200410.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200411.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/november/world.200411.3x21600x10800.jpg"
+        },
+        {
+          "name": "world.200412.jpg",
+          "url": "https://assets.science.nasa.gov/content/dam/science/esd/eo/images/bmng/bmng-base/december/world.200412.3x21600x10800.jpg"
+        }
+      ]
+    },
+    {
+      "id": "black-marble-2016",
+      "kind": "imagery",
+      "title": "Earth at Night (Black Marble 2016)",
+      "publisher": "NASA Earth Observatory (M. Román, NASA GSFC; Suomi NPP VIIRS)",
+      "url": "https://earthobservatory.nasa.gov/features/NightLights",
+      "license": "PD",
+      "credit": "NASA Earth Observatory, Black Marble 2016 (Suomi NPP VIIRS)",
+      "files": [
+        {
+          "name": "BlackMarble_2016_3km.jpg",
+          "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/144000/144898/BlackMarble_2016_3km.jpg"
+        }
+      ]
+    },
+    {
+      "id": "modis-clouds",
+      "kind": "imagery",
+      "title": "Blue Marble clouds (MODIS, 2002)",
+      "publisher": "NASA Earth Observatory / NASA GSFC MODIS",
+      "url": "https://visibleearth.nasa.gov/images/57747/blue-marble-clouds",
+      "license": "PD",
+      "credit": "NASA Goddard Space Flight Center, MODIS cloud imagery",
+      "files": [
+        {
+          "name": "cloud_combined_8192.tif",
+          "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/57000/57747/cloud_combined_8192.tif"
+        }
+      ]
+    },
+    {
+      "id": "gebco-2008-elev",
+      "kind": "imagery",
+      "title": "Earth topography and bathymetry (GEBCO 08 derived, 21600x10800)",
+      "publisher": "NASA Earth Observatory / GEBCO",
+      "url": "https://visibleearth.nasa.gov/images/73934/topography",
+      "license": "PD",
+      "credit": "NASA Earth Observatory; GEBCO",
+      "files": [
+        {
+          "name": "gebco_08_rev_elev_21600x10800.png",
+          "url": "https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73934/gebco_08_rev_elev_21600x10800.png"
+        }
+      ]
+    },
+    {
+      "id": "svs-cgi-moon-kit",
+      "kind": "imagery",
+      "title": "CGI Moon Kit (LRO LROC WAC color, LOLA elevation)",
+      "publisher": "NASA Scientific Visualization Studio (Ernie Wright); LRO LROC and LOLA teams",
+      "url": "https://svs.gsfc.nasa.gov/4720",
+      "license": "PD",
+      "credit": "NASA's Scientific Visualization Studio; LRO LROC and LOLA",
+      "files": [
+        {
+          "name": "lroc_color_poles_16k.tif",
+          "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_poles_16k.tif"
+        },
+        {
+          "name": "ldem_16_uint.tif",
+          "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_16_uint.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-mars-viking-color",
+      "kind": "imagery",
+      "title": "Mars Viking Colorized Global Mosaic 925m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search/map/mars_viking_global_color_mosaic_925m",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS, Viking Orbiter color mosaic",
+      "files": [
+        {
+          "name": "Mars_Viking_ClrMosaic_global_925m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Mars_Viking_ClrMosaic_global_925m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-mercury-messenger-md3",
+      "kind": "imagery",
+      "title": "Mercury MESSENGER MDIS Basemap MD3 Color Global Mosaic 665m",
+      "publisher": "USGS Astrogeology Science Center; NASA/JHUAPL/Carnegie Institution of Washington",
+      "url": "https://astrogeology.usgs.gov/search/map/mercury_messenger_mdis_basemap_md3_color_global_mosaic_665m",
+      "license": "PD",
+      "credit": "NASA/Johns Hopkins University Applied Physics Laboratory/Carnegie Institution of Washington; USGS",
+      "files": [
+        {
+          "name": "Mercury_MD3Color_665m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Mercury_MESSENGER_MDIS_Basemap_MD3Color_Mosaic_Global_665m.tif"
+        }
+      ]
+    },
+    {
+      "id": "opal-jupiter-2025a",
+      "kind": "imagery",
+      "title": "Outer Planet Atmospheres Legacy (OPAL): Jupiter 2025a global map",
+      "publisher": "Simon, Wong, Orton et al.; Hubble Space Telescope program GO13937; MAST",
+      "url": "https://archive.stsci.edu/hlsp/opal",
+      "license": "CC-BY-4.0",
+      "credit": "NASA, ESA, A. Simon (GSFC), M. H. Wong (UC Berkeley) and the OPAL team (doi:10.17909/T9G593)",
+      "files": [
+        {
+          "name": "jupiter-2025a-globalmap.tif",
+          "url": "https://archive.stsci.edu/missions/hlsp/opal/cycle32/jupiter/hlsp_opal_hst_wfc3-uvis_jupiter-2025a_f395n-f502n-f631n_v1_globalmap.tif"
+        }
+      ]
+    },
+    {
+      "id": "mola-megdr-16",
+      "kind": "data",
+      "title": "MGS MOLA Mission Experiment Gridded Data Record, 16 pixels/degree topography",
+      "publisher": "NASA PDS Geosciences Node; MGS MOLA Science Team (D. E. Smith, M. T. Zuber et al.)",
+      "url": "https://pds-geosciences.wustl.edu/missions/mgs/megdr.html",
+      "license": "PD",
+      "credit": "NASA/JPL/GSFC, MGS MOLA Science Team",
+      "files": [
+        {
+          "name": "megt90n000eb.img",
+          "url": "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img"
+        }
+      ]
+    },
+    {
+      "id": "cassini-iss-saturn-rgb",
+      "kind": "imagery",
+      "title": "Cassini ISS RGB global color map of Saturn (Li et al. 2023)",
+      "publisher": "NASA PDS Atmospheres Node; Cassini Imaging Science Subsystem team",
+      "url": "https://atmos.nmsu.edu/PDS/data/PDS4/co_iss_global-maps/",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute; Li et al. 2023, PDS Atmospheres Node",
+      "files": [
+        {
+          "name": "Cassini_ISS_RGB_Saturn_global_color_map_original.fits",
+          "url": "https://atmos.nmsu.edu/PDS/data/PDS4/co_iss_global-maps/data_derived/Cassini_ISS_RGB_Saturn_global_color_map_original.fits"
+        }
+      ]
+    },
+    {
+      "id": "hyg-v44",
+      "kind": "data",
+      "title": "HYG Stellar Database v4.4 (Hipparcos, Yale Bright Star, Gliese)",
+      "publisher": "David Nash / astronexus",
+      "url": "https://codeberg.org/astronexus/hyg",
+      "license": "CC-BY-SA-4.0",
+      "credit": "HYG Database v4.4 by David Nash (astronexus), CC BY-SA 4.0",
+      "files": [
+        {
+          "name": "hyg_v44.csv.gz",
+          "url": "https://codeberg.org/astronexus/hyg/media/branch/main/data/hyg/CURRENT/hyg_v44.csv.gz"
+        }
+      ]
+    },
+    {
+      "id": "stellarium-modern-iau",
+      "kind": "data",
+      "title": "Stellarium sky culture: Modern (IAU) constellation figures",
+      "publisher": "Stellarium team; figures after IAU / Sky & Telescope (A. MacRobert)",
+      "url": "https://github.com/Stellarium/stellarium/tree/master/skycultures/modern_iau",
+      "license": "CC-BY-SA-4.0",
+      "credit": "Constellation figures: Stellarium (CC BY-SA 4.0), after the IAU and Sky & Telescope",
+      "files": [
+        {
+          "name": "index.json",
+          "url": "https://raw.githubusercontent.com/Stellarium/stellarium/master/skycultures/modern_iau/index.json"
+        }
+      ]
+    },
+    {
+      "id": "iau-boundaries-vi49",
+      "kind": "data",
+      "title": "Catalogue of Constellation Boundary Data (J2000), VizieR VI/49",
+      "publisher": "Davenhall & Leggett 1989 (after Delporte 1930), CDS",
+      "url": "https://cdsarc.cds.unistra.fr/viz-bin/cat/VI/49",
+      "license": "custom-attribution",
+      "credit": "Davenhall & Leggett (1989), CDS VizieR VI/49",
+      "files": [
+        {
+          "name": "bound_20.dat.gz",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/VI/49/bound_20.dat.gz"
+        }
+      ]
+    },
+    {
+      "id": "svs-deep-star-maps-2020",
+      "kind": "imagery",
+      "title": "Deep Star Maps 2020 (Milky Way background, celestial coordinates)",
+      "publisher": "NASA Scientific Visualization Studio (Ernie Wright); Gaia DR2: ESA/Gaia/DPAC",
+      "url": "https://svs.gsfc.nasa.gov/4851",
+      "license": "PD",
+      "credit": "NASA/Goddard Space Flight Center Scientific Visualization Studio. Gaia DR2: ESA/Gaia/DPAC",
+      "files": [
+        {
+          "name": "milkyway_2020_8k.exr",
+          "url": "https://svs.gsfc.nasa.gov/vis/a000000/a004800/a004851/milkyway_2020_8k.exr"
+        }
+      ]
+    },
+    {
+      "id": "athyg-v40",
+      "kind": "data",
+      "title": "AT-HYG v4.0 (Tycho-2 + Gaia DR3), HYG-like subset",
+      "publisher": "David Nash / astronexus; Gaia DR3: ESA/Gaia/DPAC",
+      "url": "https://codeberg.org/astronexus/athyg",
+      "license": "CC-BY-SA-4.0",
+      "credit": "AT-HYG v4.0 by David Nash (astronexus), CC BY-SA 4.0; Gaia DR3 (ESA/Gaia/DPAC)",
+      "files": [
+        {
+          "name": "hyglike_from_athyg_v40.csv.gz",
+          "url": "https://codeberg.org/astronexus/athyg/media/branch/main/data/subsets/hyglike_from_athyg_v40.csv.gz"
+        }
+      ]
+    },
+    {
+      "id": "usgs-io",
+      "kind": "imagery",
+      "title": "Io Galileo SSI / Voyager Global Mosaic (color merge) 1 km",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Galileo SSI and Voyager",
+      "files": [
+        {
+          "name": "Io_GalileoSSI-Voyager_Global_Mosaic_ClrMerge_1km.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Io_GalileoSSI-Voyager_Global_Mosaic_ClrMerge_1km.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-europa",
+      "kind": "imagery",
+      "title": "Europa Voyager / Galileo SSI Global Mosaic 500 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Galileo SSI and Voyager",
+      "files": [
+        {
+          "name": "Europa_Voyager_GalileoSSI_global_mosaic_500m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Europa_Voyager_GalileoSSI_global_mosaic_500m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-ganymede",
+      "kind": "imagery",
+      "title": "Ganymede Voyager / Galileo SSI Global Color Mosaic 1.4 km",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Galileo SSI and Voyager",
+      "files": [
+        {
+          "name": "Ganymede_Voyager_GalileoSSI_Global_ClrMosaic_1435m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Ganymede_Voyager_GalileoSSI_Global_ClrMosaic_1435m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-callisto",
+      "kind": "imagery",
+      "title": "Callisto Voyager / Galileo SSI Global Mosaic 1 km",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Galileo SSI and Voyager",
+      "files": [
+        {
+          "name": "Callisto_Voyager_GalileoSSI_global_mosaic_1km.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Callisto_Voyager_GalileoSSI_global_mosaic_1km.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-enceladus",
+      "kind": "imagery",
+      "title": "Enceladus Cassini ISS Global Mosaic 110 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/USGS",
+      "files": [
+        {
+          "name": "Enceladus_Cassini_mosaic_global_110m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Enceladus_Cassini_mosaic_global_110m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-tethys",
+      "kind": "imagery",
+      "title": "Tethys Cassini Global Mosaic 293 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/USGS",
+      "files": [
+        {
+          "name": "Tethys_Cassini_mosaic_global_293m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Tethys_Cassini_mosaic_global_293m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-dione",
+      "kind": "imagery",
+      "title": "Dione Cassini-Voyager Global Mosaic 154 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/USGS",
+      "files": [
+        {
+          "name": "Dione_Cassini_Voyager_mosaic_global_154m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Dione_Cassini_Voyager_mosaic_global_154m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-rhea",
+      "kind": "imagery",
+      "title": "Rhea Cassini-Voyager Global Mosaic 417 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/USGS",
+      "files": [
+        {
+          "name": "Rhea_Cassini_Voyager_mosaic_global_417m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Rhea_Cassini_Voyager_mosaic_global_417m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-iapetus",
+      "kind": "imagery",
+      "title": "Iapetus Cassini-Voyager Global Mosaic 783 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/USGS",
+      "files": [
+        {
+          "name": "Iapetus_Cassini_Voyager_mosaic_global_783m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Iapetus_Cassini_Voyager_mosaic_global_783m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-triton",
+      "kind": "imagery",
+      "title": "Triton Voyager 2 Color Mosaic (global fill) 600 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Voyager 2 (P. Schenk, LPI)",
+      "files": [
+        {
+          "name": "Triton_Voyager2_ClrMosaic_GlobalFill_600m.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Triton_Voyager2_ClrMosaic_GlobalFill_600m.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-phobos",
+      "kind": "imagery",
+      "title": "Phobos Viking Mosaic 40 ppd (DLR control)",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL/USGS; Viking Orbiter; DLR",
+      "files": [
+        {
+          "name": "Phobos_Viking_Mosaic_40ppd_DLRcontrol.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Phobos_Viking_Mosaic_40ppd_DLRcontrol.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-charon",
+      "kind": "imagery",
+      "title": "Charon New Horizons Global Mosaic 300 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute; USGS",
+      "files": [
+        {
+          "name": "Charon_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Charon_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-pluto",
+      "kind": "imagery",
+      "title": "Pluto New Horizons Global Mosaic 300 m",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/Johns Hopkins University Applied Physics Laboratory/Southwest Research Institute; USGS",
+      "files": [
+        {
+          "name": "Pluto_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Pluto_NewHorizons_Global_Mosaic_300m_Jul2017_8bit.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-ceres",
+      "kind": "imagery",
+      "title": "Ceres Dawn FC Global Mosaic 20 ppd (DLR)",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/UCLA/MPS/DLR/IDA; USGS",
+      "files": [
+        {
+          "name": "Ceres_Dawn_FC_DLR_global_20ppd_Oct2015.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Ceres_Dawn_FC_DLR_global_20ppd_Oct2015.tif"
+        }
+      ]
+    },
+    {
+      "id": "usgs-vesta",
+      "kind": "imagery",
+      "title": "Vesta Dawn FC HAMO Global Mosaic 74 ppd",
+      "publisher": "USGS Astrogeology Science Center",
+      "url": "https://astrogeology.usgs.gov/search",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/UCLA/MPS/DLR/IDA; USGS",
+      "files": [
+        {
+          "name": "Vesta_Dawn_FC_HAMO_Mosaic_Global_74ppd.tif",
+          "url": "https://planetarymaps.usgs.gov/mosaic/Vesta_Dawn_FC_HAMO_Mosaic_Global_74ppd.tif"
+        }
+      ]
+    },
+    {
+      "id": "pia17214-mimas",
+      "kind": "imagery",
+      "title": "Map of Mimas (Cassini, PIA17214)",
+      "publisher": "NASA/JPL-Caltech/Space Science Institute/Lunar and Planetary Institute",
+      "url": "https://photojournal.jpl.nasa.gov/catalog/PIA17214",
+      "license": "PD",
+      "credit": "NASA/JPL-Caltech/Space Science Institute/Lunar and Planetary Institute",
+      "files": [
+        {
+          "name": "PIA17214.tif",
+          "url": "https://assets.science.nasa.gov/content/dam/science/psd/photojournal/pia/pia17/pia17214/PIA17214.tif"
+        }
+      ]
+    },
+    {
+      "id": "lvdb",
+      "kind": "data",
+      "title": "Local Volume Database v1.1.1 (Pace 2025)",
+      "publisher": "A. B. Pace",
+      "url": "https://github.com/apace7/local_volume_database",
+      "license": "CC0",
+      "credit": "Local Volume Database, Pace 2025, OJAp 8, 142 (CC0)",
+      "files": [
+        {
+          "name": "comb_all.csv",
+          "url": "https://github.com/apace7/local_volume_database/releases/download/v1.1.1/comb_all.csv"
+        }
+      ]
+    },
+    {
+      "id": "ungc",
+      "kind": "data",
+      "title": "Updated Nearby Galaxy Catalog (Karachentsev et al. 2013), VizieR J/AJ/145/101",
+      "publisher": "Karachentsev, Makarov & Kaisina 2013, AJ 145, 101; CDS",
+      "url": "https://cdsarc.cds.unistra.fr/viz-bin/cat/J/AJ/145/101",
+      "license": "custom-attribution",
+      "credit": "Karachentsev et al. 2013, AJ 145, 101 (VizieR J/AJ/145/101)",
+      "files": [
+        {
+          "name": "table1.dat",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/table1.dat"
+        },
+        {
+          "name": "table2.dat",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/table2.dat"
+        },
+        {
+          "name": "ReadMe",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/J/AJ/145/101/ReadMe"
+        }
+      ]
+    },
+    {
+      "id": "2mrs",
+      "kind": "data",
+      "title": "2MASS Redshift Survey (Huchra et al. 2012), VizieR J/ApJS/199/26",
+      "publisher": "Huchra et al. 2012, ApJS 199, 26; CDS",
+      "url": "https://cdsarc.cds.unistra.fr/viz-bin/cat/J/ApJS/199/26",
+      "license": "custom-attribution",
+      "credit": "2MASS Redshift Survey, Huchra et al. 2012, ApJS 199, 26",
+      "files": [
+        {
+          "name": "table3.dat.gz",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/199/26/table3.dat.gz"
+        },
+        {
+          "name": "ReadMe",
+          "url": "https://cdsarc.cds.unistra.fr/ftp/J/ApJS/199/26/ReadMe"
+        }
+      ]
+    },
+    {
+      "id": "sdss-dr17",
+      "kind": "data",
+      "title": "Sloan Digital Sky Survey Data Release 17 spectroscopic galaxies and quasars",
+      "publisher": "SDSS-IV Collaboration (Abdurro'uf et al. 2022, ApJS 259, 35)",
+      "url": "https://www.sdss4.org/dr17/",
+      "license": "custom-attribution",
+      "credit": "Funding for the Sloan Digital Sky Survey IV has been provided by the Alfred P. Sloan Foundation, the U.S. Department of Energy Office of Science, and the Participating Institutions. SDSS DR17 (Abdurro'uf et al. 2022)."
+    },
+    {
+      "id": "planck-smica",
+      "kind": "data",
+      "title": "Planck PR3 CMB temperature map (SMICA, no-SZ, Nside 2048)",
+      "publisher": "ESA Planck Collaboration (Planck 2018 results IV, A&A 641, A4); NASA/IPAC IRSA",
+      "url": "https://irsa.ipac.caltech.edu/data/Planck/release_3/all-sky-maps/",
+      "license": "custom-attribution",
+      "credit": "Based on observations obtained with Planck (ESA), an ESA science mission with instruments and contributions directly funded by ESA Member States, NASA, and Canada. Planck 2018 results IV, A&A 641, A4.",
+      "files": [
+        {
+          "name": "COM_CMB_IQU-smica-nosz_2048_R3.00_full.fits",
+          "url": "https://irsa.ipac.caltech.edu/data/Planck/release_3/all-sky-maps/maps/component-maps/cmb/COM_CMB_IQU-smica-nosz_2048_R3.00_full.fits"
+        }
+      ]
+    },
+    {
+      "id": "img-m31",
+      "kind": "imagery",
+      "title": "Wide-field view of the Andromeda Galaxy (heic1112f)",
+      "publisher": "ESA/Hubble & Digitized Sky Survey 2",
+      "url": "https://esahubble.org/images/heic1112f/",
+      "license": "CC-BY-4.0",
+      "credit": "ESA/Hubble & Digitized Sky Survey 2. Acknowledgment: Davide De Martin (ESA/Hubble)",
+      "files": [
+        {
+          "name": "heic1112f.jpg",
+          "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic1112f.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m33",
+      "kind": "imagery",
+      "title": "M33, the Triangulum Galaxy (noao-m33_opt)",
+      "publisher": "T",
+      "url": "https://noirlab.edu/public/images/noao-m33_opt/",
+      "license": "CC-BY-4.0",
+      "credit": "T.A. Rector (NRAO/AUI/NSF and NOIRLab/NSF/AURA) and M. Hanna (NOIRLab/NSF/AURA)",
+      "files": [
+        {
+          "name": "noao-m33_opt.jpg",
+          "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao-m33_opt.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-lmc",
+      "kind": "imagery",
+      "title": "The Large Magellanic Cloud (magellan-ch17-bardon-cc)",
+      "publisher": "Zdeněk Bardon/ESO",
+      "url": "https://www.eso.org/public/images/magellan-ch17-bardon-cc/",
+      "license": "CC-BY-4.0",
+      "credit": "Zdeněk Bardon/ESO",
+      "files": [
+        {
+          "name": "magellan-ch17-bardon-cc.jpg",
+          "url": "https://cdn.eso.org/images/large/magellan-ch17-bardon-cc.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-smc",
+      "kind": "imagery",
+      "title": "The Small Magellanic Cloud from SMASH (noirlab2030b)",
+      "publisher": "CTIO/NOIRLab/NSF/AURA/SMASH/D",
+      "url": "https://noirlab.edu/public/images/noirlab2030b/",
+      "license": "CC-BY-4.0",
+      "credit": "CTIO/NOIRLab/NSF/AURA/SMASH/D. Nidever (Montana State University). Acknowledgment: Image processing: Travis Rector (University of Alaska Anchorage), Mahdi Zamani & Davide de Martin",
+      "files": [
+        {
+          "name": "noirlab2030b.jpg",
+          "url": "https://storage.noirlab.edu/media/archives/images/large/noirlab2030b.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m51",
+      "kind": "imagery",
+      "title": "The Whirlpool Galaxy M51 (heic0506a)",
+      "publisher": "NASA, ESA, S",
+      "url": "https://esahubble.org/images/heic0506a/",
+      "license": "CC-BY-4.0",
+      "credit": "NASA, ESA, S. Beckwith (STScI), and The Hubble Heritage Team (STScI/AURA)",
+      "files": [
+        {
+          "name": "heic0506a.jpg",
+          "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0506a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m101",
+      "kind": "imagery",
+      "title": "The Pinwheel Galaxy M101 (heic0602a)",
+      "publisher": "European Space Agency & NASA",
+      "url": "https://esahubble.org/images/heic0602a/",
+      "license": "CC-BY-4.0",
+      "credit": "European Space Agency & NASA. Acknowledgements: K.D. Kuntz (GSFC), F. Bresolin (University of Hawaii), J. Trauger (JPL), J. Mould (NOAO), Y.-H. Chu (University of Illinois, Urbana); Davide De Martin (ESA/Hubble); CFHT/J.-C. Cuillandre/Coelum; George Jacoby, Bruce Bohannan, Mark Hanna/NOAO/AURA/NSF",
+      "files": [
+        {
+          "name": "heic0602a.jpg",
+          "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0602a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m104",
+      "kind": "imagery",
+      "title": "The Sombrero Galaxy M104 (opo0328a)",
+      "publisher": "NASA/ESA and The Hubble Heritage Team (STScI/AURA)",
+      "url": "https://esahubble.org/images/opo0328a/",
+      "license": "CC-BY-4.0",
+      "credit": "NASA/ESA and The Hubble Heritage Team (STScI/AURA)",
+      "files": [
+        {
+          "name": "opo0328a.jpg",
+          "url": "https://cdn.esahubble.org/archives/images/publicationjpg/opo0328a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m81",
+      "kind": "imagery",
+      "title": "Bode's Galaxy M81 (heic0710a)",
+      "publisher": "NASA, ESA and the Hubble Heritage Team (STScI/AURA)",
+      "url": "https://esahubble.org/images/heic0710a/",
+      "license": "CC-BY-4.0",
+      "credit": "NASA, ESA and the Hubble Heritage Team (STScI/AURA). Acknowledgment: A. Zezas and J. Huchra (Harvard-Smithsonian Center for Astrophysics)",
+      "files": [
+        {
+          "name": "heic0710a.jpg",
+          "url": "https://cdn.esahubble.org/archives/images/publicationjpg/heic0710a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m82",
+      "kind": "imagery",
+      "title": "M82, the Cigar Galaxy (noao-m82final)",
+      "publisher": "KPNO/NOIRLab/NSF/AURA/Steve Peterson/Katy Garmany",
+      "url": "https://noirlab.edu/public/images/noao-m82final/",
+      "license": "CC-BY-4.0",
+      "credit": "KPNO/NOIRLab/NSF/AURA/Steve Peterson/Katy Garmany",
+      "files": [
+        {
+          "name": "noao-m82final.jpg",
+          "url": "https://storage.noirlab.edu/media/archives/images/large/noao-m82final.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-ngc253",
+      "kind": "imagery",
+      "title": "The Sculptor Galaxy NGC 253 (eso1152a)",
+      "publisher": "ESO/INAF-VST",
+      "url": "https://www.eso.org/public/images/eso1152a/",
+      "license": "CC-BY-4.0",
+      "credit": "ESO/INAF-VST. Acknowledgement: A. Grado/L. Limatola/INAF-Capodimonte Observatory",
+      "files": [
+        {
+          "name": "eso1152a.jpg",
+          "url": "https://cdn.eso.org/images/publicationjpg/eso1152a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-cena",
+      "kind": "imagery",
+      "title": "Centaurus A (eso1221a)",
+      "publisher": "ESO",
+      "url": "https://www.eso.org/public/images/eso1221a/",
+      "license": "CC-BY-4.0",
+      "credit": "ESO",
+      "files": [
+        {
+          "name": "eso1221a.jpg",
+          "url": "https://cdn.eso.org/images/publicationjpg/eso1221a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m87",
+      "kind": "imagery",
+      "title": "M87 (eso1907b)",
+      "publisher": "ESO",
+      "url": "https://www.eso.org/public/images/eso1907b/",
+      "license": "CC-BY-4.0",
+      "credit": "ESO",
+      "files": [
+        {
+          "name": "eso1907b.jpg",
+          "url": "https://cdn.eso.org/images/large/eso1907b.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-m83",
+      "kind": "imagery",
+      "title": "The Southern Pinwheel M83 (eso0825a)",
+      "publisher": "ESO",
+      "url": "https://www.eso.org/public/images/eso0825a/",
+      "license": "CC-BY-4.0",
+      "credit": "ESO",
+      "files": [
+        {
+          "name": "eso0825a.jpg",
+          "url": "https://cdn.eso.org/images/publicationjpg/eso0825a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-ic342",
+      "kind": "imagery",
+      "title": "IC 342 (noao0703a)",
+      "publisher": "NOIRLab/NSF/AURA/T",
+      "url": "https://noirlab.edu/public/images/noao0703a/",
+      "license": "CC-BY-4.0",
+      "credit": "NOIRLab/NSF/AURA/T.A. Rector (NSF NOIRLab/University of Alaska Anchorage) & H. Schweiker (WIYN/NSF NOIRLab)",
+      "files": [
+        {
+          "name": "noao0703a.jpg",
+          "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao0703a.jpg"
+        }
+      ]
+    },
+    {
+      "id": "img-ngc6946",
+      "kind": "imagery",
+      "title": "NGC 6946, the Fireworks Galaxy (noao-ngc6946kpno)",
+      "publisher": "KPNO/NOIRLab/NSF/AURA/T",
+      "url": "https://noirlab.edu/public/images/noao-ngc6946kpno/",
+      "license": "CC-BY-4.0",
+      "credit": "KPNO/NOIRLab/NSF/AURA/T.A. Rector (University of Alaska Anchorage)/H. Schweiker (WIYN)",
+      "files": [
+        {
+          "name": "noao-ngc6946kpno.jpg",
+          "url": "https://storage.noirlab.edu/media/archives/images/publicationjpg/noao-ngc6946kpno.jpg"
+        }
+      ]
+    }
+  ]
+}
