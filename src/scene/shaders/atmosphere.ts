@@ -6,6 +6,11 @@
 //   L = π · irradiance · Σ β·P(θ)·T·ds,  with phase functions normalized over 4π.
 //
 // References: Nishita et al. 1993; Bruneton & Neyret 2008 (coefficients).
+//
+// Sunlight at each sample is dimmed by eclipses (a moon's shadow on the air),
+// so eclipseChunk must be included before atmosphereChunk.
+
+import { eclipseChunk } from './eclipse.ts';
 
 export const atmosphereChunk = /* glsl */ `
 uniform bool hasAtmosphere;
@@ -82,25 +87,34 @@ void atmScatter(vec3 o, vec3 d, float tMax, float irr, out vec3 inscatter, out v
   if (t1 <= t0) return;
   const int N = 16;
   float ds = (t1 - t0) / float(N);
+  // Samples in camera-relative meters, for the eclipse test, which is skipped
+  // when no occluder's penumbra comes near this stretch of the ray.
+  vec3 oW = (o - atmCamPos) * 1000.0;
+  float mPerT = 1000.0 / k;
+  bool eclipsed = occluderCount > 0 && eclipseTouches(oW + d * (t0 * mPerT), oW + d * (t1 * mPerT));
   vec2 odView = vec2(0.0);
   vec3 sumR = vec3(0.0);
   vec3 sumM = vec3(0.0);
   vec3 sumMS = vec3(0.0);
   for (int i = 0; i < N; i++) {
-    vec3 p = oS + dS * (t0 + ds * (float(i) + 0.5));
+    float t = t0 + ds * (float(i) + 0.5);
+    vec3 p = oS + dS * t;
     float h = max(length(p) - atmRp, 0.0);
     vec2 dens = vec2(exp(-h / atmHR), exp(-h / atmHM)) * (ds / k);
     odView += dens;
     // Planet shadow on the sun ray.
     vec2 ph = atmRaySphere(p, sS, atmRp);
     if (ph.x > 0.0) continue;
+    // Eclipse shadow on the sun ray (a moon's umbra leaves the air unlit).
+    vec3 sun = eclipsed ? sunVisibility(oW + d * (t * mPerT)).rgb : vec3(1.0);
+    if (max(sun.r, max(sun.g, sun.b)) <= 0.0) continue;
     vec3 Tv = exp(-atmExtinction(odView));
-    vec3 Ts = exp(-atmExtinction(atmSunDepthS(p, sS, kS)));
+    vec3 Ts = exp(-atmExtinction(atmSunDepthS(p, sS, kS))) * sun;
     sumR += dens.x * Tv * Ts;
     sumM += dens.y * Tv * Ts;
     // Sunlight the haze removed on the way in, rescattered (isotropically) as
     // diffuse light: fills the dark base single scattering leaves in an opaque limb.
-    sumMS += (atmBetaR * dens.x + atmBetaM * atmMieTint * dens.y) * Tv * (1.0 - Ts);
+    sumMS += (atmBetaR * dens.x + atmBetaM * atmMieTint * dens.y) * Tv * (sun - Ts);
   }
   float mu = dot(d, atmSunDir);
   float phaseR = 3.0 / (16.0 * PI) * (1.0 + mu * mu);
@@ -127,6 +141,7 @@ export const atmosphereFragment = /* glsl */ `
 #include <common>
 #include <logdepthbuf_pars_fragment>
 uniform float irradiance;
+${eclipseChunk}
 ${atmosphereChunk}
 varying vec3 vPosW;
 void main() {
