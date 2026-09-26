@@ -34,7 +34,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Fact-check and unit tests
         run: npm test
+      - id: pages
+        uses: actions/configure-pages@v5
       - run: npm run build
+        env:
+          # Absolute origin for the og:image and og:url tags in index.html.
+          VITE_SITE_URL: ${{ steps.pages.outputs.base_url }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
