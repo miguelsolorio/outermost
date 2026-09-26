@@ -1,0 +1,427 @@
+{
+  "source": "JPL Horizons System, Solar System Dynamics Group, NASA/JPL-Caltech",
+  "url": "https://ssd.jpl.nasa.gov/horizons/",
+  "license": "Public domain (U.S. Government work)",
+  "retrieved": "2026-09-25",
+  "epochs_jd_ut": [
+    2451545,
+    2455362.75,
+    2458928.5,
+    2461308.5,
+    2464643.25
+  ],
+  "observer": "Earth geocenter (500@399)",
+  "quantities": "14 (Obs sub-lon/lat), 15 (Sun sub-lon/lat)",
+  "bodies": {
+    "sun": {
+      "lonPositive": "east",
+      "lonNote": "atmosphere. Positive longitude is to the EAST for this target. Cartographic",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 1.43319,
+          "obsLat": -3.013791,
+          "sunLon": null,
+          "sunLat": null
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 12.581803,
+          "obsLat": 1.025855,
+          "sunLon": null,
+          "sunLat": null
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 110.387705,
+          "obsLat": -7.040985,
+          "sunLon": null,
+          "sunLat": null
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 13.544445,
+          "obsLat": 6.975263,
+          "sunLon": null,
+          "sunLat": null
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 279.271511,
+          "obsLat": 3.291707,
+          "sunLon": null,
+          "sunLat": null
+        }
+      ]
+    },
+    "moon": {
+      "lonPositive": "east",
+      "lonNote": "longitude is to the EAST for this target. Cartographic system is given in the",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 5.025824,
+          "obsLat": -6.720739,
+          "sunLon": 242.181075,
+          "sunLat": 0.619964
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 358.697305,
+          "obsLat": 2.20259,
+          "sunLon": 141.452454,
+          "sunLat": 0.515353
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 5.269973,
+          "obsLat": 4.009816,
+          "sunLon": 233.686913,
+          "sunLat": -1.552333
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 354.944017,
+          "obsLat": -1.351494,
+          "sunLon": 15.832181,
+          "sunLat": -0.837305
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 353.35051,
+          "obsLat": 3.003963,
+          "sunLon": 43.004354,
+          "sunLat": 1.500275
+        }
+      ]
+    },
+    "mercury": {
+      "lonPositive": "west",
+      "lonNote": "longitude is to the WEST for this target. Cartographic system is given in the",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 247.693887,
+          "obsLat": -3.868321,
+          "sunLon": 265.543855,
+          "sunLat": -0.024349
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 126.204895,
+          "obsLat": 3.507217,
+          "sunLon": 178.015408,
+          "sunLat": -0.006787
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 150.89196,
+          "obsLat": -6.234864,
+          "sunLon": 245.746355,
+          "sunLat": -0.016743
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 130.521385,
+          "obsLat": 4.105242,
+          "sunLon": 81.877256,
+          "sunLat": -0.023147
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 54.736649,
+          "obsLat": -0.047049,
+          "sunLon": 55.177151,
+          "sunLat": -0.011588
+        }
+      ]
+    },
+    "venus": {
+      "lonPositive": "east",
+      "lonNote": "longitude is to the EAST for this target. Cartographic system is given in the",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 258.810154,
+          "obsLat": -1.008679,
+          "sunLon": 199.867252,
+          "sunLat": -2.166709
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 33.67722,
+          "obsLat": -1.986711,
+          "sunLon": 91.872283,
+          "sunLat": -2.253772
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 200.47054,
+          "obsLat": -3.859499,
+          "sunLon": 286.250237,
+          "sunLat": -2.530606
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 297.475478,
+          "obsLat": 7.675254,
+          "sunLon": 64.600514,
+          "sunLat": 2.533322
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 233.706507,
+          "obsLat": 1.746287,
+          "sunLon": 267.968032,
+          "sunLat": 2.012679
+        }
+      ]
+    },
+    "mars": {
+      "lonPositive": "west",
+      "lonNote": "longitude is to the WEST for this target. Cartographic system is given in the",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 69.543497,
+          "obsLat": -23.259282,
+          "sunLon": 35.074453,
+          "sunLat": -25.374217
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 301.187379,
+          "obsLat": 24.301575,
+          "sunLon": 261.92805,
+          "sunLat": 24.564331
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 356.909,
+          "obsLat": -12.189018,
+          "sunLon": 31.336581,
+          "sunLat": 4.657508
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 94.178877,
+          "obsLat": 14.23617,
+          "sunLon": 126.538576,
+          "sunLat": -1.157539
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 356.889971,
+          "obsLat": -25.380943,
+          "sunLon": 318.374814,
+          "sunLat": -21.309452
+        }
+      ]
+    },
+    "jupiter": {
+      "lonPositive": "west",
+      "lonNote": "atmosphere. Positive longitude is to the WEST for this target. Cartographic",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 55.395133,
+          "obsLat": 3.308067,
+          "sunLon": 44.349475,
+          "sunLat": 3.501773
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 46.648106,
+          "obsLat": 2.379631,
+          "sunLon": 58.350508,
+          "sunLat": 1.892178
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 306.273983,
+          "obsLat": -1.757316,
+          "sunLon": 316.441874,
+          "sunLat": -2.040713
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 173.897908,
+          "obsLat": 0.190825,
+          "sunLon": 181.371348,
+          "sunLat": 0.408614
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 257.319912,
+          "obsLat": 3.850825,
+          "sunLon": 256.520504,
+          "sunLat": 3.563763
+        }
+      ]
+    },
+    "saturn": {
+      "lonPositive": "west",
+      "lonNote": "atmosphere. Positive longitude is to the WEST for this target. Cartographic",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 270.867645,
+          "obsLat": -23.025474,
+          "sunLon": 265.511295,
+          "sunLat": -25.015756
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 255.459615,
+          "obsLat": 2.235397,
+          "sunLon": 250.048665,
+          "sunLat": 5.726099
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 53.647252,
+          "obsLat": 25.423383,
+          "sunLon": 58.708077,
+          "sunLat": 27.17561
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 85.324063,
+          "obsLat": -9.529479,
+          "sunLon": 86.417083,
+          "sunLat": -9.265882
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 146.023956,
+          "obsLat": -17.972726,
+          "sunLon": 151.954797,
+          "sunLat": -20.946927
+        }
+      ]
+    },
+    "uranus": {
+      "lonPositive": "east",
+      "lonNote": "atmosphere. Positive longitude is to the EAST for this target. Cartographic",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 265.786212,
+          "obsLat": -33.600879,
+          "sunLon": 266.065049,
+          "sunLat": -31.988235
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 178.010641,
+          "obsLat": 13.190453,
+          "sunLon": 177.612677,
+          "sunLat": 10.211517
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 154.8409,
+          "obsLat": 47.48763,
+          "sunLon": 155.265952,
+          "sunLat": 49.093764
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 264.044353,
+          "obsLat": 76.127578,
+          "sunLon": 259.232023,
+          "sunLat": 73.905056
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 163.163869,
+          "obsLat": 63.233835,
+          "sunLon": 161.453067,
+          "sunLat": 65.536601
+        }
+      ]
+    },
+    "neptune": {
+      "lonPositive": "west",
+      "lonNote": "atmosphere. Positive longitude is to the WEST for this target. Cartographic",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 56.925608,
+          "obsLat": -28.401366,
+          "sunLon": 56.117047,
+          "sunLat": -28.51269
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 289.275228,
+          "obsLat": -28.420052,
+          "sunLon": 291.246711,
+          "sunLat": -28.573924
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 232.468722,
+          "obsLat": -24.269752,
+          "sunLon": 232.863155,
+          "sunLat": -24.332586
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 57.225095,
+          "obsLat": -19.498065,
+          "sunLon": 57.243944,
+          "sunLat": -19.557111
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 284.577798,
+          "obsLat": -11.383743,
+          "sunLon": 283.773364,
+          "sunLat": -11.048843
+        }
+      ]
+    },
+    "pluto": {
+      "lonPositive": "east",
+      "lonNote": "longitude is to the EAST for this target. Cartographic system is given in the",
+      "rows": [
+        {
+          "calendar": "2000-Jan-01 12:00:00.000",
+          "obsLon": 231.413012,
+          "obsLat": 26.286753,
+          "sunLon": 232.078641,
+          "sunLat": 25.54468
+        },
+        {
+          "calendar": "2010-Jun-15 06:00:00.000",
+          "obsLon": 315.859208,
+          "obsLat": 44.810676,
+          "sunLon": 315.870396,
+          "sunLat": 44.445285
+        },
+        {
+          "calendar": "2020-Mar-20 00:00:00.000",
+          "obsLon": 195.208196,
+          "obsLat": 57.496967,
+          "sunLon": 197.246756,
+          "sunLat": 56.453199
+        },
+        {
+          "calendar": "2026-Sep-25 00:00:00.000",
+          "obsLon": 315.562271,
+          "obsLat": 59.388106,
+          "sunLon": 313.158244,
+          "sunLat": 60.05008
+        },
+        {
+          "calendar": "2035-Nov-11 18:00:00.000",
+          "obsLon": 252.755653,
+          "obsLat": 58.8924,
+          "sunLon": 249.865881,
+          "sunLat": 58.870079
+        }
+      ]
+    }
+  }
+}

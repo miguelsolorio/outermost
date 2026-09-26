@@ -1,0 +1,56 @@
+{
+  "source": "JPL Horizons System, Solar System Dynamics Group, NASA/JPL-Caltech",
+  "url": "https://ssd.jpl.nasa.gov/horizons/",
+  "license": "Public domain (U.S. Government work)",
+  "retrieved": "2026-09-25",
+  "epochs_jd_ut": [
+    2451545,
+    2455362.75,
+    2458928.5,
+    2461308.5,
+    2464643.25
+  ],
+  "observer": "Sun center (500@10)",
+  "quantities": "14 (Obs sub-lon/lat = subsolar point)",
+  "earth": {
+    "lonPositive": "east",
+    "lonNote": "longitude is to the EAST for this target.  Units: DEGREES DEGREES",
+    "rows": [
+      {
+        "calendar": "2000-Jan-01 12:00:00.000",
+        "obsLon": 2.869866,
+        "obsLat": -23.171323,
+        "sunLon": 2.863592,
+        "sunLat": -23.171775
+      },
+      {
+        "calendar": "2010-Jun-15 06:00:00.000",
+        "obsLon": 92.221053,
+        "obsLat": 23.444878,
+        "sunLon": 92.214956,
+        "sunLat": 23.444626
+      },
+      {
+        "calendar": "2020-Mar-20 00:00:00.000",
+        "obsLon": 183.948017,
+        "obsLat": -0.063475,
+        "sunLon": 183.942773,
+        "sunLat": -0.065764
+      },
+      {
+        "calendar": "2026-Sep-25 00:00:00.000",
+        "obsLon": 180.052903,
+        "obsLat": -0.782168,
+        "sunLon": 180.047698,
+        "sunLat": -0.779899
+      },
+      {
+        "calendar": "2035-Nov-11 18:00:00.000",
+        "obsLon": 268.066273,
+        "obsLat": -17.621424,
+        "sunLon": 268.060473,
+        "sunLat": -17.619847
+      }
+    ]
+  }
+}
