@@ -201,6 +201,8 @@ export class App {
         this.clock.setRate(r);
         this.clock.setPaused(false);
       },
+      setSpeed: (r) => this.clock.setRate(r),
+      readClock: () => ({ ms: this.clock.ms, rate: this.clock.rate, paused: this.clock.paused }),
       setPaused: (p) => this.clock.setPaused(p),
       setTime: (ms) => this.clock.set(ms),
       now: () => {

@@ -63,7 +63,8 @@
   .hints {
     position: fixed;
     left: 50%;
-    bottom: 86px;
+    /* Clear of the timeline and the landmark name above its date. */
+    bottom: 150px;
     transform: translateX(-50%);
     display: flex;
     gap: 18px;
@@ -108,7 +109,7 @@
       flex-direction: column;
       align-items: flex-start;
       gap: 4px;
-      bottom: 100px;
+      bottom: 150px;
       white-space: normal;
       width: max-content;
       max-width: calc(100vw - 32px);

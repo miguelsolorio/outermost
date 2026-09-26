@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ui } from './state.svelte.ts';
-  import TimeBar from './TimeBar.svelte';
+  import Timeline from './Timeline.svelte';
   import Search from './Search.svelte';
   import Toggles from './Toggles.svelte';
   import InfoCard from './InfoCard.svelte';
@@ -17,7 +17,7 @@
   </div>
 </header>
 
-<TimeBar />
+<Timeline />
 <Hints />
 <CommandPalette />
 

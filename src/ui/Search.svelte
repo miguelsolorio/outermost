@@ -1,7 +1,7 @@
 <script lang="ts">
   import { actions, ui, type SearchEntry } from './state.svelte.ts';
-  import { findMatches } from './searchMatch.ts';
-  import { formatDistanceShort } from '../engine/format.ts';
+  import { findMatches, go, type Match } from './searchMatch.ts';
+  import ResultRow from './ResultRow.svelte';
 
   const LIMIT = 8;
 
@@ -19,9 +19,9 @@
   const matches = $derived(searching ? findMatches(ui.searchIndex, query.trim(), LIMIT) : []);
   const rows = $derived.by(() => {
     void tick;
-    return (searching ? matches : nearest).map((entry) => ({
+    return (searching ? matches : nearest).map((entry: Match) => ({
       entry,
-      dist: entry.diffuse ? null : actions.distanceTo(entry.id),
+      dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id),
     }));
   });
 
@@ -61,7 +61,7 @@
       active = Math.max(0, active - 1);
       e.preventDefault();
     } else if (e.key === 'Enter' && open && rows[active]) {
-      actions.flyTo(rows[active].entry.id);
+      go(rows[active].entry);
     }
   }
 </script>
@@ -118,16 +118,10 @@
                 tabindex="-1"
                 class:active={i === active}
                 class:current={r.entry.id === ui.selectedId}
-                onclick={() => ((active = i), actions.flyTo(r.entry.id))}
+                onclick={() => ((active = i), go(r.entry))}
                 onmouseenter={() => (active = i)}
               >
-                <span class="text">
-                  <span class="name">{r.entry.name}</span>
-                  <span class="kind">{r.entry.detail ?? r.entry.kind}</span>
-                </span>
-                {#if r.dist !== null}
-                  <span class="dist">{formatDistanceShort(r.dist)}</span>
-                {/if}
+                <ResultRow match={r.entry} dist={r.dist} />
               </button>
             </li>
           {/each}
@@ -202,38 +196,6 @@
   }
   li button.active {
     background: var(--hover);
-  }
-  li button.current .name {
-    color: var(--accent);
-  }
-  .text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    line-height: 1.3;
-  }
-  .name,
-  .kind {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .name {
-    font-size: 13px;
-  }
-  .kind {
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .dist {
-    flex-shrink: 0;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  li button.active .dist {
-    color: var(--text);
   }
   .empty {
     padding: 8px;

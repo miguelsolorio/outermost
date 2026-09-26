@@ -2,6 +2,7 @@
 // The engine writes (throttled); components read and call `actions`.
 
 import type { ObjectInfo, SearchEntry } from '../scene/registry.ts';
+import type { Landmark } from '../data/landmarks.ts';
 export type { SearchEntry };
 
 export const ui = $state({
@@ -32,7 +33,12 @@ export const ui = $state({
 });
 
 export interface Actions {
+  /** Set the speed and start playing. */
   setRate(rate: number): void;
+  /** Set the speed or direction without starting or stopping playback. */
+  setSpeed(rate: number): void;
+  /** The clock right now; ui.timeMs is throttled, so the timeline reads this every frame. */
+  readClock(): { ms: number; rate: number; paused: boolean };
   setPaused(p: boolean): void;
   setTime(ms: number): void;
   now(): void;
@@ -48,6 +54,8 @@ export interface Actions {
 
 export const actions: Actions = {
   setRate: () => {},
+  setSpeed: () => {},
+  readClock: () => ({ ms: ui.timeMs, rate: ui.rate, paused: ui.paused }),
   setPaused: () => {},
   setTime: () => {},
   now: () => {},
@@ -62,3 +70,11 @@ export const actions: Actions = {
 export function bindActions(a: Actions): void {
   Object.assign(actions, a);
 }
+
+export const nav = {
+  /** Jump the clock to a landmark, then fly to its object. The timeline swaps in its eased jump when it mounts. */
+  visit(lm: Landmark): void {
+    actions.setTime(lm.ms);
+    actions.flyTo(lm.target);
+  },
+};

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { actions, ui, type SearchEntry } from './state.svelte.ts';
-  import { findMatches } from './searchMatch.ts';
-  import { formatDistanceShort } from '../engine/format.ts';
+  import { findMatches, go as goTo, type Match } from './searchMatch.ts';
+  import ResultRow from './ResultRow.svelte';
 
   // A centered "go to" palette on ⌘K or ⌘⇧P (Ctrl on other platforms), a second way into the same search.
   const LIMIT = 10;
@@ -20,7 +20,7 @@
   const rows = $derived.by(() => {
     void tick;
     const entries = searching ? findMatches(ui.searchIndex, query.trim(), LIMIT) : nearest;
-    return entries.map((entry) => ({ entry, dist: entry.diffuse ? null : actions.distanceTo(entry.id) }));
+    return entries.map((entry: Match) => ({ entry, dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id) }));
   });
 
   $effect(() => {
@@ -46,9 +46,9 @@
     ui.paletteOpen = false;
   }
 
-  function go(id: string) {
+  function go(m: Match) {
     close();
-    actions.flyTo(id);
+    goTo(m);
   }
 
   function move(to: number) {
@@ -59,7 +59,7 @@
   function onKey(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') move(active + 1);
     else if (e.key === 'ArrowUp') move(active - 1);
-    else if (e.key === 'Enter' && !e.isComposing && rows[active]) go(rows[active].entry.id);
+    else if (e.key === 'Enter' && !e.isComposing && rows[active]) go(rows[active].entry);
     else if (e.key === 'Escape') close();
     else return;
     e.preventDefault();
@@ -110,16 +110,10 @@
                   tabindex="-1"
                   class:active={i === active}
                   class:current={r.entry.id === ui.selectedId}
-                  onclick={() => go(r.entry.id)}
+                  onclick={() => go(r.entry)}
                   onmouseenter={() => (active = i)}
                 >
-                  <span class="text">
-                    <span class="name">{r.entry.name}</span>
-                    <span class="kind">{r.entry.detail ?? r.entry.kind}</span>
-                  </span>
-                  {#if r.dist !== null}
-                    <span class="dist">{formatDistanceShort(r.dist)}</span>
-                  {/if}
+                  <ResultRow match={r.entry} dist={r.dist} />
                 </button>
               </li>
             {/each}
@@ -210,38 +204,6 @@
   }
   li button.active {
     background: var(--hover);
-  }
-  li button.current .name {
-    color: var(--accent);
-  }
-  .text {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    line-height: 1.3;
-  }
-  .name,
-  .kind {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .name {
-    font-size: 13.5px;
-  }
-  .kind {
-    color: var(--muted);
-    font-size: 11px;
-  }
-  .dist {
-    flex-shrink: 0;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    font-variant-numeric: tabular-nums;
-  }
-  li button.active .dist {
-    color: var(--text);
   }
   .empty {
     padding: 10px;

@@ -6,6 +6,7 @@ interface AppHandle {
   stars: { catalog: unknown };
   galaxy: { ready: boolean };
   camera: { focusId: string; pose: { position: number[]; r: number } };
+  clock: { ms: number };
   flyTo(id: string): void;
   tick(dt: number): void;
 }
@@ -60,6 +61,22 @@ test('command palette finds Jupiter and flies there', async ({ page }) => {
     for (let i = 0; i < 400; i++) a.tick(1 / 30);
   });
   await expect(page.locator('.focus')).toHaveText('Jupiter');
+});
+
+test('searching an event jumps the clock to it and flies to its object', async ({ page }) => {
+  await page.goto('/#p=1');
+  await ready(page);
+  await page.keyboard.press('ControlOrMeta+K');
+  await page.keyboard.type('apollo 11');
+  await expect(page.getByRole('option').first()).toContainText('Apollo 11 lands on the Moon');
+  await page.keyboard.press('Enter');
+  const landing = Date.parse('1969-07-20T20:17Z');
+  await page.waitForFunction((ms) => Math.abs((window as unknown as { app: AppHandle }).app.clock.ms - ms) < 60_000, landing);
+  await page.evaluate(() => {
+    const a = (window as unknown as { app: AppHandle }).app;
+    for (let i = 0; i < 400; i++) a.tick(1 / 30);
+  });
+  await expect(page.locator('.focus')).toHaveText('Moon');
 });
 
 test('journey: Earth -> observable universe -> Earth keeps a finite, consistent camera', async ({ page }) => {
