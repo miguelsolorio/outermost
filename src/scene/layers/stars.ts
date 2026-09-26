@@ -86,8 +86,9 @@ void main() {
   #include <logdepthbuf_fragment>
   vec2 d = gl_PointCoord - 0.5;
   float r2 = dot(d, d) * 4.0;
-  // Gaussian core plus a faint halo (the eye's point-spread).
-  float psf = exp(-r2 * 7.0) + 0.06 * exp(-r2 * 1.5);
+  // Gaussian core plus a faint halo (the eye's point-spread), windowed to zero
+  // inside the sprite so very bright (size-capped) stars don't show its square.
+  float psf = (exp(-r2 * 7.0) + 0.06 * exp(-r2 * 1.5)) * (1.0 - smoothstep(0.5, 1.0, r2));
   float a = psf * min(vBright, 1.6);
   // Very bright stars saturate to white at the core, like the eye sees them.
   vec3 c = mix(vColor, vec3(1.0), smoothstep(1.0, 8.0, vBright) * exp(-r2 * 7.0));
