@@ -6,6 +6,7 @@ import { length, type Mat3 } from '../../astro/vec.ts';
 import { AU } from '../../astro/units.ts';
 import type { Assets } from '../../engine/assets.ts';
 import { BODIES, meanRadius, type BodyDef } from '../catalog.ts';
+import { ATMO_ID, LOOKS } from '../looks.ts';
 import { createBodySphere } from '../geometry.ts';
 import { planetFragment, planetVertex } from '../shaders/planet.ts';
 import { sunLimbFragment, sunLimbVertex, sunSurfaceFragment, sunSurfaceVertex } from '../shaders/sun.ts';
@@ -134,6 +135,8 @@ export class BodiesLayer {
   private markerPos: Float32Array;
   private markerAlpha: Float32Array;
   private markerIds: string[];
+  /** Wall-clock seconds shared by every animated surface, so it runs while the simulation is paused. */
+  private readonly clock = { value: 0 };
 
   constructor(private assets: Assets) {
     const sphere = createBodySphere();
@@ -145,7 +148,7 @@ export class BodiesLayer {
               fragmentShader: sunSurfaceFragment,
               uniforms: {
                 intensity: { value: 1 },
-                time: { value: 0 },
+                time: this.clock,
                 look: { value: 0 },
                 noiseTex: { value: noiseTexture() },
               },
@@ -251,7 +254,7 @@ export class BodiesLayer {
     this.markerAlpha = new Float32Array(n);
     const colors = new Float32Array(n * 3);
     BODIES.forEach((b, i) => {
-      const c = b.appearance.color;
+      const c = LOOKS[b.id]?.marker ?? b.appearance.color;
       colors.set([srgbToLinear(c[0]), srgbToLinear(c[1]), srgbToLinear(c[2])], i * 3);
     });
     const g = new THREE.BufferGeometry();
@@ -306,6 +309,10 @@ export class BodiesLayer {
   private planetMaterial(def: BodyDef): THREE.ShaderMaterial {
     const sh = def.appearance.shading;
     const tint = def.appearance.tint ?? def.appearance.color;
+    // Planets' enhanced look; moons get the identity defaults.
+    const look = LOOKS[def.id];
+    const jets = look?.jets ?? {};
+    const pole = look?.poleTint ?? [1, 1, 1, 0];
     return new THREE.ShaderMaterial({
       vertexShader: planetVertex,
       fragmentShader: planetFragment,
@@ -369,6 +376,19 @@ export class BodiesLayer {
         ringOuter: { value: 0 },
         ringScale: { value: 1 },
         ringPole: { value: new THREE.Vector3(0, 0, 1) },
+        time: this.clock,
+        noiseTex: { value: noiseTexture() },
+        atmo: { value: ATMO_ID[look?.atmo ?? 'none'] },
+        jetA: { value: new THREE.Vector4(jets.c ?? 0, jets.eq ?? 0, jets.eqWidth ?? 1, jets.polar ?? 0) },
+        jetB: { value: new THREE.Vector2(jets.alt ?? 0, jets.altFreq ?? 0) },
+        flowSpeed: { value: look?.flowSpeed ?? 0 },
+        turbAmp: { value: look?.turbulence ?? 0 },
+        gradeSat: { value: look?.saturation ?? 1 },
+        gradeContrast: { value: look?.contrast ?? 1 },
+        gradeGain: { value: new THREE.Vector3(...(look?.gain ?? [1, 1, 1])) },
+        gradeSharp: { value: look?.sharpen ?? 0 },
+        gradeVivid: { value: look?.vivid ?? 0 },
+        poleTint: { value: new THREE.Vector4(...pole) },
       },
     });
   }
@@ -466,6 +486,7 @@ export class BodiesLayer {
     this.frameNo++;
     const sunRel = rel(world.get('sun').pos, cam);
     const fromSun = Math.max(length(sunRel), 1);
+    this.clock.value += ctx.dt;
 
     BODIES.forEach((def, i) => {
       const st = world.get(def.id);
@@ -499,8 +520,6 @@ export class BodiesLayer {
         const look = THREE.MathUtils.smoothstep(trueAngular, 0.01, 0.12);
         u.look.value = look;
         u.intensity.value = THREE.MathUtils.lerp(6.0, 0.95, look);
-        // Wall-clock time: the surface keeps churning while the simulation is paused.
-        u.time.value += ctx.dt;
         if (v.limb) {
           v.limb.position.copy(v.mesh.position);
           v.limb.quaternion.copy(v.mesh.quaternion);

@@ -9,6 +9,8 @@ Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs
 **Planets and moons**
 - Real-time positions and rotations for the Sun, the planets, 21 major moons, the dwarf planets and Vesta.
 - Surfaces from mission mosaics.
+- Planet colors enhanced in the style of NASA's press images, with moving atmospheres: flowing bands on the giant planets, drifting clouds on Earth and Venus, and Neptune's Great Dark Spot. Info cards mark both as Artistic.
+- The Sun up close in the style of SDO's extreme-ultraviolet images.
 - Earth: monthly Blue Marble imagery streamed down to about 2.4 km per pixel, plus:
   - an atmosphere with single scattering
   - clouds that cast shadows

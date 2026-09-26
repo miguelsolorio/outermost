@@ -4,6 +4,7 @@ import { factsFor } from '../../data/facts.ts';
 import { KPC } from '../../astro/units.ts';
 import type { FocusTarget } from '../../engine/camera/controller.ts';
 import { BODIES, BODY_BY_ID, meanRadius, type BodyDef } from '../catalog.ts';
+import { LOOKS } from '../looks.ts';
 import type { ObjectInfo, Provider, SearchEntry } from '../registry.ts';
 import type { World } from '../world.ts';
 
@@ -67,7 +68,10 @@ export class BodiesProvider implements Provider {
         kind: f.kind,
         source: { name: 'NASA NSSDCA fact sheet', url: f.sourceUrl },
       })),
-      notes: def.appearance.appearanceSource ? [{ text: def.appearance.appearanceSource, kind: def.appearance.appearanceKind ?? 'measured' }] : [],
+      notes: [
+        ...(def.appearance.appearanceSource ? [{ text: def.appearance.appearanceSource, kind: def.appearance.appearanceKind ?? 'measured' }] : []),
+        ...(LOOKS[id] ? [{ text: LOOKS[id].note, kind: 'artistic' as const }] : []),
+      ],
     };
   }
 
