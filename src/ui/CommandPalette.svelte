@@ -152,6 +152,9 @@
       <span><kbd>↑</kbd><kbd>↓</kbd> navigate</span>
       <span><kbd>↵</kbd> fly there</span>
       <span><kbd>esc</kbd> close</span>
+      {#if result}
+        <span class="count">{result.total.toLocaleString()} {result.total === 1 ? 'result' : 'results'}</span>
+      {/if}
     </footer>
   </div>
 {/if}
@@ -250,6 +253,10 @@
     border-top: 1px solid var(--border);
     font-size: 11px;
     color: var(--muted);
+  }
+  .count {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
   }
   kbd {
     display: inline-block;

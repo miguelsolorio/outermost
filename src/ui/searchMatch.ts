@@ -50,7 +50,7 @@ function search(query: string): Match[] {
   return hits.sort((a, b) => a.score + a.item.rank * 0.02 - (b.score + b.item.rank * 0.02)).map((h) => h.item);
 }
 
-export function findMatches(index: SearchEntry[], query: string, limit: number): { matches: Match[]; more: boolean } {
+export function findMatches(index: SearchEntry[], query: string, limit: number): { matches: Match[]; more: boolean; total: number } {
   if (cached?.index !== index) {
     const all: Match[] = [...index, ...EVENTS];
     cached = {
@@ -65,7 +65,7 @@ export function findMatches(index: SearchEntry[], query: string, limit: number):
     cached.query = query;
     cached.sorted = search(query);
   }
-  return { matches: cached.sorted.slice(0, limit), more: cached.sorted.length > limit };
+  return { matches: cached.sorted.slice(0, limit), more: cached.sorted.length > limit, total: cached.sorted.length };
 }
 
 /** Fly to a place, or move the clock to a landmark and fly to its object. */
