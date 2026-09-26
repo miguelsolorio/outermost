@@ -1,12 +1,15 @@
 // When you travel to a catalog star it becomes a real sphere: the estimated
 // radius (from luminosity and B−V temperature) with solar-type limb darkening
 // tinted by its blackbody color. Flagged as "derived/model" in its info card.
+// A screen-facing glare makes it dazzle from afar; up close it tightens into a
+// soft glow spilling off the limb, the way a camera sees a bright disk.
 
 import * as THREE from 'three';
 import { length } from '../../astro/vec.ts';
 import { createBodySphere } from '../geometry.ts';
 import { sunFragment, sunVertex } from '../shaders/sun.ts';
 import { SUN_LIMB } from '../sunLimb.ts';
+import { createGlare, layoutGlare } from '../shaders/glare.ts';
 import { rel, type FrameCtx } from '../frame.ts';
 import type { StarsLayer } from './stars.ts';
 
@@ -33,39 +36,7 @@ export class StarBodyLayer {
     });
     this.mesh = new THREE.Mesh(createBodySphere(128, 64), this.material);
     this.mesh.frustumCulled = false;
-    this.glareMat = new THREE.ShaderMaterial({
-      vertexShader: /* glsl */ `
-        #include <common>
-        #include <logdepthbuf_pars_vertex>
-        varying vec2 vUv;
-        void main() {
-          vUv = uv * 2.0 - 1.0;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-          #include <logdepthbuf_vertex>
-        }`,
-      fragmentShader: /* glsl */ `
-        #include <common>
-        #include <logdepthbuf_pars_fragment>
-        uniform vec3 color;
-        uniform float intensity;
-        uniform float core;
-        varying vec2 vUv;
-        void main() {
-          #include <logdepthbuf_fragment>
-          float r = length(vUv);
-          if (r > 1.0) discard;
-          float x = max(r - core, 0.0) / (1.0 - core);
-          float g = exp(-x * x * 60.0) * 0.8 + exp(-x * 7.0) * 0.18 + (1.0 - x) * 0.02;
-          gl_FragColor = vec4(color * g * intensity, 1.0);
-        }`,
-      uniforms: { color: { value: new THREE.Color(1, 1, 1) }, intensity: { value: 1 }, core: { value: 0.1 } },
-      transparent: true,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    this.glare = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.glareMat);
-    this.glare.frustumCulled = false;
-    this.glare.renderOrder = 20;
+    ({ mesh: this.glare, material: this.glareMat } = createGlare());
     this.group.add(this.mesh, this.glare);
     this.group.visible = false;
   }
@@ -98,15 +69,13 @@ export class StarBodyLayer {
     this.mesh.position.set(p[0], p[1], p[2]);
     this.mesh.scale.setScalar(radius);
     this.material.uniforms.tint.value.set(color[0], color[1], color[2]);
-    // Up close, keep the photosphere below tone-mapping saturation so its color survives.
-    this.material.uniforms.intensity.value = THREE.MathUtils.lerp(6.0, 0.7, THREE.MathUtils.smoothstep(ang, 0.01, 0.12));
-
-    const haloAng = Math.max(ang * 6, 0.03);
     this.glare.position.set(p[0], p[1], p[2]);
     this.glare.quaternion.copy(ctx.camera.quaternion);
-    this.glare.scale.setScalar(Math.tan(haloAng) * d);
-    this.glareMat.uniforms.core.value = Math.min(0.9, ang / haloAng);
+    const close = layoutGlare(this.glare, this.glareMat, radius, d, ang, 0.03);
+    // Up close, keep the photosphere below tone-mapping saturation so its color survives.
+    this.material.uniforms.intensity.value = THREE.MathUtils.lerp(6.0, 0.7, close);
     this.glareMat.uniforms.color.value.setRGB(color[0], color[1], color[2]);
-    this.glareMat.uniforms.intensity.value = 1.6 * (1 - THREE.MathUtils.smoothstep(ang, 0.01, 0.12)) * THREE.MathUtils.smoothstep(px, 0.3, 3);
+    // The glare shrinks into a limb glow about as bright as the limb itself.
+    this.glareMat.uniforms.intensity.value = THREE.MathUtils.lerp(1.6, 0.22, close) * THREE.MathUtils.smoothstep(px, 0.3, 3);
   }
 }
