@@ -6,6 +6,7 @@
   import InfoCard from './InfoCard.svelte';
   import Credits from './Credits.svelte';
   import Hints from './Hints.svelte';
+  import CommandPalette from './CommandPalette.svelte';
 </script>
 
 <header class="topbar">
@@ -18,6 +19,7 @@
 
 <TimeBar />
 <Hints />
+<CommandPalette />
 
 <button class="credit-link" onclick={() => (ui.creditsOpen = true)}><span class="long">Data &amp; imagery: NASA, ESA, JPL, USGS, ESO, NOIRLab, IAU · </span>Credits</button>
 

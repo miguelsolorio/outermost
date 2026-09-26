@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Fuse from 'fuse.js';
   import { actions, ui, type SearchEntry } from './state.svelte.ts';
+  import { findMatches } from './searchMatch.ts';
   import { formatDistanceShort } from '../engine/format.ts';
 
   const LIMIT = 8;
@@ -15,19 +15,8 @@
   let sceneDown: { x: number; y: number } | null = null;
 
   const open = $derived(ui.openMenu === 'search');
-  const fuse = $derived(
-    new Fuse(ui.searchIndex, { keys: [{ name: 'name', weight: 2 }, 'aliases'], threshold: 0.3, includeScore: true }),
-  );
   const searching = $derived(query.trim() !== '');
-  const matches = $derived(
-    searching
-      ? fuse
-          .search(query.trim(), { limit: 20 })
-          .sort((a, b) => (a.score ?? 0) + a.item.rank * 0.02 - ((b.score ?? 0) + b.item.rank * 0.02))
-          .slice(0, LIMIT)
-          .map((r) => r.item)
-      : [],
-  );
+  const matches = $derived(searching ? findMatches(ui.searchIndex, query.trim(), LIMIT) : []);
   const rows = $derived.by(() => {
     void tick;
     return (searching ? matches : nearest).map((entry) => ({

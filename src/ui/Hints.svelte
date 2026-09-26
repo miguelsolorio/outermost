@@ -5,6 +5,7 @@
   const KEY = 'hints-seen-v1';
   let show = $state(false);
   const touch = typeof matchMedia !== 'undefined' && matchMedia('(pointer: coarse)').matches;
+  const mod = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘K' : 'Ctrl K';
 
   const items = touch
     ? [
@@ -15,7 +16,7 @@
     : [
         ['Scroll', 'zoom from Earth to the edge of the universe'],
         ['Drag', 'orbit · Shift-drag to tilt'],
-        ['Double-click', 'fly to anything · / to search'],
+        ['Double-click', `fly to anything · ${mod} to search`],
       ];
 
   function dismiss() {

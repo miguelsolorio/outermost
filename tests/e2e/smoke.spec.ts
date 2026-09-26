@@ -45,6 +45,23 @@ test('search finds Saturn and flies there', async ({ page }) => {
   await expect(page.locator('.focus')).toHaveText('Saturn');
 });
 
+test('command palette finds Jupiter and flies there', async ({ page }) => {
+  await page.goto('/#p=1');
+  await ready(page);
+  await page.keyboard.press('ControlOrMeta+K');
+  const palette = page.getByRole('dialog', { name: 'Go to' });
+  await expect(palette).toBeVisible();
+  await page.keyboard.type('jupiter');
+  await expect(palette.getByRole('option').first()).toContainText('Jupiter');
+  await page.keyboard.press('Enter');
+  await expect(palette).toBeHidden();
+  await page.evaluate(() => {
+    const a = (window as unknown as { app: AppHandle }).app;
+    for (let i = 0; i < 400; i++) a.tick(1 / 30);
+  });
+  await expect(page.locator('.focus')).toHaveText('Jupiter');
+});
+
 test('journey: Earth -> observable universe -> Earth keeps a finite, consistent camera', async ({ page }) => {
   await page.goto('/#f=earth&h=2e7&p=1');
   await ready(page);

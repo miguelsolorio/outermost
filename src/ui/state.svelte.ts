@@ -29,6 +29,8 @@ export const ui = $state({
   soundOn: true,
   /** The open top-right dropdown; they overlap, so only one at a time. */
   openMenu: null as 'search' | 'view' | null,
+  /** The centered ⌘K palette for flying to a place. */
+  paletteOpen: false,
 });
 
 export interface Actions {
