@@ -128,6 +128,7 @@ export class CosmosLayer {
   private cmbFront: THREE.Mesh;
   private cmbMat: THREE.ShaderMaterial;
   private cmbFrontMat: THREE.ShaderMaterial;
+  private cmbRequested = false;
   /** Comoving distance to the last-scattering surface (m). */
   readonly dLs = comovingDistanceMpc(Z_STAR) * MPC;
 
@@ -215,6 +216,10 @@ export class CosmosLayer {
     if (mrs) this.addCloud('2mrs', parseGal(mrs), [1.5, 6, 3000, 9000], 0.9, 2.0, 0.5, 250);
     if (sdss) this.addCloud('sdss', parseGal(sdss), [25, 120, 20000, 60000], 0.55, 1.6, 5, 400);
     if (qso) this.addCloud('qso', parseGal(qso), [250, 1200, 40000, 90000], 0.5, 1.6, 50, 2500);
+  }
+
+  /** The CMB map is large and only seen at cosmological zoom, so it loads on the way out. */
+  private async loadCmb(): Promise<void> {
     const tex = await this.assets.texture('textures/cmb/8192.ktx2').then((t) => t ?? this.assets.texture('textures/cmb/4096.ktx2'));
     if (tex) {
       tex.wrapS = THREE.RepeatWrapping;
@@ -276,6 +281,10 @@ export class CosmosLayer {
     }
     // CMB: shown (in false color) only at cosmological zoom, centered on us.
     const fromSun = length(sunRel);
+    if (!this.cmbRequested && fromSun > 0.01 * this.dLs) {
+      this.cmbRequested = true;
+      void this.loadCmb();
+    }
     const show = THREE.MathUtils.smoothstep(Math.log(fromSun), Math.log(0.15 * this.dLs), Math.log(0.6 * this.dLs));
     const outside = THREE.MathUtils.smoothstep(fromSun, this.dLs * 0.98, this.dLs * 1.15);
     for (const mesh of [this.cmbBack, this.cmbFront]) {
