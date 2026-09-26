@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.cache/
+public/assets/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+.vite/
+tools/pipeline/py/.venv/
+public/vendor/
