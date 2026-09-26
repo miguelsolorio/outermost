@@ -41,3 +41,14 @@ export interface FrameCtx {
 
 /** Camera-relative position as a THREE-friendly tuple (still float64 in JS). */
 export const rel = (p: Vec3, cam: Vec3): Vec3 => [p[0] - cam[0], p[1] - cam[1], p[2] - cam[2]];
+
+/**
+ * Camera-relative position measured from the camera's pivot, exact for a point
+ * at the pivot. Needed where `rel` loses precision: tens of kilometers around
+ * a black hole kiloparsecs from the Sun.
+ */
+export const relPrecise = (p: Vec3, pose: CameraPose): Vec3 => [
+  p[0] - pose.pivot[0] - pose.offset[0],
+  p[1] - pose.pivot[1] - pose.offset[1],
+  p[2] - pose.pivot[2] - pose.offset[2],
+];

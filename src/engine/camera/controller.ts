@@ -82,6 +82,12 @@ interface Flight {
 export interface CameraPose {
   position: Vec3;
   pivot: Vec3;
+  /**
+   * position − pivot, kept exactly. Far from the Sun `position` is rounded to
+   * the float64 grid (≈16 km at 2 kpc), so precise camera-relative positions
+   * near the pivot are (p − pivot) − offset (see `relPrecise`).
+   */
+  offset: Vec3;
   /** Unit vectors in world (EQJ) space. */
   forward: Vec3;
   up: Vec3;
@@ -112,6 +118,7 @@ export class CameraController {
   pose: CameraPose = {
     position: [0, 0, 0],
     pivot: [0, 0, 0],
+    offset: [0, 0, 0],
     forward: [0, 0, -1],
     up: [0, 1, 0],
     right: [1, 0, 0],
@@ -361,7 +368,8 @@ export class CameraController {
     const p0 = this.pivotFor(f.fromChain, f.fromR);
     const p1 = target.pos();
     const sigma = smoothstep(0.15, 0.85, s);
-    const pivot = lerp(p0, p1, sigma);
+    // lerp(p0, p1, 1) is not bit-exact; land exactly on the target.
+    const pivot = sigma >= 1 ? p1 : lerp(p0, p1, sigma);
     const lnR = Math.log(f.fromR) + (Math.log(f.toR) - Math.log(f.fromR)) * s + f.hump * Math.sin(Math.PI * s);
     const r = Math.exp(lnR);
     const dir = normalize(slerp(f.dir0, f.dir1, smoothstep(0, 1, s)));
@@ -381,7 +389,8 @@ export class CameraController {
   }
 
   private composePose(pivot: Vec3, r: number, dir: Vec3, upHint: Vec3, tilt: number): CameraPose {
-    const position = add(pivot, scale(dir, r));
+    const offset = scale(dir, r);
+    const position = add(pivot, offset);
     let forward = scale(dir, -1);
     let right = cross(forward, upHint);
     if (length(right) < 1e-9) right = cross(forward, Math.abs(forward[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]);
@@ -391,7 +400,7 @@ export class CameraController {
       forward = normalize(rotateAxisAngle(forward, right, tilt));
       up = normalize(cross(right, forward));
     }
-    this.pose = { position, pivot, forward, up, right, r };
+    this.pose = { position, pivot, offset, forward, up, right, r };
     return this.pose;
   }
 

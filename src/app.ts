@@ -29,6 +29,8 @@ import { UserLocationLayer } from './scene/layers/userLocation.ts';
 import { Ambient } from './audio/ambient.ts';
 import { CosmosLayer } from './scene/layers/cosmos.ts';
 import { CosmosProvider } from './scene/providers/cosmos.ts';
+import { BlackHolesProvider } from './scene/providers/blackHoles.ts';
+import { BlackHoleLayer } from './scene/layers/blackHoles.ts';
 import { GalaxySpritesLayer } from './scene/layers/galaxySprites.ts';
 import { SunGlareLayer } from './scene/layers/sunGlare.ts';
 import { BodiesProvider } from './scene/providers/bodies.ts';
@@ -56,6 +58,8 @@ export class App {
   readonly spacecraft: SpacecraftLayer;
   readonly cosmos: CosmosLayer;
   readonly cosmosProvider: CosmosProvider;
+  readonly blackHoles: BlackHolesProvider;
+  readonly blackHoleLayer: BlackHoleLayer;
   readonly sprites: GalaxySpritesLayer;
   readonly smallBodies: SmallBodiesLayer;
   readonly audio = new Ambient();
@@ -68,6 +72,8 @@ export class App {
   private uiT = 0;
   private urlT = 0;
   private selected: string | null = null;
+  /** A deep-linked focus whose catalog is still loading; the URL is left alone until it resolves. */
+  private pendingFocus: string | null = null;
   private searchIndex: SearchEntry[] = [];
 
   constructor(
@@ -84,6 +90,8 @@ export class App {
     this.cosmos = new CosmosLayer(this.assets);
     this.sprites = new GalaxySpritesLayer(this.assets, this.cosmos);
     this.cosmosProvider = new CosmosProvider(this.world, this.cosmos, this.sprites);
+    this.blackHoles = new BlackHolesProvider(this.world, (id) => this.registry.target(id), (id) => this.registry.info(id), this.stars);
+    this.blackHoleLayer = new BlackHoleLayer(this.rc.lensing, this.rc.depthMode, this.rc.pixelRatio);
     this.smallBodies = new SmallBodiesLayer(this.assets, this.world);
     this.rc.scene.add(
       this.sky.mesh,
@@ -106,6 +114,7 @@ export class App {
     this.registry.add(new GalaxyProvider(this.world));
     this.registry.add(this.spacecraft);
     this.registry.add(this.cosmosProvider);
+    this.registry.add(this.blackHoles);
     this.registry.add(this.smallBodies);
     this.camera = new CameraController((id) => this.registry.target(id));
     this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
@@ -117,6 +126,7 @@ export class App {
     if (url.paused) this.clock.paused = true;
     this.world.update(this.clock.ms);
     const focus = url.focus && this.registry.target(url.focus) ? url.focus : 'earth';
+    if (url.focus && focus !== url.focus) this.pendingFocus = url.focus;
     this.camera.set(this.chainFor(focus), url.altitude ?? 3.2e7, url.dir ?? this.defaultDir(focus));
 
     attachInput(canvas, this.camera, {
@@ -187,9 +197,7 @@ export class App {
       const cons = await this.assets.json<ConstellationData>('stars/constellations.json');
       if (cons) this.constellations.build(cons, cat);
       this.refreshSearch();
-      // A deep link to a star needs the catalog first.
-      const url = readUrlState();
-      if (url.focus?.startsWith('star-')) this.applyUrl();
+      this.resolvePending();
     }
   }
 
@@ -226,8 +234,17 @@ export class App {
     });
   }
 
+  /** Apply a deep link once its target's catalog has loaded (a star, a galaxy's black hole). */
+  private resolvePending(): void {
+    const f = this.pendingFocus;
+    if (!f || !this.registry.target(f)) return;
+    this.pendingFocus = null;
+    if (!this.camera.flying) this.applyUrl();
+  }
+
   flyTo(id: string): void {
     if (!this.registry.target(id)) return;
+    this.pendingFocus = null;
     this.select(id);
     this.camera.flyTo(id, FOV_DEG * DEG);
   }
@@ -379,7 +396,10 @@ export class App {
     // The focused (or selected) catalog star is drawn as a sphere when close.
     const starId = [this.camera.focusId, this.selected].find((x) => x?.startsWith('star-'));
     const starT = starId ? this.registry.target(starId) : undefined;
-    this.starBody.update(ctx, starId && starT ? Number(starId.slice(5)) : -1, starT?.radius ?? 0);
+    // A black hole's companion star (Cygnus X-1's) is drawn beside it at its published size and temperature.
+    const companion = starT ? null : this.blackHoles.companion(this.camera.focusId);
+    if (companion) this.starBody.update(ctx, companion.index, companion.radius, companion.color);
+    else this.starBody.update(ctx, starId && starT ? Number(starId.slice(5)) : -1, starT?.radius ?? 0);
     this.constellations.update(ctx);
     this.bodies.update(ctx);
     this.orbits.update(ctx);
@@ -387,6 +407,7 @@ export class App {
     this.smallBodies.update(ctx);
     this.glare.update(ctx);
     this.audio.update(pose.r, length(rel(this.world.get('sun').pos, pose.position)));
+    this.blackHoleLayer.update(ctx, this.blackHoles.lenses(ctx));
     this.updateLabels(ctx);
     const earth = this.bodies.visuals.get('earth')!;
     this.userLocation.update(ctx, earth.apparentPx, earth.boost);
@@ -512,6 +533,13 @@ export class App {
       }
     }
 
+    // Black holes: stellar ones once we are out among the stars, supermassive ones inside their galaxy.
+    for (const c of this.blackHoles.labels(ctx)) {
+      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      if (c.alpha < 0.02 && !focused) continue;
+      items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: c.rel, offsetPx: c.offsetPx, kind: 'blackhole', alpha: focused ? 1 : c.alpha, focused });
+    }
+
     // The Galaxy's own label once we can see it from outside.
     {
       const fromSun = length(rel(this.world.get('sun').pos, ctx.cam));
@@ -545,7 +573,9 @@ export class App {
         });
       }
     }
-    this.labels.update(items, ctx.camera, ctx.viewportW, ctx.viewportH, occluders, this.settings.labels);
+    // Behind a black hole, what you see is bent elsewhere: drop labels inside its Einstein ring.
+    const shown = items.filter((it) => it.kind === 'blackhole' || it.focused || !this.blackHoleLayer.hides(it.pos));
+    this.labels.update(shown, ctx.camera, ctx.viewportW, ctx.viewportH, occluders, this.settings.labels);
   }
 
   private syncUi(now: number, dt: number): void {
@@ -558,6 +588,8 @@ export class App {
     }
     if (now - this.uiT > 100) {
       this.uiT = now;
+      // A deep link waits here until its catalog (stars, galaxies) has streamed in.
+      if (this.pendingFocus) this.resolvePending();
       ui.timeMs = this.clock.ms;
       ui.rate = this.clock.rate;
       ui.paused = this.clock.paused;
@@ -579,7 +611,7 @@ export class App {
             ? `Altitude ${formatDistance(alt)} above ${ui.focusName}`
             : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${ui.focusName}`;
     }
-    if (now - this.urlT > 1000 && !this.camera.flying) {
+    if (now - this.urlT > 1000 && !this.camera.flying && !this.pendingFocus) {
       this.urlT = now;
       writeUrlState({
         focus: this.camera.focusId,

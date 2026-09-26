@@ -11,6 +11,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { LensingPass } from './lensingPass.ts';
 
 export type DepthMode = 'reversed' | 'logarithmic';
 
@@ -20,6 +21,8 @@ export interface RenderContext {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   composer: EffectComposer;
+  /** Black hole lensing on the HDR scene; off unless a hole is close enough to bend the view. */
+  lensing: LensingPass;
   bloom: UnrealBloomPass;
   pixelRatio: number;
   resize(): void;
@@ -70,6 +73,8 @@ export function createRenderContext(canvas: HTMLCanvasElement, forceLog = false)
 
   const composer = new EffectComposer(renderer, target);
   composer.addPass(new RenderPass(scene, camera));
+  const lensing = new LensingPass(depthMode === 'reversed');
+  composer.addPass(lensing);
   const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.3, 0.55, 1.6);
   composer.addPass(bloom);
   composer.addPass(new OutputPass());
@@ -80,6 +85,7 @@ export function createRenderContext(canvas: HTMLCanvasElement, forceLog = false)
     scene,
     camera,
     composer,
+    lensing,
     bloom,
     pixelRatio,
     resize() {
