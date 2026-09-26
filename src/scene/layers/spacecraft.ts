@@ -119,6 +119,8 @@ interface CraftVisual {
   line: Line2;
   geo: LineGeometry;
   lastBuildJd: number;
+  /** Craft offset from its center (m) when the trail was built; the trail's vertices are relative to it. */
+  anchor: Vec3;
   pos: Vec3;
   valid: boolean;
 }
@@ -145,7 +147,7 @@ export class SpacecraftLayer implements Provider {
       line.frustumCulled = false;
       line.visible = false;
       this.group.add(line);
-      this.visuals.push({ def, line, geo, lastBuildJd: NaN, pos: [0, 0, 0], valid: false });
+      this.visuals.push({ def, line, geo, lastBuildJd: NaN, anchor: [0, 0, 0], pos: [0, 0, 0], valid: false });
       this.targets.set(def.id, {
         id: def.id,
         radius: 0,
@@ -242,7 +244,10 @@ export class SpacecraftLayer implements Provider {
       if (v.def.sgp4) {
         if (!(Math.abs(jd - v.lastBuildJd) < 20 / 86400)) this.buildOrbit(v, ctx);
       } else if (!(Math.abs(jd - v.lastBuildJd) < 0.5)) this.buildTrail(v, jdTdb, ctx);
-      v.line.position.set(p[0], p[1], p[2]);
+      // Pin the trail where it was built rather than to the moving craft, so it
+      // stays put between rebuilds instead of sliding along and snapping back.
+      const a = rel([center[0] + v.anchor[0], center[1] + v.anchor[1], center[2] + v.anchor[2]], ctx.cam);
+      v.line.position.set(a[0], a[1], a[2]);
       // Like planetary orbits, a trail only shows at its own scale (or when the
       // craft is in focus), so paths don't streak across a close planet view.
       const focused = ctx.focusId === v.def.id || ctx.selectedId === v.def.id;
@@ -275,6 +280,7 @@ export class SpacecraftLayer implements Provider {
     v.geo = new LineGeometry();
     v.geo.setPositions(pts);
     v.line.geometry = v.geo;
+    v.anchor = [now[0] * 1e3, now[1] * 1e3, now[2] * 1e3];
     v.lastBuildJd = JD(ms);
   }
 
@@ -334,6 +340,7 @@ export class SpacecraftLayer implements Provider {
       v.geo = new LineGeometry();
       v.geo.setPositions(pts);
       v.line.geometry = v.geo;
+      v.anchor = [now.pos[0] * 1e3, now.pos[1] * 1e3, now.pos[2] * 1e3];
     }
     v.lastBuildJd = JD(ctx.world.ms);
   }
