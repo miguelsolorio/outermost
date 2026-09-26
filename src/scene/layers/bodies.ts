@@ -91,11 +91,15 @@ export function monthPair(ms: number): { a: string; b: string; t: number } {
   return { a: pad(i), b: pad(i + 1), t: mf - i };
 }
 
-/** Atmosphere uniforms, shared by reference between the planet and its shell. */
-function atmosphereUniforms(a: AtmosphereParams, radiusM: number, planet: THREE.ShaderMaterial): Record<string, THREE.IUniform> {
+/**
+ * Atmosphere uniforms, shared by reference between the planet and its shell.
+ * The atmosphere is traced around the equatorial radius; `atmShape` maps the
+ * oblate planet onto that sphere.
+ */
+function atmosphereUniforms(a: AtmosphereParams, equatorialM: number, planet: THREE.ShaderMaterial): Record<string, THREE.IUniform> {
   const u = planet.uniforms;
-  u.atmRp.value = radiusM / 1000;
-  u.atmRa.value = radiusM / 1000 + a.top;
+  u.atmRp.value = equatorialM / 1000;
+  u.atmRa.value = equatorialM / 1000 + a.top;
   u.atmBetaR.value.set(...a.betaR);
   u.atmBetaM.value = a.betaM;
   u.atmMieTint.value.set(...a.mieTint);
@@ -104,7 +108,8 @@ function atmosphereUniforms(a: AtmosphereParams, radiusM: number, planet: THREE.
   u.atmHM.value = a.HM;
   u.atmG.value = a.g;
   u.atmAbsorb.value.set(...a.absorb);
-  const keys = ['hasAtmosphere', 'atmCamPos', 'atmSunDir', 'atmRp', 'atmRa', 'atmBetaR', 'atmBetaM', 'atmMieTint', 'atmMieExt', 'atmHR', 'atmHM', 'atmG', 'atmAbsorb'];
+  u.atmMS.value = a.multiScatter ?? 0;
+  const keys = ['hasAtmosphere', 'atmCamPos', 'atmSunDir', 'atmShape', 'atmMS', 'atmRp', 'atmRa', 'atmBetaR', 'atmBetaM', 'atmMieTint', 'atmMieExt', 'atmHR', 'atmHM', 'atmG', 'atmAbsorb'];
   return Object.fromEntries(keys.map((k) => [k, u[k]]));
 }
 
@@ -148,7 +153,7 @@ export class BodiesLayer {
           new THREE.ShaderMaterial({
             vertexShader: atmosphereVertex,
             fragmentShader: atmosphereFragment,
-            uniforms: { irradiance: material.uniforms.irradiance, ...atmosphereUniforms(atm, meanRadius(def), material) },
+            uniforms: { irradiance: material.uniforms.irradiance, ...atmosphereUniforms(atm, def.radii[0], material) },
             side: THREE.BackSide,
             transparent: true,
             depthWrite: false,
@@ -304,6 +309,8 @@ export class BodiesLayer {
         hasAtmosphere: { value: false },
         atmCamPos: { value: new THREE.Vector3() },
         atmSunDir: { value: new THREE.Vector3(1, 0, 0) },
+        atmShape: { value: new THREE.Matrix3() },
+        atmMS: { value: 0 },
         atmRp: { value: 1 },
         atmRa: { value: 1 },
         atmBetaR: { value: new THREE.Vector3() },
@@ -463,7 +470,7 @@ export class BodiesLayer {
             if (!os.valid) continue;
             const op = rel(os.pos, cam);
             u.occluders.value[n].set(op[0], op[1], op[2], meanRadius(o));
-            u.occluderRed.value[n] = o.appearance.atmosphere ? 1 : 0;
+            u.occluderRed.value[n] = o.appearance.atmosphere?.redUmbra ? 1 : 0;
             n++;
           }
         }
@@ -474,9 +481,21 @@ export class BodiesLayer {
         const km = 0.001;
         u.atmCamPos.value.set(-p[0] * km, -p[1] * km, -p[2] * km);
         u.atmSunDir.value.set(sunRel[0] - p[0], sunRel[1] - p[1], sunRel[2] - p[2]).normalize();
-        const top = (meanRadius(def) / 1000 + def.appearance.atmosphere.top) * 1000 * radiusScale;
+        // Stretch along the pole (world axes) so the oblate planet becomes a sphere:
+        // I + (a/c − 1)·p·pᵀ, with p the pole direction.
+        const m = st.orient;
+        const f = def.radii[0] / def.radii[2] - 1;
+        const [px, py, pz] = [m[2], m[5], m[8]];
+        u.atmShape.value.set(
+          1 + f * px * px, f * px * py, f * px * pz,
+          f * py * px, 1 + f * py * py, f * py * pz,
+          f * pz * px, f * pz * py, 1 + f * pz * pz,
+        );
+        // The shell: the top of the atmosphere over the equator, flattened like the planet.
+        const top = (def.radii[0] / 1000 + def.appearance.atmosphere.top) * 1000 * radiusScale;
         v.atmosphere.position.copy(v.mesh.position);
-        v.atmosphere.scale.setScalar(top);
+        v.atmosphere.quaternion.copy(v.mesh.quaternion);
+        v.atmosphere.scale.set(top, top, (top * def.radii[2]) / def.radii[0]);
         // The shell and ground scattering only matter once the disk is a few pixels wide.
         v.atmosphere.visible = v.mesh.visible && v.apparentPx > 2 && radiusScale < 1.01;
         u.hasAtmosphere.value = v.atmosphere.visible && def.appearance.atmosphere.surface !== false;

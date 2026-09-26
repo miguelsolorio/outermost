@@ -10,7 +10,17 @@ import type { FittedElements } from '../astro/satellites.ts';
 import type { EphemerisModel } from '../astro/ephemeris.ts';
 import type { OrientationModel } from '../astro/orientation.ts';
 import { AU } from '../astro/units.ts';
-import { EARTH_ATMOSPHERE, MARS_ATMOSPHERE, type AtmosphereParams } from './shaders/atmosphere.ts';
+import {
+  EARTH_ATMOSPHERE,
+  JUPITER_ATMOSPHERE,
+  MARS_ATMOSPHERE,
+  NEPTUNE_ATMOSPHERE,
+  SATURN_ATMOSPHERE,
+  TITAN_ATMOSPHERE,
+  URANUS_ATMOSPHERE,
+  VENUS_ATMOSPHERE,
+  type AtmosphereParams,
+} from './shaders/atmosphere.ts';
 
 export type BodyKind = 'star' | 'planet' | 'dwarf-planet' | 'moon';
 
@@ -126,7 +136,8 @@ export const BODIES: BodyDef[] = [
     shading: { type: 'minnaert', k: 0.85 },
     color: [0xda / 255, 0xd8 / 255, 0xd2 / 255],
     tint: [0xda / 255, 0xd8 / 255, 0xd2 / 255],
-    appearanceSource: 'Featureless cloud deck (Limaye et al. 2018); color from Mallama et al. 2017 photometry.',
+    appearanceSource: 'Featureless cloud deck (Limaye et al. 2018); color from Mallama et al. 2017 photometry. Limb haze: single-scattering model with approximate haze properties.',
+    atmosphere: VENUS_ATMOSPHERE,
   }),
   planet('earth', 'Earth', A.Body.Earth, {
     texture: 'earth',
@@ -151,7 +162,8 @@ export const BODIES: BodyDef[] = [
     // Minnaert k = 1.0 over the disk (Binder & McCarthy 1973).
     shading: { type: 'minnaert', k: 1.0 },
     color: [0xc1 / 255, 0xc1 / 255, 0xb2 / 255],
-    appearanceSource: 'Hubble OPAL global map, 11-12 Dec 2025 (Simon, Wong et al.). Clouds drift; this is a snapshot.',
+    appearanceSource: 'Hubble OPAL global map, 11-12 Dec 2025 (Simon, Wong et al.). Clouds drift; this is a snapshot. Limb haze: single-scattering model with approximate haze properties.',
+    atmosphere: JUPITER_ATMOSPHERE,
   }),
   planet('saturn', 'Saturn', A.Body.Saturn, {
     texture: 'saturn',
@@ -159,7 +171,8 @@ export const BODIES: BodyDef[] = [
     // Minnaert k = 0.75-0.90 by latitude (Binder & McCarthy 1973).
     shading: { type: 'minnaert', k: 0.85 },
     color: [0xc5 / 255, 0xb9 / 255, 0x9b / 255],
-    appearanceSource: 'Cassini ISS RGB global map, 11 Aug 2011 (Li et al. 2023); south polar cap (no data) filled.',
+    appearanceSource: 'Cassini ISS RGB global map, 11 Aug 2011 (Li et al. 2023); south polar cap (no data) filled. Limb haze: single-scattering model with approximate haze properties.',
+    atmosphere: SATURN_ATMOSPHERE,
   }),
   planet('uranus', 'Uranus', A.Body.Uranus, {
     texture: null,
@@ -169,7 +182,8 @@ export const BODIES: BodyDef[] = [
     shading: { type: 'minnaert', k: 0.78 },
     color: [0x9b / 255, 0xc3 / 255, 0xca / 255],
     tint: [0x9b / 255, 0xc3 / 255, 0xca / 255],
-    appearanceSource: 'True color per Irwin et al. 2024 (MNRAS 527, 11521); albedo color from Karkoschka spectra.',
+    appearanceSource: 'True color per Irwin et al. 2024 (MNRAS 527, 11521); albedo color from Karkoschka spectra. Limb haze: single-scattering model with approximate haze properties.',
+    atmosphere: URANUS_ATMOSPHERE,
   }),
   planet('neptune', 'Neptune', A.Body.Neptune, {
     texture: null,
@@ -179,7 +193,8 @@ export const BODIES: BodyDef[] = [
     shading: { type: 'minnaert', k: 0.78 },
     color: [0x87 / 255, 0xb7 / 255, 0xcb / 255],
     tint: [0x87 / 255, 0xb7 / 255, 0xcb / 255],
-    appearanceSource: 'True color per Irwin et al. 2024: similar to Uranus, not the deep blue of enhanced Voyager images.',
+    appearanceSource: 'True color per Irwin et al. 2024: similar to Uranus, not the deep blue of enhanced Voyager images. Limb haze: single-scattering model with approximate haze properties.',
+    atmosphere: NEPTUNE_ATMOSPHERE,
   }),
   planet(
     'pluto',
@@ -315,6 +330,7 @@ interface MoonSpec {
   textureWidth?: number;
   L?: number;
   note?: string;
+  atmosphere?: AtmosphereParams;
 }
 
 const GALILEAN = new Set(['io', 'europa', 'ganymede', 'callisto']);
@@ -334,7 +350,7 @@ const MOON_SPECS: MoonSpec[] = [
   { id: 'dione', name: 'Dione', parent: 'saturn', color: [0.8, 0.79, 0.77], texture: 'dione', textureWidth: 8192, note: 'Cassini and Voyager global mosaic (USGS), grayscale.' },
   { id: 'rhea', name: 'Rhea', parent: 'saturn', color: [0.78, 0.77, 0.75], texture: 'rhea', textureWidth: 8192, note: 'Cassini and Voyager global mosaic (USGS), grayscale.' },
   // Titan in visible light is an opaque orange haze; color from Karkoschka 1995 spectrum (derived #917E5F).
-  { id: 'titan', name: 'Titan', parent: 'saturn', color: [0x91 / 255, 0x7e / 255, 0x5f / 255], note: 'Visible-light appearance: opaque orange haze (Karkoschka 1995 albedo spectrum, derived color).' },
+  { id: 'titan', name: 'Titan', parent: 'saturn', color: [0x91 / 255, 0x7e / 255, 0x5f / 255], note: 'Visible-light appearance: opaque orange haze (Karkoschka 1995 albedo spectrum, derived color). Limb haze: single-scattering model with an approximate haze profile.', atmosphere: TITAN_ATMOSPHERE },
   { id: 'iapetus', name: 'Iapetus', parent: 'saturn', color: [0.5, 0.46, 0.4], texture: 'iapetus', textureWidth: 4096, note: 'Cassini and Voyager global mosaic (USGS), grayscale: note the dark leading hemisphere.' },
   { id: 'miranda', name: 'Miranda', parent: 'uranus', color: [0.55, 0.55, 0.55] },
   { id: 'ariel', name: 'Ariel', parent: 'uranus', color: [0.6, 0.6, 0.6] },
@@ -380,6 +396,7 @@ function moonDef(m: MoonSpec): BodyDef {
       shading: { type: 'lunar', L: m.L ?? 0.6 },
       color: m.color,
       tint: m.color,
+      atmosphere: m.atmosphere,
       appearanceSource: m.note,
     },
     moonPhys: { radius_km: phys.radius_km, gm_km3_s2: phys.gm_km3_s2, density_g_cm3: (phys as unknown as { density_g_cm3: number }).density_g_cm3 },
