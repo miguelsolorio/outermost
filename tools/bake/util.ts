@@ -23,7 +23,7 @@ export async function fetchText(url: string, { cache = true } = {}): Promise<str
   }
   for (let attempt = 1; ; attempt++) {
     try {
-      const res = await fetch(url, { headers: { 'User-Agent': 'space-exploration-bake/0.1' } });
+      const res = await fetch(url, { headers: { 'User-Agent': 'outermost-bake/0.1' } });
       if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
       const buf = Buffer.from(await res.arrayBuffer());
       // NSSDCA pages are latin-1; decode bytes > 127 accordingly when not valid UTF-8.

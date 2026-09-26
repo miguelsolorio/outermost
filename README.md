@@ -1,4 +1,4 @@
-# Space Exploration
+# Outermost
 
 An objective-free exploration of the observable universe in the browser, at true scale and with real positions. You can scroll from a regional, Google-Earth-style view of Earth out through the solar system, the nearby stars, the Milky Way seen from outside, the Local Group and the cosmic web, to the cosmic microwave background at the edge of what we can observe.
 
