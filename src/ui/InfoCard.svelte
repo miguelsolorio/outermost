@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import { actions, ui } from './state.svelte.ts';
+  import { ui } from './state.svelte.ts';
 
   // The title doubles as the card's header: hover to peek at the facts, click to keep them open.
   let pinned = $state(false);
@@ -30,21 +30,38 @@
 />
 
 <div class="where" class:open class:pinned role="group" onmouseenter={() => (hovering = true)} onmouseleave={() => (hovering = false)}>
-  <button class="title" onclick={toggle} disabled={!card} aria-expanded={open} aria-controls="facts" title={pinned ? 'Hide facts' : 'Show facts'}>
-    <span class="name" aria-live="polite">
-      <span class="focus">{ui.focusName}</span>
-      <svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-        <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-      </svg>
+  <button
+    class="title"
+    onclick={toggle}
+    disabled={!card}
+    aria-expanded={open}
+    aria-pressed={pinned}
+    aria-controls="facts"
+  >
+    <span class="name">
+      <span class="focus" aria-live="polite">{ui.focusName}</span>
+      <!-- Outlined "i" until the facts are pinned open, then solid. -->
+      <span class="icon-wrap">
+        <svg class="icon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
+          {#if pinned}
+            <path
+              d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 3.6a.95.95 0 1 0 0 1.9.95.95 0 0 0 0-1.9zM8 7.2a.8.8 0 0 0-.8.8v3.4a.8.8 0 0 0 1.6 0V8a.8.8 0 0 0-.8-.8z"
+              fill="currentColor"
+            />
+          {:else}
+            <circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.4" />
+            <path d="M8 7.6v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+            <circle cx="8" cy="5.3" r="0.95" fill="currentColor" />
+          {/if}
+        </svg>
+        <span class="tip" role="tooltip">{pinned ? 'Click to unpin' : 'Click to pin'}</span>
+      </span>
     </span>
     <span class="distance">{ui.distanceText}</span>
   </button>
   {#if open && card}
     <aside id="facts" class="card" transition:slide={{ duration: 180 }} aria-label={`${card.name} facts`}>
       <div class="sub">{card.subtitle}</div>
-      {#if ui.canFlyTo}
-        <button class="go" onclick={() => actions.flyTo(card.id)}>Fly to {card.name}</button>
-      {/if}
       {#if card.facts.length}
         <dl>
           {#each card.facts as f (f.label)}
@@ -134,24 +151,58 @@
     font-weight: 600;
     letter-spacing: 0.01em;
   }
-  .chev {
+  .icon-wrap {
+    position: relative;
+    display: flex;
+  }
+  .icon {
+    flex: none;
     color: var(--muted);
-    opacity: 0;
+    opacity: 0.7;
     transition:
       opacity 0.15s,
-      transform 0.18s;
+      color 0.15s;
   }
-  .title:not(:disabled):hover .chev,
-  .open .chev {
+  .title:disabled .icon-wrap {
+    display: none;
+  }
+  .title:not(:disabled):hover .icon,
+  .open .icon {
     opacity: 1;
   }
-  .open .chev {
-    transform: rotate(180deg);
+  .pinned .icon {
+    color: var(--accent);
   }
-  /* Touch screens can't hover, so hint that the title opens. */
+  /* Says what a click does, beside the icon; a native title tooltip takes too long to appear. */
+  .tip {
+    position: absolute;
+    left: calc(100% + 8px);
+    top: 50%;
+    padding: 5px 9px;
+    border-radius: 8px;
+    background: var(--panel-solid);
+    border: 1px solid var(--border);
+    box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+    text-shadow: none;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-4px, -50%);
+    transition:
+      opacity 0.12s,
+      transform 0.12s;
+  }
+  .title:not(:disabled):hover .tip {
+    opacity: 1;
+    transform: translate(0, -50%);
+    transition-delay: 0.25s;
+  }
   @media (hover: none) {
-    .title:not(:disabled) .chev {
-      opacity: 0.6;
+    .tip {
+      display: none;
     }
   }
   .distance {
@@ -188,18 +239,6 @@
   .sub {
     color: var(--muted);
     font-size: 12px;
-  }
-  .go {
-    margin-top: 12px;
-    width: 100%;
-    height: 32px;
-    border-radius: 8px;
-    border: 1px solid var(--accent-dim);
-    background: rgb(120 170 255 / 0.1);
-    color: var(--text);
-    cursor: pointer;
-    font: inherit;
-    font-size: 13px;
   }
   dl {
     margin: 14px 0 0;

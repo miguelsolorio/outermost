@@ -15,8 +15,6 @@ export const ui = $state({
   distanceText: '',
   scaleText: '',
   selectedId: null as string | null,
-  /** The title shows a clicked object the camera isn't at, so its card offers to fly there. */
-  canFlyTo: false,
   hoverId: null as string | null,
   settings: { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true },
   /** Facts for the object named in the title. */

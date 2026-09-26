@@ -558,7 +558,6 @@ export class App {
       if (ui.card?.id !== id) ui.card = this.registry.info(id) ?? null;
       ui.focusId = id;
       ui.focusName = ui.card?.name ?? id;
-      ui.canFlyTo = picked !== null;
       const focus = this.registry.target(id) ?? this.camera.focus;
       const alt = id === this.camera.focusId ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
       const def = BODY_BY_ID.get(id);
