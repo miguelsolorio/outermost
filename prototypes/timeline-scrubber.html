@@ -1,0 +1,1926 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Timeline Scrubber</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+      /* Tokens copied from src/ui/styles.css */
+      :root {
+        --text: #e8ecf4;
+        --muted: #9aa4b8;
+        --accent: #8fb8ff;
+        --accent-dim: rgb(143 184 255 / 0.45);
+        --panel: rgb(12 16 26 / 0.62);
+        --panel-solid: rgb(14 18 28 / 0.96);
+        --border: rgb(255 255 255 / 0.1);
+        --hover: rgb(255 255 255 / 0.07);
+        --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --shadow-text: 0 1px 8px rgb(0 0 0 / 0.85);
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        background: #05070c;
+        color: var(--text);
+        font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      body.has-expanded {
+        overflow: hidden;
+      }
+      button {
+        font: inherit;
+        color: var(--text);
+        cursor: pointer;
+      }
+      button:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 2px solid var(--accent-dim);
+        outline-offset: 2px;
+        border-radius: 8px;
+      }
+
+      /* ---------- Page chrome ---------- */
+      .top {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        padding: 14px 28px;
+        background: rgb(5 7 12 / 0.84);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid var(--border);
+      }
+      .intro {
+        flex: 1;
+        min-width: 0;
+      }
+      .intro h1 {
+        margin: 0 0 4px;
+        font-size: 17px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .intro p {
+        margin: 0;
+        max-width: 64ch;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+      .now {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 6px 16px 6px 6px;
+        min-width: 250px;
+        border-radius: 14px;
+        background: var(--panel);
+        border: 1px solid var(--border);
+      }
+      .now canvas {
+        width: 52px;
+        height: 52px;
+        flex: none;
+      }
+      .now .d {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .now .t {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .now .s {
+        margin-top: 2px;
+        font-size: 11.5px;
+        color: var(--accent);
+      }
+      main {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 28px 28px 96px;
+        display: flex;
+        flex-direction: column;
+        gap: 44px;
+      }
+      .card-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+      .num {
+        flex: none;
+        width: 28px;
+        height: 28px;
+        display: grid;
+        place-items: center;
+        border-radius: 8px;
+        font: 600 13px var(--mono);
+        color: var(--accent);
+        background: rgb(143 184 255 / 0.12);
+        border: 1px solid var(--accent-dim);
+      }
+      .meta-head {
+        flex: 1;
+        min-width: 0;
+      }
+      .meta-head h2 {
+        margin: 3px 0 4px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .meta-head p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      .try {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 9px;
+      }
+      .try span {
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11.5px;
+        color: #c3cad8;
+        background: rgb(255 255 255 / 0.05);
+        border: 1px solid var(--border);
+      }
+      .expand {
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 32px;
+        padding: 0 10px;
+        border-radius: 9px;
+        font-size: 12px;
+        background: rgb(255 255 255 / 0.04);
+        border: 1px solid var(--border);
+      }
+      .expand:hover {
+        background: var(--hover);
+      }
+
+      .frame {
+        position: relative;
+        height: 480px;
+        border-radius: 16px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background-color: #04060b;
+        background-image: var(--stars), radial-gradient(120% 80% at 50% 115%, rgb(40 70 140 / 0.28), transparent 60%);
+        background-size: 600px 600px, auto;
+        transition: background-position 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+        container-type: inline-size;
+        isolation: isolate;
+      }
+      .mobile .frame {
+        width: 375px;
+        height: 660px;
+        margin: 0 auto;
+      }
+      .frame.expanded {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        width: auto;
+        height: auto;
+        border-radius: 0;
+        border: 0;
+      }
+      .mobile .frame.expanded {
+        width: 375px;
+        margin: 0 auto;
+        box-shadow: 0 0 0 100vmax rgb(0 0 0 / 0.9);
+      }
+
+      /* ---------- Mock space map: stands in for the real scene and actions.flyTo(id) ---------- */
+      .body {
+        --s: 1;
+        position: absolute;
+        left: 50%;
+        top: 38%;
+        width: calc(min(250px, 56cqw) * var(--s));
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: radial-gradient(circle at 34% 32%, #7fa3d9 0%, #34598f 22%, #16305a 48%, #081326 70%, #03060d 100%);
+        box-shadow:
+          0 0 80px rgb(110 150 255 / 0.16),
+          inset -24px -18px 50px rgb(0 0 0 / 0.55);
+        opacity: 0.92;
+        pointer-events: none;
+      }
+      .body.fly {
+        animation: fly 0.85s cubic-bezier(0.2, 0.7, 0.2, 1);
+      }
+      @keyframes fly {
+        from {
+          transform: translate(-50%, -50%) scale(0.3);
+          opacity: 0;
+          filter: blur(6px);
+        }
+      }
+      .body .ring {
+        display: none;
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 215%;
+        height: 44%;
+        transform: translate(-50%, -50%) rotate(-16deg);
+        border-radius: 50%;
+        border: 7px solid rgb(222 204 160 / 0.55);
+        box-shadow: 0 0 0 6px rgb(222 204 160 / 0.16);
+      }
+      .body[data-body='moon'] {
+        --s: 0.72;
+        background: radial-gradient(circle at 34% 32%, #ececec 0%, #b0b0b0 28%, #707070 55%, #2a2a2a 78%, #0a0a0a 100%);
+        box-shadow: inset -20px -14px 40px rgb(0 0 0 / 0.55);
+      }
+      .body[data-body='mercury'] {
+        --s: 0.5;
+        background: radial-gradient(circle at 34% 32%, #dcd3c8 0%, #9e938a 30%, #5e554e 58%, #221e1b 80%, #080706 100%);
+        box-shadow: none;
+      }
+      .body[data-body='venus'] {
+        --s: 0.85;
+        background: radial-gradient(circle at 34% 32%, #fff3d0 0%, #e8cf92 30%, #b08d4d 58%, #3e2e14 80%, #0d0904 100%);
+        box-shadow: 0 0 60px rgb(255 220 150 / 0.16);
+      }
+      .body[data-body='mars'] {
+        --s: 0.65;
+        background: radial-gradient(circle at 34% 32%, #f3a676 0%, #c4562f 30%, #7a2c16 58%, #2a0e07 80%, #0a0402 100%);
+        box-shadow: 0 0 50px rgb(255 120 70 / 0.14);
+      }
+      .body[data-body='jupiter'] {
+        --s: 1.15;
+        background:
+          radial-gradient(circle at 34% 30%, rgb(255 255 255 / 0.28), transparent 42%),
+          radial-gradient(circle at 50% 50%, transparent 46%, rgb(0 0 0 / 0.75) 74%),
+          repeating-linear-gradient(172deg, #d8c1a0 0 9%, #b88c62 9% 14%, #e9dcc4 14% 22%, #a97a55 22% 26%);
+        box-shadow: 0 0 70px rgb(230 200 150 / 0.12);
+      }
+      .body[data-body='saturn'] {
+        --s: 0.8;
+        background:
+          radial-gradient(circle at 34% 30%, rgb(255 255 255 / 0.3), transparent 42%),
+          radial-gradient(circle at 50% 50%, transparent 46%, rgb(0 0 0 / 0.72) 74%),
+          repeating-linear-gradient(175deg, #eadbb4 0 10%, #cfb487 10% 16%);
+        box-shadow: none;
+      }
+      .body[data-body='saturn'] .ring {
+        display: block;
+      }
+      .body[data-body='uranus'] {
+        --s: 0.8;
+        background: radial-gradient(circle at 34% 32%, #dff8fa 0%, #8fd3dc 30%, #4c98a6 58%, #163c44 80%, #051013 100%);
+      }
+      .body[data-body='neptune'] {
+        --s: 0.8;
+        background: radial-gradient(circle at 34% 32%, #b3cbff 0%, #4a6fe0 30%, #22388f 58%, #0b1439 80%, #03050f 100%);
+      }
+      .body[data-body='pluto'] {
+        --s: 0.5;
+        background: radial-gradient(circle at 34% 32%, #f4e4ca 0%, #c9a57c 30%, #87603e 58%, #2d1d10 80%, #0b0704 100%);
+        box-shadow: none;
+      }
+      /* Spacecraft are points of light with a target ring. */
+      .body[data-body='voyager-1'],
+      .body[data-body='voyager-2'],
+      .body[data-body='jwst'],
+      .body[data-body='new-horizons'] {
+        width: 10px;
+        background: #fff;
+        box-shadow:
+          0 0 12px 4px rgb(200 220 255 / 0.8),
+          0 0 40px 10px rgb(143 184 255 / 0.3);
+      }
+      .body[data-body='voyager-1']::before,
+      .body[data-body='voyager-2']::before,
+      .body[data-body='jwst']::before,
+      .body[data-body='new-horizons']::before {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        width: 46px;
+        height: 46px;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        border: 1px solid rgb(143 184 255 / 0.45);
+      }
+      .focus-card {
+        position: absolute;
+        top: 16px;
+        left: 18px;
+        pointer-events: none;
+        text-shadow: var(--shadow-text);
+      }
+      .expanded .focus-card {
+        top: 60px;
+      }
+      .focus-card .fname {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .focus-card .fsub {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      /* A soft fade instead of a panel keeps the controls readable over the scene. */
+      .scrim {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 210px;
+        background: linear-gradient(to top, rgb(2 4 9 / 0.82), rgb(2 4 9 / 0.5) 45%, transparent);
+        pointer-events: none;
+      }
+      .frame .orrery {
+        position: absolute;
+        top: 14px;
+        right: 14px;
+        width: 72px;
+        height: 72px;
+        opacity: 0.85;
+        pointer-events: none;
+      }
+      .flabel,
+      .frame .close {
+        display: none;
+      }
+      .expanded .flabel {
+        display: block;
+        position: absolute;
+        top: 22px;
+        left: 60px;
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .expanded .close {
+        display: inline-flex;
+        position: absolute;
+        top: 14px;
+        left: 14px;
+        z-index: 5;
+      }
+      .mount {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+      .mount > * {
+        pointer-events: auto;
+      }
+
+      /* ---------- Shared, borderless controls ---------- */
+      .dock {
+        position: absolute;
+        left: 50%;
+        bottom: 12px;
+        transform: translateX(-50%);
+        width: min(1000px, calc(100% - 40px));
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-variant-numeric: tabular-nums;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 32px;
+        min-width: 32px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        font-size: 12.5px;
+        text-shadow: var(--shadow-text);
+        transition:
+          background 0.12s,
+          color 0.12s,
+          opacity 0.12s;
+      }
+      .btn:hover:not(:disabled) {
+        background: rgb(255 255 255 / 0.08);
+      }
+      .btn:disabled {
+        cursor: default;
+      }
+      .play {
+        flex: none;
+        width: 34px;
+        height: 34px;
+        padding: 0;
+        border-radius: 50%;
+        background: rgb(255 255 255 / 0.1);
+      }
+      .play:hover:not(:disabled) {
+        background: rgb(255 255 255 / 0.17);
+      }
+      .live {
+        flex: none;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .live:hover:not(:disabled) {
+        color: var(--text);
+      }
+      .live .dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.7;
+      }
+      .live.on {
+        color: var(--accent);
+      }
+      .live.on .dot {
+        opacity: 1;
+        box-shadow: 0 0 0 3px rgb(143 184 255 / 0.22);
+      }
+
+      .zoom {
+        flex: none;
+        display: flex;
+        align-items: center;
+      }
+      .zoom .btn {
+        width: 28px;
+        min-width: 28px;
+        height: 28px;
+        padding: 0;
+        color: var(--muted);
+      }
+      .zoom .btn:hover:not(:disabled) {
+        color: var(--text);
+      }
+      .zoom .btn:disabled {
+        opacity: 0.3;
+      }
+      .zoom .zl {
+        min-width: 44px;
+        text-align: center;
+        font-size: 11.5px;
+        color: var(--muted);
+        text-shadow: var(--shadow-text);
+      }
+
+      .speed {
+        position: relative;
+        flex: none;
+      }
+      .speed-btn {
+        gap: 4px;
+        padding: 0 6px 0 8px;
+        font: 12px var(--mono);
+        color: var(--muted);
+      }
+      .speed-btn:hover,
+      .speed.open .speed-btn {
+        color: var(--text);
+      }
+      .speed-btn .chev {
+        transform: rotate(180deg);
+        transition: transform 0.15s;
+        opacity: 0.8;
+      }
+      .speed.open .chev {
+        transform: none;
+      }
+      .menu {
+        position: absolute;
+        bottom: calc(100% + 10px);
+        right: 0;
+        width: 200px;
+        padding: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: var(--panel-solid);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+        z-index: 10;
+      }
+      .menu[hidden] {
+        display: none;
+      }
+      .menu.left {
+        left: 0;
+        right: auto;
+      }
+      .menu .segmented {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2px;
+        padding: 2px;
+        border-radius: 8px;
+        background: rgb(255 255 255 / 0.05);
+      }
+      .menu .segmented button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .menu .segmented button:hover {
+        color: var(--text);
+      }
+      .menu .segmented button.on {
+        background: rgb(255 255 255 / 0.12);
+        color: var(--text);
+      }
+      .menu .heading {
+        padding: 8px 8px 2px;
+        font-size: 10.5px;
+        font-weight: 500;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .menu .option {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 28px;
+        padding: 0 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        font-size: 13px;
+        text-align: left;
+      }
+      .menu .option:hover {
+        background: var(--hover);
+      }
+      .menu .option.on {
+        color: var(--accent);
+      }
+      .menu .option:not(.on) .check {
+        visibility: hidden;
+      }
+
+      .seg {
+        display: inline-grid;
+        grid-auto-flow: column;
+        gap: 2px;
+        padding: 2px;
+        border-radius: 9px;
+        background: rgb(255 255 255 / 0.05);
+        border: 1px solid var(--border);
+      }
+      .seg button {
+        height: 28px;
+        padding: 0 10px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .seg button:hover {
+        color: var(--text);
+      }
+      .seg button.on {
+        background: rgb(255 255 255 / 0.12);
+        color: var(--text);
+      }
+
+      .tip {
+        position: absolute;
+        bottom: calc(100% - 4px);
+        left: 0;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 7px 10px;
+        border-radius: 9px;
+        background: var(--panel-solid);
+        border: 1px solid var(--border);
+        box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
+        white-space: nowrap;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 3;
+      }
+      .tip[hidden] {
+        display: none;
+      }
+      .tip b {
+        font-weight: 500;
+      }
+      .tip span {
+        font: 10.5px var(--mono);
+        color: var(--muted);
+      }
+
+      /* Date above the playhead, with the landmark name when the playhead is on one. */
+      .stamp {
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 2px);
+        transform: translateX(-50%);
+        text-align: center;
+        white-space: nowrap;
+        pointer-events: none;
+        text-shadow: var(--shadow-text);
+      }
+      .stamp .lm {
+        height: 17px;
+        font-size: 12px;
+        color: var(--accent);
+      }
+      .stamp .lm.hint {
+        color: var(--muted);
+      }
+      .stamp .d {
+        font-size: 14px;
+        font-weight: 500;
+      }
+      .stamp .t {
+        margin-left: 7px;
+        font: 11px var(--mono);
+        color: var(--muted);
+      }
+
+      /* ---------- Landmarks timeline, shared by every layout ---------- */
+      .dock {
+        width: min(1200px, calc(100% - 48px));
+      }
+      .track {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        height: 52px;
+        cursor: pointer;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      .dock > .track {
+        flex: none;
+      }
+      .track canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .track .stamp {
+        left: 0;
+        transform: none;
+      }
+      .zb {
+        width: 32px;
+        min-width: 32px;
+        padding: 0;
+        color: var(--muted);
+      }
+      .zb:hover:not(:disabled) {
+        color: var(--text);
+      }
+      .zb:disabled {
+        opacity: 0.3;
+      }
+      .grp {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      /* Corners */
+      .lc .corners {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .lc .stamp {
+        bottom: calc(100% + 11px);
+      }
+
+      /* ---------- Narrow frames (the 375px phone toggle) ---------- */
+      @container (max-width: 600px) {
+        .dock {
+          width: calc(100% - 20px);
+          bottom: 8px;
+        }
+        .speed-btn .chev,
+        .lc .zl,
+        .lc .stamp .t {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="top">
+      <div class="intro">
+        <h1>Timeline scrubber</h1>
+        <p>The Landmarks timeline with its controls in the corners. Scrub, zoom and click landmarks to fly the scene to them; the orrery and the scene follow the clock.</p>
+      </div>
+      <div class="now" aria-live="off">
+        <canvas></canvas>
+        <div>
+          <div class="d"></div>
+          <div class="t"></div>
+          <div class="s"></div>
+        </div>
+      </div>
+      <div id="frame-toggle"></div>
+    </header>
+    <main></main>
+
+    <script>
+      // ------------------------------------------------------------------
+      // Time constants and formatting (mirrors src/astro/time.ts and src/engine/format.ts)
+      // ------------------------------------------------------------------
+      const DAY = 86_400_000;
+      const HOUR = 3_600_000;
+      const YEAR = 365.25 * DAY;
+      const MONTH = YEAR / 12;
+      const J2000 = Date.UTC(2000, 0, 1, 12);
+      const MIN_MS = Date.UTC(1600, 0, 1);
+      const MAX_MS = Date.UTC(2400, 0, 1);
+      const RATES = [1, 60, 3600, 86_400, 7 * 86_400, 30.4375 * 86_400, 365.25 * 86_400];
+      const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+      const clampT = (ms) => clamp(ms, MIN_MS, MAX_MS);
+      const pad2 = (n) => String(n).padStart(2, '0');
+      const fmtDate = (ms) => {
+        const d = new Date(ms);
+        return `${MON[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+      };
+      const fmtTime = (ms) => new Date(ms).toISOString().slice(11, 19) + ' UTC';
+      const fmtHM = (ms) => {
+        const d = new Date(ms);
+        return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+      };
+
+      const nf1 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+      function formatRate(rate) {
+        const a = Math.abs(rate);
+        const sign = rate < 0 ? '−' : '';
+        if (a === 0) return 'paused';
+        if (a === 1) return rate < 0 ? 'reverse real time' : 'real time';
+        const units = [
+          [365.25 * 86_400, 'yr'],
+          [30.4375 * 86_400, 'mo'],
+          [7 * 86_400, 'wk'],
+          [86_400, 'day'],
+          [3_600, 'hr'],
+          [60, 'min'],
+          [1, 's'],
+        ];
+        for (const [s, name] of units) if (a >= s) return `${sign}${nf1.format(a / s)} ${name}/s`;
+        return `${sign}${a}×`;
+      }
+      const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+      const rateLabel = (r) => cap(formatRate(Math.abs(r)));
+      const shortRate = (r) => `${r < 0 ? '−' : ''}${Math.abs(r) === 1 ? '1×' : formatRate(Math.abs(r))}`;
+
+      // ------------------------------------------------------------------
+      // Mock space map. `target` ids are the app's real registry ids, so clicking
+      // a landmark maps straight onto actions.flyTo(id) when this is built for real.
+      // ------------------------------------------------------------------
+      const TARGETS = {
+        earth: 'Earth',
+        moon: 'Moon',
+        mercury: 'Mercury',
+        venus: 'Venus',
+        mars: 'Mars',
+        jupiter: 'Jupiter',
+        saturn: 'Saturn',
+        uranus: 'Uranus',
+        neptune: 'Neptune',
+        pluto: 'Pluto',
+        'voyager-1': 'Voyager 1',
+        'voyager-2': 'Voyager 2',
+        jwst: 'James Webb Space Telescope',
+        'new-horizons': 'New Horizons',
+      };
+      const focus = { id: 'earth', note: '', seq: 0 };
+      function flyTo(id, note = '') {
+        focus.id = id;
+        focus.note = note;
+        focus.seq++;
+      }
+
+      // ------------------------------------------------------------------
+      // Landmarks (sample data for this mockup; check dates before shipping)
+      // ------------------------------------------------------------------
+      const EVENTS = [
+        ['1610-01-07T12:00Z', 'Galileo spots the moons of Jupiter', "Galileo's moons", 'discovery', 'jupiter'],
+        ['1769-06-03T12:00Z', 'Transit of Venus, timed by Cook', 'Transit of Venus', 'sky', 'venus'],
+        ['1781-03-13T12:00Z', 'Herschel discovers Uranus', 'Uranus', 'discovery', 'uranus'],
+        ['1846-09-23T12:00Z', 'Neptune is found', 'Neptune', 'discovery', 'neptune'],
+        ['1930-02-18T12:00Z', 'Tombaugh discovers Pluto', 'Pluto', 'discovery', 'pluto'],
+        ['1957-10-04T19:28Z', 'Sputnik 1 launches', 'Sputnik 1', 'mission', 'earth'],
+        ['1968-12-24T09:59Z', 'Apollo 8 orbits the Moon', 'Apollo 8', 'mission', 'moon'],
+        ['1969-07-20T20:17Z', 'Apollo 11 lands on the Moon', 'Apollo 11', 'mission', 'moon'],
+        ['1976-07-20T11:53Z', 'Viking 1 lands on Mars', 'Viking 1', 'mission', 'mars'],
+        ['1977-09-05T12:56Z', 'Voyager 1 launches', 'Voyager 1', 'mission', 'voyager-1'],
+        ['1989-08-25T03:56Z', 'Voyager 2 flies past Neptune', 'Voyager 2', 'mission', 'voyager-2'],
+        ['1990-02-14T12:00Z', 'Voyager 1 takes the Pale Blue Dot', 'Pale Blue Dot', 'mission', 'voyager-1'],
+        ['1990-04-24T12:33Z', 'Hubble launches', 'Hubble', 'mission', 'earth'],
+        ['1994-07-16T20:13Z', 'Comet Shoemaker–Levy 9 hits Jupiter', 'Shoemaker–Levy 9', 'sky', 'jupiter'],
+        ['2012-08-06T05:17Z', 'Curiosity lands on Mars', 'Curiosity', 'mission', 'mars'],
+        ['2015-07-14T11:49Z', 'New Horizons flies past Pluto', 'New Horizons', 'mission', 'new-horizons'],
+        ['2017-08-21T18:25Z', 'Total solar eclipse over North America', 'Solar eclipse', 'sky', 'moon'],
+        ['2017-09-15T11:55Z', 'Cassini dives into Saturn', 'Cassini', 'mission', 'saturn'],
+        ['2020-12-21T18:00Z', 'Jupiter and Saturn in great conjunction', 'Great conjunction', 'sky', 'jupiter'],
+        ['2021-12-25T12:20Z', 'JWST launches', 'JWST', 'mission', 'jwst'],
+        ['2024-04-08T18:17Z', 'Total solar eclipse over North America', 'Solar eclipse', 'sky', 'moon'],
+        ['2027-08-02T10:07Z', 'Total solar eclipse over North Africa', 'Solar eclipse', 'sky', 'moon'],
+        ['2029-04-13T21:46Z', 'Asteroid Apophis passes close to Earth', 'Apophis', 'sky', 'earth'],
+        ['2032-11-13T08:54Z', 'Transit of Mercury', 'Transit of Mercury', 'sky', 'mercury'],
+        ['2045-08-12T17:42Z', 'Total solar eclipse across the US', 'Solar eclipse', 'sky', 'moon'],
+        ['2117-12-11T02:48Z', 'Transit of Venus', 'Transit of Venus', 'sky', 'venus'],
+      ].map(([iso, name, short, kind, target]) => ({ ms: Date.parse(iso), name, short, kind, target }));
+      const KIND = {
+        mission: { label: 'Mission', color: '#8fb8ff' },
+        sky: { label: 'Sky event', color: '#ffc27a' },
+        discovery: { label: 'Discovery', color: '#d6c8ff' },
+      };
+      const upcoming = (ev) => ev.ms > Date.now();
+
+      /** The landmark closest to `ms`, if any is within `tol` ms. */
+      function nearestMs(ms, tol) {
+        let best = null, bd = tol;
+        for (const ev of EVENTS) {
+          const d = Math.abs(ev.ms - ms);
+          if (d <= bd) (bd = d), (best = ev);
+        }
+        return best;
+      }
+      /** The landmark drawn closest to pixel `x`, if any is within `px`. */
+      function nearestAt(x, a, b, x0, x1, px = 9) {
+        return nearestMs(a + ((x - x0) / (x1 - x0)) * (b - a), (px * (b - a)) / (x1 - x0));
+      }
+
+      // ------------------------------------------------------------------
+      // Shared mock clock (mirrors SimClock) and scrub/tween helpers.
+      // Nothing here starts playback on its own: only Play and Live do.
+      // ------------------------------------------------------------------
+      const clock = {
+        ms: Date.now(),
+        rate: 1,
+        paused: false,
+        tick(dt) {
+          if (this.paused) return;
+          this.ms = clampT(this.ms + dt * 1000 * this.rate);
+          if (this.ms === MIN_MS || this.ms === MAX_MS) this.paused = true;
+        },
+        set(ms) {
+          this.ms = clampT(ms);
+        },
+        setRate(r) {
+          this.rate = r;
+        },
+        setPaused(p) {
+          this.paused = p;
+        },
+        now() {
+          this.ms = Date.now();
+          this.rate = 1;
+          this.paused = false;
+        },
+      };
+
+      let tween = null;
+
+      // While anything is scrubbing, the clock is held paused and restored afterwards.
+      const scrub = {
+        n: 0,
+        wasPaused: false,
+        epoch: 0,
+        begin() {
+          if (this.n++ === 0) {
+            this.wasPaused = clock.paused;
+            clock.paused = true;
+          }
+          return this.epoch;
+        },
+        end(epoch) {
+          if (epoch !== this.epoch || this.n === 0) return;
+          if (--this.n === 0) clock.paused = this.wasPaused;
+        },
+        reset() {
+          if (this.n) clock.paused = this.wasPaused;
+          this.n = 0;
+          this.epoch++;
+          tween = null;
+        },
+        to(ms) {
+          clock.set(ms);
+        },
+      };
+      const paused = () => (scrub.n ? scrub.wasPaused : clock.paused);
+      const isLive = () => !paused() && clock.rate === 1 && Math.abs(clock.ms - Date.now()) < 5000;
+      function togglePlay() {
+        if (scrub.n) scrub.wasPaused = !scrub.wasPaused;
+        else clock.setPaused(!clock.paused);
+      }
+      function goLive() {
+        scrub.reset();
+        clock.now();
+      }
+
+      function holder() {
+        let ep = null;
+        return {
+          get on() {
+            return ep !== null && ep === scrub.epoch && scrub.n > 0;
+          },
+          hold() {
+            if (ep === null || ep !== scrub.epoch) ep = scrub.begin();
+          },
+          release() {
+            if (ep !== null) scrub.end(ep);
+            ep = null;
+          },
+        };
+      }
+
+      const tweenHold = holder();
+      function animateTo(ms, dur = 520) {
+        tween = { from: clock.ms, to: clampT(ms), t0: performance.now(), dur };
+        tweenHold.hold();
+      }
+      function cancelTween() {
+        if (!tween) return;
+        tween = null;
+        tweenHold.release();
+      }
+      function stepTween(now) {
+        if (!tween) return;
+        if (!tweenHold.on) {
+          tween = null;
+          return;
+        }
+        const k = Math.min(1, (now - tween.t0) / tween.dur);
+        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        clock.set(tween.from + (tween.to - tween.from) * e);
+        if (k >= 1) {
+          tween = null;
+          tweenHold.release();
+        }
+      }
+
+      /** Clicking a landmark: move time to it and fly the camera to its object. */
+      function visit(ev) {
+        cancelTween();
+        animateTo(ev.ms, 700);
+        flyTo(ev.target, ev.name);
+      }
+
+      // ------------------------------------------------------------------
+      // Calendar-aware tick units (UTC)
+      // ------------------------------------------------------------------
+      const UNITS = [
+        { t: 'ms', n: 60e3 },
+        { t: 'ms', n: 5 * 60e3 },
+        { t: 'ms', n: 15 * 60e3 },
+        { t: 'ms', n: HOUR },
+        { t: 'ms', n: 3 * HOUR },
+        { t: 'ms', n: 6 * HOUR },
+        { t: 'ms', n: 12 * HOUR },
+        { t: 'ms', n: DAY },
+        { t: 'dm', n: 7, days: [1, 8, 15, 22], approx: 7.6 * DAY },
+        { t: 'dm', n: 14, days: [1, 15], approx: 15.2 * DAY },
+        { t: 'mo', n: 1 },
+        { t: 'mo', n: 3 },
+        { t: 'mo', n: 6 },
+        { t: 'y', n: 1 },
+        { t: 'y', n: 5 },
+        { t: 'y', n: 10 },
+        { t: 'y', n: 25 },
+        { t: 'y', n: 50 },
+        { t: 'y', n: 100 },
+        { t: 'y', n: 200 },
+      ].map((u) => ({ ...u, approx: u.approx ?? (u.t === 'ms' ? u.n : u.t === 'mo' ? u.n * MONTH : u.n * YEAR) }));
+
+      const pickUnit = (mpp, px) => UNITS.find((u) => u.approx / mpp >= px) ?? UNITS[UNITS.length - 1];
+
+      function* iter(u, a, b) {
+        a = Math.max(a, MIN_MS);
+        b = Math.min(b, MAX_MS);
+        if (!(b >= a)) return;
+        let guard = 0;
+        if (u.t === 'ms') {
+          for (let t = Math.ceil(a / u.n) * u.n; t <= b && guard++ < 3000; t += u.n) yield t;
+        } else if (u.t === 'dm') {
+          for (let t = Math.floor(a / DAY) * DAY; t <= b && guard++ < 6000; t += DAY) {
+            if (t >= a && u.days.includes(new Date(t).getUTCDate())) yield t;
+          }
+        } else if (u.t === 'mo') {
+          const d = new Date(a);
+          let y = d.getUTCFullYear();
+          let m = Math.floor(d.getUTCMonth() / u.n) * u.n;
+          for (;;) {
+            const t = Date.UTC(y, m, 1);
+            if (t > b || guard++ > 3000) break;
+            if (t >= a) yield t;
+            m += u.n;
+            if (m >= 12) (m -= 12), y++;
+          }
+        } else {
+          let y = Math.floor(new Date(a).getUTCFullYear() / u.n) * u.n;
+          for (;;) {
+            const t = Date.UTC(y, 0, 1);
+            if (t > b || guard++ > 3000) break;
+            if (t >= a) yield t;
+            y += u.n;
+          }
+        }
+      }
+
+      function addUnit(ms, u, k) {
+        if (u.t === 'ms') return ms + u.n * k;
+        if (u.t === 'dm') return ms + DAY * u.n * k;
+        const d = new Date(ms);
+        if (u.t === 'mo') d.setUTCMonth(d.getUTCMonth() + u.n * k);
+        else d.setUTCFullYear(d.getUTCFullYear() + u.n * k);
+        return d.getTime();
+      }
+
+      function fmtTick(t, u) {
+        const d = new Date(t);
+        const Y = d.getUTCFullYear(), M = d.getUTCMonth(), D = d.getUTCDate();
+        if (u.t === 'ms' && u.n < DAY) return d.getUTCHours() === 0 && d.getUTCMinutes() === 0 ? `${MON[M]} ${D}` : fmtHM(t);
+        if (u.t === 'ms' || u.t === 'dm') return M === 0 && D === 1 ? String(Y) : `${MON[M]} ${D}`;
+        if (u.t === 'mo') return M === 0 ? String(Y) : MON[M];
+        if (u.n === 10) return `${Y}s`;
+        return String(Y);
+      }
+      function isStrong(t, u) {
+        const d = new Date(t);
+        if (u.t === 'ms' && u.n < DAY) return d.getUTCHours() === 0 && d.getUTCMinutes() === 0;
+        if (u.t === 'ms' || u.t === 'dm') return d.getUTCDate() === 1;
+        if (u.t === 'mo') return d.getUTCMonth() === 0;
+        if (u.n < 10) return d.getUTCFullYear() % 10 === 0;
+        return d.getUTCFullYear() % 100 === 0;
+      }
+
+      // ------------------------------------------------------------------
+      // Canvas helpers
+      // ------------------------------------------------------------------
+      function fit(c) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const w = c.clientWidth, h = c.clientHeight;
+        const W = Math.round(w * dpr), H = Math.round(h * dpr);
+        if (c.width !== W || c.height !== H) {
+          c.width = W;
+          c.height = H;
+        }
+        const ctx = c.getContext('2d');
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, w, h);
+        return { ctx, w, h };
+      }
+
+      const FONT = '500 10px Inter, system-ui, sans-serif';
+      const FONT_STRONG = '600 10px Inter, system-ui, sans-serif';
+
+      /** Draws ticks for [a, b] mapped onto [x0, x1]. dir -1 draws ticks upward from `base`. */
+      function drawAxis(ctx, a, b, x0, x1, o) {
+        const mpp = (b - a) / (x1 - x0);
+        if (!(mpp > 0) || !isFinite(mpp)) return null;
+        const minor = pickUnit(mpp, o.minorPx ?? 7);
+        const major = pickUnit(mpp, o.labelPx ?? 60);
+        const X = (t) => x0 + (t - a) / mpp;
+        const lo = a - 70 * mpp, hi = b + 20 * mpp;
+        const dir = o.dir ?? -1;
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255,255,255,.2)';
+        ctx.beginPath();
+        for (const t of iter(minor, lo, hi)) {
+          const x = Math.round(X(t)) + 0.5;
+          ctx.moveTo(x, o.base);
+          ctx.lineTo(x, o.base + dir * o.minorLen);
+        }
+        ctx.stroke();
+        ctx.textAlign = o.align === 'left' ? 'left' : 'center';
+        ctx.textBaseline = 'alphabetic';
+        for (const t of iter(major, lo, hi)) {
+          const x = Math.round(X(t)) + 0.5;
+          const strong = isStrong(t, major);
+          ctx.strokeStyle = strong ? 'rgba(255,255,255,.65)' : 'rgba(255,255,255,.4)';
+          ctx.beginPath();
+          ctx.moveTo(x, o.base);
+          ctx.lineTo(x, o.base + dir * o.majorLen);
+          ctx.stroke();
+          // Left-aligned labels that start at the right edge would only show a sliver.
+          if (o.labelY != null && !(o.align === 'left' && x > x1 - 14)) {
+            ctx.font = strong ? FONT_STRONG : FONT;
+            ctx.fillStyle = strong ? '#e8ecf4' : 'rgba(170,180,200,.95)';
+            ctx.fillText(fmtTick(t, major), o.align === 'left' ? x + 4 : x, o.labelY);
+          }
+        }
+        return { minor, major, mpp };
+      }
+
+      /** Landmark dots. Past events are filled; predicted ones are rings. */
+      function drawMarks(ctx, a, b, x0, x1, y, hover, r = 3.5) {
+        const mpp = (b - a) / (x1 - x0);
+        for (const ev of EVENTS) {
+          const x = x0 + (ev.ms - a) / mpp;
+          if (x < x0 - 8 || x > x1 + 8) continue;
+          const on = ev === hover, rr = on ? r + 1.8 : r;
+          const col = KIND[ev.kind].color;
+          ctx.beginPath();
+          ctx.arc(x, y, rr, 0, Math.PI * 2);
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(3,5,10,.85)';
+          ctx.stroke();
+          ctx.globalAlpha = on ? 1 : 0.92;
+          if (upcoming(ev)) {
+            ctx.beginPath();
+            ctx.arc(x, y, rr - 0.75, 0, Math.PI * 2);
+            ctx.lineWidth = 1.5;
+            ctx.strokeStyle = col;
+            ctx.stroke();
+          } else {
+            ctx.fillStyle = col;
+            ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+      }
+
+      function drawNow(ctx, a, b, x0, x1, y) {
+        const x = x0 + (Date.now() - a) / ((b - a) / (x1 - x0));
+        if (x < x0 - 4 || x > x1 + 4) return;
+        ctx.fillStyle = 'rgba(255,255,255,.85)';
+        ctx.beginPath();
+        ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Sun, Earth (1 yr) and Moon (synodic month) for a sense of motion.
+      const NEW_MOON = Date.UTC(2000, 0, 6, 18, 14);
+      function drawOrrery(c, ms) {
+        const { ctx, w, h } = fit(c);
+        if (!w) return;
+        const cx = w / 2, cy = h / 2, R = w * 0.36;
+        ctx.strokeStyle = 'rgba(255,255,255,.12)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R, 0, Math.PI * 2);
+        ctx.stroke();
+        const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, w * 0.14);
+        g.addColorStop(0, '#fff6d8');
+        g.addColorStop(0.45, '#ffc85a');
+        g.addColorStop(1, 'rgba(255,170,60,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(cx, cy, w * 0.14, 0, Math.PI * 2);
+        ctx.fill();
+        const L = ((100.46 + (360 * (ms - J2000)) / DAY / 365.2564) * Math.PI) / 180;
+        const ex = cx + R * Math.cos(L), ey = cy - R * Math.sin(L);
+        const phase = ((((ms - NEW_MOON) / (29.530589 * DAY)) % 1) + 1) % 1;
+        const ml = L + Math.PI + phase * 2 * Math.PI;
+        const mr = w * 0.09;
+        ctx.strokeStyle = 'rgba(255,255,255,.1)';
+        ctx.beginPath();
+        ctx.arc(ex, ey, mr, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.fillStyle = '#6fa3ff';
+        ctx.beginPath();
+        ctx.arc(ex, ey, w * 0.048, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#d9dde6';
+        ctx.beginPath();
+        ctx.arc(ex + mr * Math.cos(ml), ey - mr * Math.sin(ml), w * 0.024, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // ------------------------------------------------------------------
+      // DOM helpers, input and shared controls
+      // ------------------------------------------------------------------
+      function html(s) {
+        const t = document.createElement('template');
+        t.innerHTML = s.trim();
+        return t.content.firstElementChild;
+      }
+      const setText = (el, s) => {
+        if (el.textContent !== s) el.textContent = s;
+      };
+      const setAttr = (el, k, v) => {
+        if (el.getAttribute(k) !== v) el.setAttribute(k, v);
+      };
+
+      /**
+       * One-finger drag, two-finger pinch and pan, trackpad pinch (ctrl + wheel in Chrome and
+       * Firefox, gesture events in Safari) and wheel. zoom(f) with f > 1 zooms out.
+       */
+      function gestures(el, h) {
+        const pts = new Map();
+        let mode = null, st = null, pinch = null;
+        const rel = (e) => e.clientX - el.getBoundingClientRect().left;
+        el.addEventListener('pointerdown', (e) => {
+          if (e.pointerType === 'mouse' && e.button !== 0) return;
+          try {
+            el.setPointerCapture(e.pointerId);
+          } catch {}
+          pts.set(e.pointerId, rel(e));
+          if (pts.size === 1) {
+            mode = 'drag';
+            st = { x: rel(e), x0: rel(e), moved: false };
+            h.down?.(st, e);
+          } else if (pts.size === 2) {
+            if (mode === 'drag') h.cancel?.(st);
+            mode = 'pinch';
+            const [a, b] = [...pts.values()];
+            pinch = { d: Math.max(1, Math.abs(a - b)), m: (a + b) / 2 };
+          }
+        });
+        el.addEventListener('pointermove', (e) => {
+          if (!pts.has(e.pointerId)) return h.hover?.(rel(e), e);
+          pts.set(e.pointerId, rel(e));
+          if (mode === 'drag') {
+            st.x = rel(e);
+            if (Math.abs(st.x - st.x0) > 3) st.moved = true;
+            h.move?.(st, e);
+          } else if (mode === 'pinch' && pts.size >= 2) {
+            const [a, b] = [...pts.values()];
+            const d = Math.max(1, Math.abs(a - b)), m = (a + b) / 2;
+            h.zoom?.(pinch.d / d, m);
+            h.pan?.(m - pinch.m);
+            pinch = { d, m };
+          }
+        });
+        const up = (e) => {
+          if (!pts.has(e.pointerId)) return;
+          pts.delete(e.pointerId);
+          if (mode === 'drag') {
+            st.x = rel(e);
+            mode = null;
+            h.up?.(st, e);
+          } else if (mode === 'pinch' && pts.size < 2) mode = 'done';
+          if (!pts.size && mode === 'done') {
+            mode = null;
+            h.pinchEnd?.();
+          }
+        };
+        el.addEventListener('pointerup', up);
+        el.addEventListener('pointercancel', up);
+        el.addEventListener('pointerleave', (e) => !pts.has(e.pointerId) && h.leave?.());
+        el.addEventListener(
+          'wheel',
+          (e) => {
+            e.preventDefault();
+            const x = rel(e);
+            if (e.ctrlKey) h.zoom?.(Math.exp(e.deltaY * 0.012), x);
+            else if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) h.wheelPan?.(e.deltaX, x);
+            else h.zoom?.(Math.exp(e.deltaY * 0.0025), x);
+          },
+          { passive: false },
+        );
+        let gs = 1, gx = 0;
+        el.addEventListener('gesturestart', (e) => {
+          e.preventDefault();
+          gs = 1;
+          gx = rel(e);
+        });
+        el.addEventListener('gesturechange', (e) => {
+          e.preventDefault();
+          h.zoom?.(gs / e.scale, gx);
+          gs = e.scale;
+        });
+        el.addEventListener('gestureend', (e) => e.preventDefault());
+      }
+
+      // In the app, arrow keys orbit the camera from a window listener, so sliders stop propagation.
+      function sliderKeys(el, handler) {
+        el.addEventListener('keydown', (e) => {
+          if (handler(e)) {
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        });
+      }
+
+      const I = {
+        play: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M4.5 2.5v11l9-5.5z" fill="currentColor"/></svg>',
+        pause: '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><rect x="3.5" y="2.5" width="3" height="11" rx="1" fill="currentColor"/><rect x="9.5" y="2.5" width="3" height="11" rx="1" fill="currentColor"/></svg>',
+        pauseSm: '<svg viewBox="0 0 16 16" width="9" height="9" aria-hidden="true"><rect x="3" y="2" width="3.5" height="12" rx="1" fill="currentColor"/><rect x="9.5" y="2" width="3.5" height="12" rx="1" fill="currentColor"/></svg>',
+        rew: (s = 16) => `<svg viewBox="0 0 16 16" width="${s}" height="${s}" aria-hidden="true"><path d="M7.5 3.5v9L1.5 8zM14.5 3.5v9L8.5 8z" fill="currentColor"/></svg>`,
+        ff: (s = 16) => `<svg viewBox="0 0 16 16" width="${s}" height="${s}" aria-hidden="true"><path d="M1.5 3.5v9l6-4.5zM8.5 3.5v9l6-4.5z" fill="currentColor"/></svg>`,
+        chev: '<svg class="chev" viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M4 10l4-4 4 4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        check: '<svg class="check" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        plus: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 3.5v9M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+        minus: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3.5 8h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+        expand: '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5L9 7M2.5 13.5L7 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        close: '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>',
+      };
+
+      const openMenus = new Set();
+
+      function makePlay() {
+        const el = html('<button class="btn play"></button>');
+        el.onclick = togglePlay;
+        let s = null;
+        return {
+          el,
+          update() {
+            const p = paused();
+            if (p === s) return;
+            s = p;
+            el.innerHTML = p ? I.play : I.pause;
+            el.title = p ? 'Play (Space)' : 'Pause (Space)';
+            el.setAttribute('aria-label', p ? 'Play' : 'Pause');
+          },
+        };
+      }
+
+      function makeLive() {
+        const el = html('<button class="btn live"><span class="dot" aria-hidden="true"></span>Live</button>');
+        el.onclick = goLive;
+        let s = null;
+        return {
+          el,
+          update() {
+            const on = isLive();
+            if (on === s) return;
+            s = on;
+            el.classList.toggle('on', on);
+            el.disabled = on;
+            el.title = on ? 'Showing the current time' : 'Jump to now, in real time';
+          },
+        };
+      }
+
+      function makeSeg(labels, idx, onChange, aria = 'Options') {
+        const el = html(`<div class="seg" role="radiogroup" aria-label="${aria}">${labels.map((l, i) => `<button role="radio" data-i="${i}">${l}</button>`).join('')}</div>`);
+        const set = (i) => {
+          idx = i;
+          [...el.children].forEach((b, j) => {
+            b.classList.toggle('on', j === i);
+            b.setAttribute('aria-checked', j === i);
+          });
+        };
+        el.addEventListener('click', (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          set(+b.dataset.i);
+          onChange(idx);
+        });
+        set(idx);
+        return { el, set };
+      }
+
+      /** A button with a menu above it. Only one menu is open at a time. */
+      function popover(wrap, btn, menu) {
+        const close = () => open(false);
+        close.el = wrap;
+        function open(v) {
+          if (v) [...openMenus].forEach((c) => c());
+          menu.hidden = !v;
+          btn.setAttribute('aria-expanded', v);
+          wrap.classList.toggle('open', v);
+          if (v) openMenus.add(close);
+          else openMenus.delete(close);
+        }
+        btn.onclick = () => open(menu.hidden);
+        return close;
+      }
+
+      const speedHTML = () => `
+        <div class="segmented" role="group" aria-label="Direction">
+          <button role="menuitemradio" data-dir="-1">${I.rew(12)} Backward</button>
+          <button role="menuitemradio" data-dir="1">Forward ${I.ff(12)}</button>
+        </div>
+        <div class="heading">Speed</div>
+        ${RATES.map((r) => `<button class="option" role="menuitemradio" data-rate="${r}"><span>${rateLabel(r)}</span>${I.check}</button>`).join('')}`;
+
+      /** Speed and direction only; playing stays the user's call. */
+      function wireSpeed(root, onPick) {
+        root.addEventListener('click', (e) => {
+          const b = e.target.closest('button');
+          if (!b) return;
+          if (b.dataset.dir) clock.setRate(+b.dataset.dir * Math.abs(clock.rate));
+          if (b.dataset.rate) {
+            clock.setRate((clock.rate < 0 ? -1 : 1) * +b.dataset.rate);
+            onPick?.();
+          }
+        });
+      }
+      function syncSpeed(root) {
+        const back = clock.rate < 0;
+        root.querySelectorAll('[data-dir]').forEach((b) => {
+          const on = (+b.dataset.dir < 0) === back;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-checked', on);
+        });
+        root.querySelectorAll('[data-rate]').forEach((b) => {
+          const on = Math.abs(Math.abs(clock.rate) - +b.dataset.rate) < 1e-9;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-checked', on);
+        });
+      }
+
+      /** Rate as quiet text; the menu is the only surface, and only while open. */
+      function makeSpeed({ align = 'right' } = {}) {
+        const el = html(`<div class="speed pop">
+          <button class="btn speed-btn" aria-haspopup="true" aria-expanded="false" title="Choose how fast time runs">
+            <span class="rate"></span>${I.chev}
+          </button>
+          <div class="menu ${align}" role="menu" aria-label="Time speed" hidden>${speedHTML()}</div>
+        </div>`);
+        const btn = el.querySelector('.speed-btn'), menu = el.querySelector('.menu'), rate = btn.querySelector('.rate');
+        wireSpeed(menu, popover(el, btn, menu));
+        let last = null;
+        return {
+          el,
+          update() {
+            if (clock.rate === last) return;
+            last = clock.rate;
+            rate.textContent = shortRate(clock.rate);
+            syncSpeed(menu);
+          },
+        };
+      }
+
+      function makeTip() {
+        const el = html('<div class="tip" hidden><b></b><span></span></div>');
+        const [b, s] = el.children;
+        let cur = null, tw = 0;
+        return {
+          el,
+          show(ev, x, w) {
+            el.hidden = false;
+            if (cur !== ev) {
+              cur = ev;
+              b.textContent = ev.name;
+              s.textContent = `${upcoming(ev) ? 'Predicted' : KIND[ev.kind].label} · ${fmtDate(ev.ms)} · ${TARGETS[ev.target]}`;
+              tw = el.offsetWidth;
+            }
+            el.style.left = `${clamp(x, tw / 2, w - tw / 2)}px`;
+          },
+          hide() {
+            el.hidden = true;
+            cur = null;
+          },
+        };
+      }
+
+      function makeStamp() {
+        const el = html('<div class="stamp"><div class="lm"></div><div><span class="d"></span><span class="t"></span></div></div>');
+        const lm = el.querySelector('.lm'), d = el.querySelector('.d'), t = el.querySelector('.t');
+        return {
+          el,
+          /** Returns true when the text changed, so callers can re-measure. */
+          update(landmark) {
+            const before = el.textContent;
+            setText(lm, landmark ?? '');
+            setText(d, fmtDate(clock.ms));
+            setText(t, fmtTime(clock.ms));
+            return el.textContent !== before;
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // Landmarks timeline with its controls in the corners
+      // ------------------------------------------------------------------
+      const FULL = MAX_MS - MIN_MS;
+      // The zoom buttons step through these spans.
+      const STEPS = [2 * DAY, 7 * DAY, MONTH, 6 * MONTH, 2 * YEAR, 10 * YEAR, 50 * YEAR, 200 * YEAR, FULL];
+      const spanLabel = (s) =>
+        s >= FULL * 0.98 ? 'All' : s >= 2 * YEAR ? `${Math.round(s / YEAR)} yr` : s >= 2 * MONTH ? `${Math.round(s / MONTH)} mo` : `${Math.round(s / DAY)} days`;
+
+      /** The date rides above the playhead; stampRange(width) keeps it clear of the corner controls. */
+      function makeTimeline({ stampRange = null } = {}) {
+        const MINSPAN = 2 * DAY, TP = 10;
+        let start = Date.UTC(1900, 0, 1), span = Date.UTC(2130, 0, 1) - start, startT = start;
+        let lastUser = -1e9, lastMs = clock.ms, zoomAnim = null;
+
+        const el = html('<div class="track" role="slider" tabindex="0" aria-label="Timeline with landmarks. Pinch or scroll to zoom"><canvas></canvas></div>');
+        const cv = el.querySelector('canvas');
+        const tip = makeTip();
+        const stamp = makeStamp();
+        el.append(stamp.el, tip.el);
+        const hd = holder();
+        let hover = null, hoverX = null, dragging = false, dragX = null, stampW = 0;
+
+        const inner = () => el.clientWidth - 2 * TP;
+        const msAt = (x) => start + ((clamp(x, TP, el.clientWidth - TP) - TP) / inner()) * span;
+        const clampStart = () => {
+          start = clamp(start, MIN_MS, MAX_MS - span);
+          startT = clamp(startT, MIN_MS, MAX_MS - span);
+        };
+        const zoomAt = (f, x) => {
+          zoomAnim = null;
+          const xx = clamp(x, TP, el.clientWidth - TP), c = msAt(xx);
+          span = clamp(span * f, MINSPAN, FULL);
+          start = startT = c - ((xx - TP) / inner()) * span;
+          clampStart();
+          lastUser = performance.now();
+        };
+        const panPx = (dx) => {
+          zoomAnim = null;
+          start = startT = start + dx * (span / inner());
+          clampStart();
+          lastUser = performance.now();
+        };
+        // Buttons ease between steps around the playhead, or the middle if it's off-screen.
+        const zoomTo = (to) => {
+          const p = (clock.ms - start) / span, onScreen = p >= 0 && p <= 1;
+          zoomAnim = { from: span, to: clamp(to, MINSPAN, FULL), t0: performance.now(), ms: onScreen ? clock.ms : start + span / 2, frac: onScreen ? p : 0.5 };
+          lastUser = performance.now();
+        };
+        const zoomStep = (dir) => {
+          const s = zoomAnim?.to ?? span;
+          const next = dir > 0 ? STEPS.findLast((v) => v < s * 0.98) : STEPS.find((v) => v > s * 1.02);
+          if (next) zoomTo(next);
+        };
+        const prevEvent = () => EVENTS.findLast((ev) => ev.ms < clock.ms - 60_000);
+        const nextEvent = () => EVENTS.find((ev) => ev.ms > clock.ms + 60_000);
+
+        gestures(el, {
+          down() {
+            cancelTween();
+            dragging = true;
+          },
+          move(st) {
+            if (!st.moved) return;
+            hd.hold();
+            dragX = st.x;
+            // Magnetic: within 9px of a landmark, snap to it.
+            const ev = nearestAt(st.x, start, start + span, TP, el.clientWidth - TP, 9);
+            hover = ev;
+            scrub.to(ev ? ev.ms : msAt(st.x));
+          },
+          up(st) {
+            dragging = false;
+            dragX = null;
+            hoverX = st.x; // the pointer is where the drag ended, not where it last hovered
+            if (st.moved) return hd.release();
+            const ev = nearestAt(st.x, start, start + span, TP, el.clientWidth - TP);
+            if (ev) visit(ev);
+            else animateTo(msAt(st.x), 600);
+          },
+          cancel() {
+            dragging = false;
+            dragX = null;
+            hd.release();
+          },
+          hover(x) {
+            hoverX = x;
+          },
+          leave() {
+            hoverX = null;
+          },
+          zoom: zoomAt,
+          pan: (dx) => panPx(-dx),
+          wheelPan: (dx) => panPx(dx),
+        });
+
+        sliderKeys(el, (e) => {
+          const mpp = span / Math.max(1, inner());
+          if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.shiftKey) {
+            const ev = e.key === 'ArrowLeft' ? prevEvent() : nextEvent();
+            if (ev) visit(ev);
+          } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            cancelTween();
+            clock.set(addUnit(clock.ms, pickUnit(mpp, 7), e.key === 'ArrowLeft' ? -1 : 1));
+          } else if (e.key === '+' || e.key === '=') zoomStep(1);
+          else if (e.key === '-' || e.key === '_') zoomStep(-1);
+          else if (e.key === '0') zoomTo(FULL);
+          else if (e.key === 'Home') clock.set(MIN_MS);
+          else if (e.key === 'End') clock.set(MAX_MS);
+          else return false;
+          return true;
+        });
+
+        return {
+          el,
+          zoomStep,
+          get zoomLabel() {
+            return spanLabel(zoomAnim?.to ?? span);
+          },
+          get canZoomIn() {
+            return (zoomAnim?.to ?? span) > STEPS[0] * 1.02;
+          },
+          get canZoomOut() {
+            return (zoomAnim?.to ?? span) < FULL * 0.98;
+          },
+          at: () => nearestMs(clock.ms, DAY),
+          render(dt) {
+            const w = el.clientWidth;
+            if (!w) return;
+            // Follow the playhead: page ahead while playing, recenter after a jump.
+            if (!dragging && clock.ms !== lastMs && span < FULL && performance.now() - lastUser > 2500) {
+              const p = (clock.ms - startT) / span;
+              const moving = !paused() && !scrub.n;
+              if (p < 0.02 || p > 0.98) startT = clock.ms - span * (moving && clock.rate < 0 ? 0.85 : moving ? 0.15 : 0.5);
+              else if (moving && clock.rate > 0 && p > 0.92) startT = clock.ms - span * 0.15;
+              else if (moving && clock.rate < 0 && p < 0.08) startT = clock.ms - span * 0.85;
+              clampStart();
+            }
+            lastMs = clock.ms;
+            if (dragging && dragX !== null) {
+              const edge = dragX < 30 ? -1 : dragX > w - 30 ? 1 : 0;
+              if (edge && span < FULL) {
+                panPx(edge * inner() * 0.7 * dt);
+                scrub.to(msAt(dragX));
+              }
+            }
+            if (zoomAnim) {
+              const k = Math.min(1, (performance.now() - zoomAnim.t0) / 320), e = 1 - Math.pow(1 - k, 3);
+              span = Math.exp(Math.log(zoomAnim.from) + (Math.log(zoomAnim.to) - Math.log(zoomAnim.from)) * e);
+              start = startT = zoomAnim.ms - zoomAnim.frac * span;
+              clampStart();
+              lastUser = performance.now();
+              if (k >= 1) zoomAnim = null;
+            }
+            start = Math.abs(startT - start) > 20 * span ? startT : start + (startT - start) * (1 - Math.exp(-dt * 9));
+
+            const { ctx } = fit(cv);
+            const a = start, b = start + span, x0 = TP, x1 = w - TP, laneY = 12;
+            if (!dragging) hover = hoverX !== null ? nearestAt(hoverX, a, b, x0, x1) : null;
+            el.style.cursor = hover ? 'pointer' : '';
+            ctx.fillStyle = 'rgba(255,255,255,.16)';
+            ctx.fillRect(x0, laneY - 0.5, x1 - x0, 1);
+            drawAxis(ctx, a, b, x0, x1, { base: 23, dir: 1, minorLen: 4, majorLen: 8, labelY: 45, align: 'left', labelPx: 56 });
+            const nx = x0 + ((Date.now() - a) / span) * (x1 - x0);
+            if (nx >= x0 && nx <= x1) {
+              ctx.fillStyle = 'rgba(255,255,255,.7)';
+              ctx.fillRect(Math.round(nx) - 0.5, laneY - 6, 1, 12);
+            }
+            drawMarks(ctx, a, b, x0, x1, laneY, hover);
+            const px = x0 + ((clock.ms - a) / span) * (x1 - x0);
+            ctx.fillStyle = '#8fb8ff';
+            if (px >= x0 - 1 && px <= x1 + 1) {
+              ctx.shadowColor = 'rgba(143,184,255,.75)';
+              ctx.shadowBlur = 10;
+              ctx.fillRect(Math.round(px) - 1, 0, 2, 32);
+              ctx.shadowBlur = 0;
+            } else {
+              // The playhead is outside the view: point at it from the edge.
+              const left = px < x0, ex = left ? 2 : w - 2;
+              ctx.beginPath();
+              ctx.moveTo(ex, laneY);
+              ctx.lineTo(ex + (left ? 7 : -7), laneY - 5);
+              ctx.lineTo(ex + (left ? 7 : -7), laneY + 5);
+              ctx.fill();
+            }
+            // The date line names the landmark the playhead is on, so the tooltip would only cover it:
+            // skip it while scrubbing or flying to a landmark, and for the landmark we're already at.
+            const at = nearestMs(clock.ms, DAY);
+            if (hover && !scrub.n && hover !== at) tip.show(hover, x0 + ((hover.ms - a) / span) * (x1 - x0), w);
+            else tip.hide();
+
+            if (stamp.update(at?.name) || !stampW) stampW = stamp.el.offsetWidth;
+            let [lo, hi] = stampRange ? stampRange(stampW) : [stampW / 2, w - stampW / 2];
+            if (lo > hi) lo = hi = (lo + hi) / 2;
+            stamp.el.style.transform = `translateX(${clamp(px, lo, hi) - stampW / 2}px)`;
+            setAttr(el, 'aria-valuetext', `${fmtDate(clock.ms)} ${fmtTime(clock.ms)}`);
+          },
+        };
+      }
+
+      function makeZoom(tl) {
+        const el = html(`<div class="zoom" role="group" aria-label="Zoom">
+          <button class="btn zb" aria-label="Zoom out">${I.minus}</button>
+          <span class="zl" aria-live="polite"></span>
+          <button class="btn zb" aria-label="Zoom in">${I.plus}</button>
+        </div>`);
+        const [zOut, zIn] = el.querySelectorAll('button'), zl = el.querySelector('.zl');
+        zOut.onclick = () => tl.zoomStep(-1);
+        zIn.onclick = () => tl.zoomStep(1);
+        return {
+          el,
+          update() {
+            const s = tl.zoomLabel;
+            setText(zl, s);
+            zOut.disabled = !tl.canZoomOut;
+            zIn.disabled = !tl.canZoomIn;
+            setAttr(zOut, 'title', `Zoom out (−) · showing ${s}`);
+            setAttr(zIn, 'title', `Zoom in (+) · showing ${s}`);
+          },
+        };
+      }
+
+      // Corners: controls pinned above the two ends, the date riding the playhead between them.
+      function Corners(mount) {
+        const play = makePlay(), speed = makeSpeed({ align: 'left' }), live = makeLive();
+        const dock = html('<div class="dock lc" role="group" aria-label="Time controls"><div class="corners"><div class="grp"></div><div class="grp"></div></div></div>');
+        const [gl, gr] = dock.querySelectorAll('.grp');
+        const tl = makeTimeline({
+          stampRange(sw) {
+            const t = tl.el.getBoundingClientRect(), a = gl.getBoundingClientRect(), b = gr.getBoundingClientRect();
+            return [a.right - t.left + 12 + sw / 2, b.left - t.left - 12 - sw / 2];
+          },
+        });
+        const zoom = makeZoom(tl);
+        gl.append(play.el, speed.el);
+        gr.append(zoom.el, live.el);
+        dock.append(tl.el);
+        mount.append(dock);
+        return {
+          render(dt) {
+            tl.render(dt);
+            play.update();
+            speed.update();
+            live.update();
+            zoom.update();
+          },
+        };
+      }
+
+      // ------------------------------------------------------------------
+      // Page assembly
+      // ------------------------------------------------------------------
+      (function stars() {
+        const c = document.createElement('canvas');
+        c.width = c.height = 600;
+        const x = c.getContext('2d');
+        let s = 7;
+        const rnd = () => ((s = (s * 16807) % 2147483647) - 1) / 2147483646;
+        for (let i = 0; i < 380; i++) {
+          const big = rnd() > 0.93;
+          const r = big ? 0.9 + rnd() * 0.7 : 0.35 + rnd() * 0.5;
+          const tint = rnd();
+          x.fillStyle = tint < 0.15 ? `rgba(255,220,190,${0.4 + rnd() * 0.5})` : tint > 0.85 ? `rgba(190,210,255,${0.4 + rnd() * 0.5})` : `rgba(255,255,255,${0.25 + rnd() * 0.6})`;
+          x.beginPath();
+          x.arc(rnd() * 600, rnd() * 600, r, 0, Math.PI * 2);
+          x.fill();
+        }
+        document.documentElement.style.setProperty('--stars', `url(${c.toDataURL()})`);
+      })();
+
+      const CARDS = [
+        {
+          num: 'C',
+          name: 'Corners',
+          pitch: 'The timeline runs edge to edge. Play and speed sit above the left end, zoom and Live above the right, and the date rides the playhead between them. Rings are predicted events.',
+          tries: ['Hover a marker', 'Click one to fly there', 'Drag to scrub', '− + or pinch to zoom', 'Shift + ← → for landmarks', '0 to see all 800 years'],
+          make: Corners,
+        },
+      ];
+
+      const main = document.querySelector('main');
+      const variants = [];
+      const io = new IntersectionObserver((entries) => {
+        for (const e of entries) {
+          const v = variants.find((v) => v.frame === e.target);
+          if (v) v.visible = e.isIntersecting;
+        }
+      });
+
+      function collapse(frame) {
+        frame.classList.remove('expanded');
+        document.body.classList.remove('has-expanded');
+      }
+
+      /** Mirror the shared focus into a frame's mock scene, flying in when it changes. */
+      function syncScene(v) {
+        if (v.seq === focus.seq) return;
+        const animate = v.seq !== undefined;
+        v.seq = focus.seq;
+        const body = v.frame.querySelector('.body');
+        body.dataset.body = focus.id;
+        setText(v.frame.querySelector('.fname'), TARGETS[focus.id]);
+        setText(v.frame.querySelector('.fsub'), focus.note);
+        if (!animate) return;
+        body.classList.remove('fly');
+        void body.offsetWidth;
+        body.classList.add('fly');
+        const r = () => Math.round((Math.random() - 0.5) * 400);
+        v.frame.style.backgroundPosition = `${r()}px ${r()}px, 0 0`;
+      }
+
+      for (const c of CARDS) {
+        const sec = html(`<section class="card" id="v${c.num}">
+          <div class="card-head">
+            <span class="num">${c.num}</span>
+            <div class="meta-head">
+              <h2>${c.name}</h2>
+              <p>${c.pitch}</p>
+              <div class="try">${c.tries.map((t) => `<span>${t}</span>`).join('')}</div>
+            </div>
+            <button class="expand" title="Fill the window (Esc to close)">${I.expand}<span>Expand</span></button>
+          </div>
+          <div class="frame">
+            <div class="body"><div class="ring"></div></div>
+            <div class="focus-card"><div class="fname"></div><div class="fsub"></div></div>
+            <div class="scrim"></div>
+            <canvas class="orrery"></canvas>
+            <div class="flabel">${c.num} · ${c.name}</div>
+            <button class="btn close" aria-label="Close">${I.close}</button>
+            <div class="mount"></div>
+          </div>
+        </section>`);
+        main.append(sec);
+        const frame = sec.querySelector('.frame');
+        const v = c.make(sec.querySelector('.mount'));
+        v.frame = frame;
+        v.orrery = frame.querySelector('.orrery');
+        v.visible = true;
+        variants.push(v);
+        syncScene(v);
+        io.observe(frame);
+        sec.querySelector('.expand').onclick = () => {
+          frame.classList.add('expanded');
+          document.body.classList.add('has-expanded');
+        };
+        frame.querySelector('.close').onclick = () => collapse(frame);
+      }
+
+      const toggle = makeSeg(['Desktop', 'Mobile · 375'], 0, (i) => document.body.classList.toggle('mobile', i === 1), 'Frame width');
+      document.getElementById('frame-toggle').append(toggle.el);
+
+      window.addEventListener(
+        'pointerdown',
+        (e) => {
+          for (const close of [...openMenus]) if (!close.el.contains(e.target)) close();
+        },
+        true,
+      );
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          if (openMenus.size) return [...openMenus].forEach((c) => c());
+          const ex = document.querySelector('.frame.expanded');
+          if (ex) collapse(ex);
+        } else if (e.key === ' ' && !e.target.closest?.('button, input, textarea, select')) {
+          e.preventDefault();
+          togglePlay();
+        }
+      });
+
+      const nowBox = document.querySelector('.now');
+      const topCv = nowBox.querySelector('canvas'), topD = nowBox.querySelector('.d'), topT = nowBox.querySelector('.t'), topS = nowBox.querySelector('.s');
+
+      let last = performance.now();
+      function frame(now) {
+        const dt = Math.min(0.1, (now - last) / 1000);
+        last = now;
+        stepTween(now);
+        clock.tick(dt);
+        for (const v of variants) {
+          if (!v.visible && !v.frame.classList.contains('expanded')) continue;
+          v.render(dt, now);
+          syncScene(v);
+          drawOrrery(v.orrery, clock.ms);
+        }
+        drawOrrery(topCv, clock.ms);
+        setText(topD, fmtDate(clock.ms));
+        setText(topT, fmtTime(clock.ms));
+        setText(
+          topS,
+          scrub.n
+            ? 'Scrubbing'
+            : isLive()
+              ? 'Live'
+              : `${paused() ? 'Paused' : 'Playing'} · ${clock.rate < 0 ? 'backward' : 'forward'} at ${formatRate(Math.abs(clock.rate))}`,
+        );
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    </script>
+  </body>
+</html>
