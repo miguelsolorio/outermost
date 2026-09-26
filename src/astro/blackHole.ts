@@ -9,6 +9,7 @@
 // equation, e.g. Schneider, Ehlers & Falco 1992).
 
 import { C, GM_SUN } from './units.ts';
+import { add, cross, dot, normalize, scale, type Vec3 } from './vec.ts';
 
 /** Schwarzschild radius of one solar mass (m): 2953.25 m. */
 export const RS_PER_MSUN = (2 * GM_SUN) / (C * C);
@@ -155,4 +156,124 @@ export function lensResidualRow(row: number): Float32Array {
     out[i] = Number.isFinite(b) ? b - sourceAngle(theta, tE) : out[Math.min(i + 1, n - 1)];
   }
   return out;
+}
+
+// ---- accretion disks --------------------------------------------------------
+// Units r_s = 1 (M = ½). The orbit equation (du/dφ)² = u³ − u² + 1/b² gives,
+// differentiated, u'' = 1.5u² − u, which RK4 steps along a ray traced back
+// from the camera. The camera sits at −l·r_o from the hole; the photon is at
+// p(φ) = (1/u)(−l cos φ + t sin φ), l the unit vector to the hole and t the
+// unit tangent toward the ray in their plane. The GPU mirrors these functions
+// (engine/lensingPass.ts).
+
+/** One RK4 step of u'' = 1.5u² − u over dφ = h: [u, du/dφ] → [u, du/dφ]. */
+export function orbitRk4(u: number, du: number, h: number): [number, number] {
+  const f = (x: number) => 1.5 * x * x - x;
+  const k1u = du;
+  const k1v = f(u);
+  const k2u = du + 0.5 * h * k1v;
+  const k2v = f(u + 0.5 * h * k1u);
+  const k3u = du + 0.5 * h * k2v;
+  const k3v = f(u + 0.5 * h * k2u);
+  const k4u = du + h * k3v;
+  const k4v = f(u + h * k3u);
+  return [u + (h / 6) * (k1u + 2 * k2u + 2 * k3u + k4u), du + (h / 6) * (k1v + 2 * k2v + 2 * k3v + k4v)];
+}
+
+/** Starting [u, du/dφ] for a ray seen at angle θ from the hole by a static observer at r_o. */
+export function rayStart(theta: number, ro: number): [number, number] {
+  const uo = 1 / ro;
+  return [uo, (uo * Math.sqrt(1 - uo) * Math.cos(theta)) / Math.max(Math.sin(theta), 1e-12)];
+}
+
+/** Photon position relative to the hole at azimuth φ along the traced ray. */
+export const rayPoint = (l: Vec3, t: Vec3, u: number, phi: number): Vec3 =>
+  scale(add(scale(l, -Math.cos(phi)), scale(t, Math.sin(phi))), 1 / u);
+
+/** Azimuths where the traced ray crosses the plane through the hole with normal n. */
+export function diskCrossings(l: Vec3, t: Vec3, n: Vec3, count = 3): number[] {
+  let phi0 = Math.atan2(dot(l, n), dot(t, n));
+  if (phi0 <= 0) phi0 += Math.PI;
+  return Array.from({ length: count }, (_, k) => phi0 + k * Math.PI);
+}
+
+/**
+ * The first place a ray seen at θ from the hole meets a thin disk (normal n,
+ * radii rIn..rOut in r_s), for an observer at r_o: k counts the crossing
+ * (0 direct, 1 lifted over the top, 2 the photon-ring image). Null when it
+ * falls in or escapes first. RK4 with `steps` steps per crossing.
+ */
+export function traceToDisk(
+  theta: number,
+  ro: number,
+  l: Vec3,
+  t: Vec3,
+  n: Vec3,
+  rIn: number,
+  rOut: number,
+  steps = 32,
+): { r: number; phi: number; k: number } | null {
+  let [u, du] = rayStart(theta, ro);
+  let phi = 0;
+  const crossings = diskCrossings(l, t, n);
+  for (let k = 0; k < crossings.length; k++) {
+    const h = (crossings[k] - phi) / steps;
+    for (let s = 0; s < steps; s++) {
+      [u, du] = orbitRk4(u, du, h);
+      if (u >= 1 || u <= 0) return null;
+    }
+    phi = crossings[k];
+    const r = 1 / u;
+    if (r >= rIn && r <= rOut) return { r, phi, k };
+  }
+  return null;
+}
+
+/** Keplerian angular velocity at radius r (r_s units, G = c = 1, M = ½). */
+export const keplerOmega = (r: number): number => 1 / Math.sqrt(2 * r * r * r);
+
+/**
+ * Redshift g = ν_obs/ν_emit for gas rotating at Ω about the disk axis, at
+ * radius r and cylindrical radius R, seen by a static observer at r_o. λ is
+ * the photon's angular momentum about the axis per unit energy, conserved
+ * along the ray: b·(l × t)·n for the photon heading to the camera.
+ */
+export function flowRedshift(r: number, R: number, omega: number, lambda: number, ro: number): number {
+  const ut = 1 / Math.sqrt(Math.max(1e-9, 1 - 1 / r - R * R * omega * omega));
+  return 1 / (Math.sqrt(1 - 1 / ro) * ut * (1 - omega * lambda));
+}
+
+/** Redshift of a thin Keplerian disk at radius r for a photon of angular momentum λ (see flowRedshift). */
+export const diskRedshift = (r: number, lambda: number, ro: number): number => flowRedshift(r, r, keplerOmega(r), lambda, ro);
+
+/**
+ * Thin-disk temperature with zero torque at the inner edge (Shakura &
+ * Sunyaev 1973; Page & Thorne 1974 in the Newtonian limit),
+ * T ∝ (r_in/r)^¾ (1 − √(r_in/r))^¼, scaled so its peak (at 49/36 r_in) is 1.
+ */
+export function thinDiskTemperature(r: number, rIn: number): number {
+  if (r <= rIn) return 0;
+  const y = Math.sqrt(rIn / r);
+  const peak = Math.pow(6 / 7, 6) / 7;
+  return Math.pow((Math.pow(y, 6) * (1 - y)) / peak, 0.25);
+}
+
+/**
+ * Disk axis (unit angular-momentum vector) for a hole whose direction toward
+ * the observer is e, with sky north N there, at inclination i from e. With a
+ * measured position angle (deg east of north) the axis leans toward it;
+ * otherwise toward east, so the line of nodes runs north–south. `away` flips
+ * the axis (clockwise rotation on the sky).
+ */
+export function diskAxis(e: Vec3, north: Vec3, inclDeg: number, paDeg?: number, away = false): Vec3 {
+  const i = (inclDeg * Math.PI) / 180;
+  let side: Vec3;
+  if (paDeg === undefined) side = cross(north, e);
+  else {
+    const east = normalize(cross([0, 0, 1], scale(e, -1)));
+    const pa = (paDeg * Math.PI) / 180;
+    side = add(scale(north, Math.cos(pa)), scale(east, Math.sin(pa)));
+  }
+  const n = normalize(add(scale(e, Math.cos(i)), scale(side, Math.sin(i))));
+  return away ? scale(n, -1) : n;
 }

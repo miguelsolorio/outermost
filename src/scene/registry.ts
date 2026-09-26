@@ -32,6 +32,8 @@ export interface SearchEntry {
   rank: number;
   /** Spread around us (a belt, our supercluster) rather than at a point, so it has no useful distance. */
   diffuse?: boolean;
+  /** Marks the result's category with a colored dot (CSS color). */
+  color?: string;
 }
 
 export interface Provider {

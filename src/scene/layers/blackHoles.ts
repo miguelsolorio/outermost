@@ -3,11 +3,11 @@
 // the hole's pull (θ_E²/θ) has to reach the screen. Strongest first.
 
 import { einsteinAngle, lensRow, shadowAngularRadius } from '../../astro/blackHole.ts';
-import { clamp, dot, length, scale, type Vec3 } from '../../astro/vec.ts';
+import { clamp, cross, dot, length, normalize, scale, type Vec3 } from '../../astro/vec.ts';
 import { MAX_LENSES, type LensingPass } from '../../engine/lensingPass.ts';
 import type { DepthMode } from '../../engine/renderer.ts';
 import type { FrameCtx } from '../frame.ts';
-import type { LensSource } from '../providers/blackHoles.ts';
+import type { LensDisk, LensSource } from '../providers/blackHoles.ts';
 
 export interface Lens {
   id: string;
@@ -19,6 +19,16 @@ export interface Lens {
   shadow: number;
   /** Row of the exact-bending table, or −1 where the weak field suffices. */
   row: number;
+  /** Shining accretion disk, axis in view space; ro is the camera distance in r_s. */
+  disk?: LensDisk & { ro: number };
+}
+
+/** Beyond this camera distance (r_s; the exact-bending table's last row) every disk is under a pixel. */
+const DISK_MAX_RO = 1e4;
+
+/** Index of the lens whose disk gets drawn: the first with one wider than about 2 px, or −1. */
+export function diskLensIndex(lenses: Lens[], radPerPx: number): number {
+  return lenses.findIndex((l) => l.disk && l.disk.ro < DISK_MAX_RO && Math.asin(Math.min(1, l.disk.rOut / l.disk.ro)) > 2 * radPerPx);
 }
 
 /** Depth-buffer value of a point at view depth z, matching three's reversed-Z and logarithmic depth. */
@@ -68,13 +78,29 @@ export class BlackHoleLayer {
     const tanH = tanV * camera.aspect;
     const halfDiag = Math.atan(Math.hypot(tanV, tanH));
     // View space from the pose basis in float64 (the three.js camera is built from the same basis).
-    const view = sources.map((s) => ({
-      id: s.id,
-      rs: s.rs,
-      view: [dot(s.rel, pose.right), dot(s.rel, pose.up), -dot(s.rel, pose.forward)] as Vec3,
-    }));
+    const toView = (v: Vec3): Vec3 => [dot(v, pose.right), dot(v, pose.up), -dot(v, pose.forward)];
+    const view = sources.map((s) => ({ id: s.id, rs: s.rs, view: toView(s.rel) }));
     this.lenses = selectLenses(view, radPerPx, halfDiag);
+    for (const l of this.lenses) {
+      const s = sources.find((x) => x.id === l.id)!;
+      if (s.disk) l.disk = { ...s.disk, axis: toView(s.disk.axis), ro: length(s.rel) / s.rs };
+    }
     const u = this.pass.uniforms;
+    const k = diskLensIndex(this.lenses, radPerPx);
+    u.uDiskLens.value = k;
+    if (k >= 0) {
+      const d = this.lenses[k].disk!;
+      const src = sources.find((x) => x.id === this.lenses[k].id)!.disk!;
+      // A reference direction in the disk plane fixed to the sky, so the streaks don't swim as the camera turns.
+      let e1 = cross(src.axis, [0, 0, 1]);
+      if (length(e1) < 1e-6) e1 = cross(src.axis, [1, 0, 0]);
+      e1 = toView(normalize(e1));
+      u.uDiskAxis.value.set(d.axis[0], d.axis[1], d.axis[2]);
+      u.uDiskE1.value.set(e1[0], e1[1], e1[2]);
+      u.uDiskParams.value.set(d.rIn, d.rOut, d.ro, d.brightness);
+      u.uDiskKind.value = d.kind === 'thick' ? 1 : 0;
+      u.uTime.value = performance.now() / 1000;
+    }
     this.lenses.forEach((l, i) => {
       u.uDir.value[i].set(l.dir[0], l.dir[1], l.dir[2]);
       u.uThetaE2.value[i] = l.thetaE * l.thetaE;
