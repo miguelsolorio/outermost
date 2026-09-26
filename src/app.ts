@@ -25,6 +25,7 @@ import { GalaxyLayer } from './scene/layers/galaxy.ts';
 import { GalaxyProvider } from './scene/providers/galaxy.ts';
 import { SpacecraftLayer } from './scene/layers/spacecraft.ts';
 import { SmallBodiesLayer } from './scene/layers/smallBodies.ts';
+import { UserLocationLayer } from './scene/layers/userLocation.ts';
 import { Ambient } from './audio/ambient.ts';
 import { CosmosLayer } from './scene/layers/cosmos.ts';
 import { CosmosProvider } from './scene/providers/cosmos.ts';
@@ -59,7 +60,8 @@ export class App {
   readonly smallBodies: SmallBodiesLayer;
   readonly audio = new Ambient();
   readonly labels: LabelLayer;
-  settings: Settings = { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true };
+  readonly userLocation: UserLocationLayer;
+  settings: Settings = { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true, location: true };
   private last = performance.now();
   private frames = 0;
   private fpsT = 0;
@@ -107,6 +109,7 @@ export class App {
     this.registry.add(this.smallBodies);
     this.camera = new CameraController((id) => this.registry.target(id));
     this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
+    this.userLocation = new UserLocationLayer(labelRoot);
 
     const url = readUrlState();
     this.clock = new SimClock(url.time ?? Date.now());
@@ -169,6 +172,7 @@ export class App {
     requestAnimationFrame(this.frame);
     void this.bodies.init();
     void this.spacecraft.refreshTle();
+    this.userLocation.setEnabled(this.settings.location);
     void this.smallBodies.init().then(() => this.refreshSearch());
 
     // Galaxy catalogs, Horizons tables (dwarf planets, spacecraft) and stars stream in after the first frame.
@@ -215,6 +219,7 @@ export class App {
       toggle: (key) => {
         this.settings[key] = !this.settings[key];
         ui.settings = { ...this.settings };
+        if (key === 'location') this.userLocation.setEnabled(this.settings.location);
       },
     });
   }
@@ -381,6 +386,8 @@ export class App {
     this.glare.update(ctx);
     this.audio.update(pose.r, length(rel(this.world.get('sun').pos, pose.position)));
     this.updateLabels(ctx);
+    const earth = this.bodies.visuals.get('earth')!;
+    this.userLocation.update(ctx, earth.apparentPx, earth.boost);
 
     this.galaxy.render();
     this.rc.render();

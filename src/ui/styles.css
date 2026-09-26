@@ -130,3 +130,76 @@ body {
   color: rgb(255 214 150 / 0.85);
   font-size: 10.5px;
 }
+
+/* The viewer's position on Earth. The engine sets a matrix that lays it flat
+   on the ground; the double shadow outlines it over ocean, land and cloud. */
+.user-location {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0;
+  height: 0;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.user-location svg {
+  position: absolute;
+  left: -32px;
+  top: -32px;
+  overflow: visible;
+  filter: drop-shadow(0 0 0.8px rgb(0 0 0 / 0.95)) drop-shadow(0 0 3px rgb(0 0 0 / 0.55));
+}
+
+/* A 24 px hit area on the marker is the only part that takes the pointer. */
+.user-location .hit {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  pointer-events: auto;
+  cursor: default;
+  outline: none;
+}
+
+/* "You are here": an upright panel tooltip above the marker, with a caret
+   made of a rotated square that continues its fill and border. */
+.user-location-tip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  translate: -50% -100%;
+  padding: 5px 9px;
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+  font: 500 12px/1.3 Inter, system-ui, sans-serif;
+  color: var(--text);
+  white-space: nowrap;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  will-change: transform;
+}
+
+.user-location-tip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  margin-left: -4px;
+  background: inherit;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}

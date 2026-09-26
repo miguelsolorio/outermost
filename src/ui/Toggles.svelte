@@ -7,6 +7,7 @@
     { key: 'orbits', label: 'Orbits', hint: 'Current orbital paths' },
     { key: 'constellations', label: 'Constellations', hint: 'IAU constellation figures, names and boundaries' },
     { key: 'smallBodies', label: 'Asteroids & Kuiper belt', hint: '~200,000 real asteroids and trans-Neptunian objects (JPL)' },
+    { key: 'location', label: 'My location', hint: 'Your position on Earth, from your browser' },
     { key: 'boost', label: 'Boost sizes', hint: 'Enlarge tiny bodies so they stay visible (not to scale)' },
   ] as const;
 </script>

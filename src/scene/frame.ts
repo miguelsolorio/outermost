@@ -11,6 +11,7 @@ export interface Settings {
   boost: boolean;
   constellations: boolean;
   smallBodies: boolean;
+  location: boolean;
 }
 
 export interface FrameCtx {

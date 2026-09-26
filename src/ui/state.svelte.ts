@@ -16,7 +16,7 @@ export const ui = $state({
   scaleText: '',
   selectedId: null as string | null,
   hoverId: null as string | null,
-  settings: { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true },
+  settings: { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true, location: true },
   /** Facts for the object named in the title. */
   card: null as ObjectInfo | null,
   depthMode: '' as string,
