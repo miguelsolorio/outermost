@@ -62,7 +62,7 @@ export class GalaxyProvider implements Provider {
       ],
       notes: [
         {
-          text: "No photograph of our galaxy from outside exists. This view is a model: spiral arms follow the maser-parallax fits of Reid et al. 2019 (drawn fainter where extrapolated), with a bar, bulge, exponential disks and dust tuned to published scales.",
+          text: "No photograph of our galaxy from outside exists. This view is a model: spiral arms follow the maser-parallax fits of Reid et al. 2019 (drawn fainter where extrapolated), with a bar, bulge, exponential disks and dust tuned to published scales. Fine texture (star clusters, dust filaments and color) is styled on Hubble images of face-on spirals like M101 and is illustrative.",
           kind: 'model',
         },
       ],
