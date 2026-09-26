@@ -33,6 +33,13 @@ import { SUN_LIMB } from '../sunLimb.ts';
 
 const MODEL = { lunar: 0, minnaert: 1, earth: 2 } as const;
 
+/**
+ * Crater density of the synthetic relief drawn where a mosaic is low
+ * resolution (see textures/<key>-sharp). Triton's surface is young and
+ * sparsely cratered; Charon's is old and heavily cratered.
+ */
+const SYNTH_CRATERS: Record<string, number> = { pluto: 1, charon: 1.3, triton: 0.15 };
+
 /** One texture binding (e.g. Earth's day map, clouds) with resolution tiers. */
 interface Slot {
   uniform: string;
@@ -292,6 +299,10 @@ export class BodiesLayer {
         glintSlope2: { value: 0.003 + 0.00512 * 7 },
         normalMap: { value: null },
         hasNormalMap: { value: false },
+        sharpMap: { value: null },
+        hasSharpMap: { value: false },
+        bodyRadiusKm: { value: meanRadius(def) / 1000 },
+        synthCraters: { value: SYNTH_CRATERS[def.id] ?? 1 },
         occluders: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
         occluderRed: { value: [0, 0, 0, 0] },
         occluderCount: { value: 0 },
@@ -354,9 +365,14 @@ export class BodiesLayer {
       ];
     }
     const key = def.appearance.texture;
-    // Relief maps load only where the pipeline made one (textures/<key>-normal).
+    // Relief maps and sharpness masks load only where the pipeline made one
+    // (textures/<key>-normal, textures/<key>-sharp).
     return key
-      ? [slot('map', () => key, { flag: 'hasMap' }), slot('normalMap', () => `${key}-normal`, { flag: 'hasNormalMap', colorSpace: THREE.NoColorSpace })]
+      ? [
+          slot('map', () => key, { flag: 'hasMap' }),
+          slot('normalMap', () => `${key}-normal`, { flag: 'hasNormalMap', colorSpace: THREE.NoColorSpace }),
+          slot('sharpMap', () => `${key}-sharp`, { flag: 'hasSharpMap', colorSpace: THREE.NoColorSpace }),
+        ]
       : [];
   }
 

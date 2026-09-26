@@ -16,6 +16,7 @@ import { processCmb } from './steps/cmb.ts';
 import { processSprites } from './steps/sprites.ts';
 import { processSmallBodies } from './steps/smallbodies.ts';
 import { processRelief, RELIEF_JOBS } from './steps/relief.ts';
+import { processSharpness, SHARPNESS_JOBS } from './steps/sharpness.ts';
 import { processTileSet } from './steps/tiles.ts';
 import { TEXTURE_JOBS, TILE_JOBS } from './jobs.ts';
 
@@ -110,6 +111,13 @@ for (const job of RELIEF_JOBS) {
   if (!pick(id)) continue;
   console.log(`pipeline ${id}`);
   await processRelief(job, ctx);
+}
+
+for (const job of SHARPNESS_JOBS) {
+  const id = `sharpness:${job.key}`;
+  if (!pick(id)) continue;
+  console.log(`pipeline ${id}`);
+  await processSharpness(job, ctx);
 }
 
 if (pick('stars')) {

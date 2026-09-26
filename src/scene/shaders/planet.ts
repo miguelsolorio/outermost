@@ -6,6 +6,10 @@
 //    the flat, un-limb-darkened full Moon.
 //  1 Minnaert: f = μ0^k · μ^(k-1), a standard fit for cloud-covered giants.
 //  2 Earth: Lambert day side with night lights past the terminator.
+//
+// Mosaics that mix close-up and distant imagery (Pluto, Charon, Triton) carry
+// a sharpness mask; where it is low the shader adds synthetic craters and
+// rolling relief below the source's resolution, so the far side is not a smear.
 
 import { atmosphereChunk } from './atmosphere.ts';
 import { ringChunk } from './rings.ts';
@@ -77,6 +81,10 @@ uniform bool hasRings;
 uniform vec3 ringPole;
 uniform sampler2D normalMap;  // relief: local (east, north, up) normal, RGB = 0.5 + 0.5·n
 uniform bool hasNormalMap;
+uniform sampler2D sharpMap;   // 1 = sharp source imagery, 0 = stretched from distant frames
+uniform bool hasSharpMap;
+uniform float bodyRadiusKm;
+uniform float synthCraters;  // crater density in the synthetic relief (1 = Pluto-like)
 uniform bool hasGlint;
 uniform float glintSlope2;   // Cox-Munk mean square wave slope
 // Eclipses: bodies that can block the Sun (camera-relative center, radius in m).
@@ -120,6 +128,97 @@ vec2 sunVisibility(vec3 p) {
   return vec2(vis, red);
 }
 
+
+// ---- synthetic relief for low-resolution regions ----
+uint hashU(uvec3 v) {
+  v = v * 1664525u + 1013904223u;
+  v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+  v ^= v >> 16u;
+  v.x += v.y * v.z; v.y += v.z * v.x; v.z += v.x * v.y;
+  return v.x ^ v.y ^ v.z;
+}
+float hash1(ivec3 c) { return float(hashU(uvec3(c))) * (1.0 / 4294967295.0); }
+vec3 hash3(ivec3 c) {
+  return vec3(hash1(c + ivec3(17, 59, 83)), hash1(c + ivec3(151, 7, 29)), hash1(c + ivec3(43, 211, 97)));
+}
+
+// Value noise in [-1, 1] with its analytic gradient (Quilez): (value, d/dx).
+vec4 noised(vec3 x) {
+  ivec3 i = ivec3(floor(x));
+  vec3 f = fract(x);
+  vec3 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  vec3 du = 30.0 * f * f * (f * (f - 2.0) + 1.0);
+  float a = hash1(i), b = hash1(i + ivec3(1, 0, 0)), c = hash1(i + ivec3(0, 1, 0)), d = hash1(i + ivec3(1, 1, 0));
+  float e = hash1(i + ivec3(0, 0, 1)), g = hash1(i + ivec3(1, 0, 1)), h = hash1(i + ivec3(0, 1, 1)), k = hash1(i + ivec3(1, 1, 1));
+  float k1 = b - a, k2 = c - a, k3 = e - a, k4 = a - b - c + d, k5 = a - c - e + h, k6 = a - b - e + g, k7 = -a + b + c - d + e - g - h + k;
+  float v = a + k1 * u.x + k2 * u.y + k3 * u.z + k4 * u.x * u.y + k5 * u.y * u.z + k6 * u.z * u.x + k7 * u.x * u.y * u.z;
+  vec3 dv = du * vec3(k1 + k4 * u.y + k6 * u.z + k7 * u.y * u.z, k2 + k5 * u.z + k4 * u.x + k7 * u.z * u.x, k3 + k6 * u.x + k5 * u.y + k7 * u.x * u.y);
+  return vec4(2.0 * v - 1.0, 2.0 * dv);
+}
+
+// Simple craters (bowl, depth/diameter 0.15, raised rim) scattered one per
+// occupied cell of a 3D grid; the sphere slices them into circles.
+// Returns (height, gradient) in cell units.
+vec4 craters(vec3 x, float occupancy) {
+  ivec3 i = ivec3(floor(x));
+  vec3 f = fract(x);
+  vec4 acc = vec4(0.0);
+  for (int dz = -1; dz <= 1; dz++)
+  for (int dy = -1; dy <= 1; dy++)
+  for (int dx = -1; dx <= 1; dx++) {
+    ivec3 o = ivec3(dx, dy, dz);
+    ivec3 c = i + o;
+    if (hash1(c + ivec3(71, 13, 37)) > occupancy) continue;
+    vec3 rnd = hash3(c);
+    // Many small, few large.
+    float r = mix(0.12, 0.5, rnd.z * rnd.z * rnd.z);
+    vec3 dv = f - (vec3(o) + vec3(rnd.xy, fract(rnd.x + rnd.y * 7.0)));
+    float dist = length(dv);
+    float t = dist / r;
+    if (t > 2.0 || dist < 1e-5) continue;
+    float depth = 0.3 * r;
+    float rimT = t - 1.0;
+    float rim = 0.28 * exp(-6.0 * rimT * rimT);
+    float hp = (t < 1.0 ? t * t - 1.0 : 0.0) + rim;
+    float dhp = (t < 1.0 ? 2.0 * t : 0.0) - 12.0 * rimT * rim;
+    acc.x += depth * hp;
+    acc.yzw += depth * dhp * dv / (dist * r);
+  }
+  return acc;
+}
+
+// Height (in body radii) gradient and albedo factor to add at unit-sphere
+// point p, faded per octave once its features shrink below a few pixels.
+// fp: surface footprint of one pixel in body radii. Returns (albedo factor, gradient).
+vec4 synthRelief(vec3 p, float fp) {
+  vec3 grad = vec3(0.0);
+  float alb = 0.0;
+  // Rolling terrain from ~40 km down to ~1 km: constant RMS slope per octave.
+  float freq = bodyRadiusKm / 40.0;
+  for (int o = 0; o < 6; o++) {
+    float w = 1.0 - smoothstep(0.2, 0.5, freq * fp);
+    if (w <= 0.0) break;
+    vec4 n = noised(p * freq + float(o) * 17.31);
+    grad += w * 0.09 * n.yzw;
+    alb += w * 0.14 * n.x;
+    freq *= 2.03;
+  }
+  // Craters at three scales: cells of ~60, ~18 and ~5 km.
+  float cells[3] = float[3](60.0, 18.0, 5.0);
+  float occupancy[3] = float[3](0.12, 0.2, 0.3);
+  for (int o = 0; o < 3; o++) {
+    float cf = bodyRadiusKm / cells[o];
+    float w = 1.0 - smoothstep(0.08, 0.2, cf * fp);
+    if (w <= 0.0) break;
+    // Thin the craters out in patches, so some terrain reads as smoother plains.
+    vec4 cr = craters(p * cf + float(o) * 5.7, synthCraters * occupancy[o] * (0.6 + 0.8 * smoothstep(-0.4, 0.4, noised(p * bodyRadiusKm / 150.0).x)));
+    grad += w * cr.yzw;
+    // Crater floors darker, rims brighter (in cell units: depth up to ~0.15).
+    alb += w * 2.5 * cr.x;
+  }
+  return vec4(clamp(1.0 + alb, 0.6, 1.4), grad);
+}
+
 varying vec2 vUv;
 varying vec3 vPosW;
 varying vec3 vNormalW;
@@ -139,12 +238,35 @@ void main() {
   // geometric factor lets sunward peaks catch the last light.
   float mu0L = mu0;
   float muL = mu;
+  vec3 Nr = N;
+  bool relief = false;
   if (hasNormalMap) {
     vec3 nt = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;
     // Fade out at the poles, where the map's east-west spacing collapses.
     float polar = 1.0 - smoothstep(0.985, 0.998, abs(normalize(vObj).z));
     nt = normalize(mix(vec3(0.0, 0.0, 1.0), nt, polar));
-    vec3 Nr = normalize(normalize(vEastW) * nt.x + normalize(vNorthW) * nt.y + N * nt.z);
+    Nr = normalize(normalize(vEastW) * nt.x + normalize(vNorthW) * nt.y + N * nt.z);
+    relief = true;
+  }
+  float synthAlbedo = 1.0;
+  if (hasSharpMap) {
+    float blurry = smoothstep(0.1, 0.7, 1.0 - texture2D(sharpMap, vUv).r);
+    vec3 p = normalize(vObj);
+    float fp = length(fwidth(vObj));
+    if (blurry > 0.0 && fp < 0.05) {
+      vec4 sr = synthRelief(p, fp);
+      synthAlbedo = mix(1.0, sr.x, blurry);
+      // Tangential part of the height gradient, in the local east/north frame.
+      vec3 g = sr.yzw - dot(sr.yzw, p) * p;
+      float lon = atan(p.y, p.x);
+      vec3 eastB = vec3(-sin(lon), cos(lon), 0.0);
+      vec3 northB = cross(p, eastB);
+      float polar = 1.0 - smoothstep(0.985, 0.998, abs(p.z));
+      Nr = normalize(Nr - blurry * polar * (dot(g, eastB) * normalize(vEastW) + dot(g, northB) * normalize(vNorthW)));
+      relief = true;
+    }
+  }
+  if (relief) {
     mu0L = dot(Nr, L) * smoothstep(-0.04, 0.02, mu0);
     muL = max(dot(Nr, V), 1e-4);
   }
@@ -152,7 +274,7 @@ void main() {
   vec3 albA = hasMap ? texture2D(map, vUv).rgb : tint;
   vec3 albB = albA;
   if (hasMap && mapBlend > 0.0) albB = texture2D(map2, vUv).rgb;
-  vec3 albedo = mix(albA, albB, mapBlend);
+  vec3 albedo = mix(albA, albB, mapBlend) * synthAlbedo;
   if (hasDetail) {
     // Tile under this fragment (y counted from the north).
     vec2 tc = vec2(vUv.x, 1.0 - vUv.y) * detailGrid;
