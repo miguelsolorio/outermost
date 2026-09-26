@@ -67,7 +67,7 @@ export class BodiesProvider implements Provider {
         kind: f.kind,
         source: { name: 'NASA NSSDCA fact sheet', url: f.sourceUrl },
       })),
-      notes: def.appearance.appearanceSource ? [{ text: def.appearance.appearanceSource, kind: 'measured' }] : [],
+      notes: def.appearance.appearanceSource ? [{ text: def.appearance.appearanceSource, kind: def.appearance.appearanceKind ?? 'measured' }] : [],
     };
   }
 

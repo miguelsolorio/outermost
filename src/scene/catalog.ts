@@ -9,6 +9,7 @@ import dwarfRotation from '../../data/baked/dwarf-rotation.json';
 import type { FittedElements } from '../astro/satellites.ts';
 import type { EphemerisModel } from '../astro/ephemeris.ts';
 import type { OrientationModel } from '../astro/orientation.ts';
+import type { FactKind } from '../data/facts.ts';
 import { AU } from '../astro/units.ts';
 import {
   EARTH_ATMOSPHERE,
@@ -48,6 +49,8 @@ export interface Appearance {
   atmosphere?: AtmosphereParams;
   /** Where the colors/photometry come from (shown in info cards). */
   appearanceSource?: string;
+  /** Provenance badge for appearanceSource (default 'measured'). */
+  appearanceKind?: FactKind;
 }
 
 export interface BodyDef {
@@ -116,7 +119,15 @@ export const BODIES: BodyDef[] = [
     radii: [sunSi.radius_mean_m, sunSi.radius_mean_m, sunSi.radius_mean_m],
     gm: sunSi.gm_m3_s2,
     semiMajorAxis: 0,
-    appearance: { texture: null, textureWidth: 0, shading: { type: 'sun' }, color: [1, 1, 1] },
+    appearance: {
+      texture: null,
+      textureWidth: 0,
+      shading: { type: 'sun' },
+      color: [1, 1, 1],
+      appearanceSource:
+        'Styled after NASA SDO/AIA 304 Å extreme-ultraviolet images, which are false color. The surface is procedural, not real solar data. In visible light the Sun is white and darkens toward its edge.',
+      appearanceKind: 'artistic',
+    },
     factsKey: 'sun',
   },
   planet('mercury', 'Mercury', A.Body.Mercury, {

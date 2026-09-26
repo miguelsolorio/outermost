@@ -8,7 +8,8 @@ import type { Assets } from '../../engine/assets.ts';
 import { BODIES, meanRadius, type BodyDef } from '../catalog.ts';
 import { createBodySphere } from '../geometry.ts';
 import { planetFragment, planetVertex } from '../shaders/planet.ts';
-import { sunFragment, sunVertex } from '../shaders/sun.ts';
+import { sunLimbFragment, sunLimbVertex, sunSurfaceFragment, sunSurfaceVertex } from '../shaders/sun.ts';
+import { noiseTexture } from '../shaders/noise.ts';
 import { atmosphereFragment, atmosphereVertex, type AtmosphereParams } from '../shaders/atmosphere.ts';
 import { ringFragment, ringVertex } from '../shaders/rings.ts';
 import ringProfile from '../../../data/baked/saturn-rings-pps.json';
@@ -29,9 +30,11 @@ function ringTauTexture(): THREE.DataTexture {
 }
 import { rel, type FrameCtx } from '../frame.ts';
 import { DetailTiles } from '../detailTiles.ts';
-import { SUN_LIMB } from '../sunLimb.ts';
 
 const MODEL = { lunar: 0, minnaert: 1, earth: 2 } as const;
+
+/** Radius of the Sun's limb shell (spicules, prominences), in solar radii. */
+const SUN_SHELL = 1.25;
 
 /**
  * Crater density of the synthetic relief drawn where a mosaic is low
@@ -61,6 +64,8 @@ interface BodyVisual {
   slots: Slot[];
   atmosphere: THREE.Mesh | null;
   rings: THREE.Mesh | null;
+  /** The Sun's limb shell: rim, spicules and prominences past the edge of the disk. */
+  limb: THREE.Mesh | null;
   /** Radius multiplier from "boost sizes". */
   boost: number;
   /** Apparent radius in CSS px, from last frame. */
@@ -136,14 +141,13 @@ export class BodiesLayer {
       const material =
         def.appearance.shading.type === 'sun'
           ? new THREE.ShaderMaterial({
-              vertexShader: sunVertex,
-              fragmentShader: sunFragment,
+              vertexShader: sunSurfaceVertex,
+              fragmentShader: sunSurfaceFragment,
               uniforms: {
                 intensity: { value: 1 },
-                tint: { value: new THREE.Vector3(1, 1, 1) },
-                limbR: { value: [new THREE.Vector3(...SUN_LIMB.r.slice(0, 3)), new THREE.Vector3(...SUN_LIMB.r.slice(3))] },
-                limbG: { value: [new THREE.Vector3(...SUN_LIMB.g.slice(0, 3)), new THREE.Vector3(...SUN_LIMB.g.slice(3))] },
-                limbB: { value: [new THREE.Vector3(...SUN_LIMB.b.slice(0, 3)), new THREE.Vector3(...SUN_LIMB.b.slice(3))] },
+                time: { value: 0 },
+                look: { value: 0 },
+                noiseTex: { value: noiseTexture() },
               },
             })
           : this.planetMaterial(def);
@@ -170,6 +174,31 @@ export class BodiesLayer {
         atmosphere.frustumCulled = false;
         atmosphere.renderOrder = 2;
         this.group.add(atmosphere);
+      }
+      let limb: THREE.Mesh | null = null;
+      if (def.appearance.shading.type === 'sun') {
+        limb = new THREE.Mesh(
+          sphere,
+          new THREE.ShaderMaterial({
+            vertexShader: sunLimbVertex,
+            fragmentShader: sunLimbFragment,
+            uniforms: {
+              intensity: { value: 0 },
+              time: material.uniforms.time,
+              noiseTex: material.uniforms.noiseTex,
+              camObj: { value: new THREE.Vector3() },
+              shellR: { value: SUN_SHELL },
+            },
+            side: THREE.BackSide,
+            transparent: true,
+            depthWrite: false,
+            blending: THREE.AdditiveBlending,
+          }),
+        );
+        limb.frustumCulled = false;
+        // Just under the Sun's glare (20).
+        limb.renderOrder = 19;
+        this.group.add(limb);
       }
       let rings: THREE.Mesh | null = null;
       if (def.id === 'saturn') {
@@ -212,7 +241,7 @@ export class BodiesLayer {
         // The planet shader samples the same profile for the rings' shadow.
         Object.assign(material.uniforms, ringUniforms, { hasRings: { value: true }, ringPole: rings.material instanceof THREE.ShaderMaterial ? rings.material.uniforms.pole : { value: new THREE.Vector3() } });
       }
-      this.visuals.set(def.id, { def, mesh, material, slots: this.slotsFor(def), atmosphere, rings, boost: 1, apparentPx: 0, occluders: occludersFor(def) });
+      this.visuals.set(def.id, { def, mesh, material, slots: this.slotsFor(def), atmosphere, rings, limb, boost: 1, apparentPx: 0, occluders: occludersFor(def) });
     }
 
     // Point markers for bodies too small to resolve.
@@ -464,9 +493,29 @@ export class BodiesLayer {
 
       const u = v.material.uniforms;
       if (def.appearance.shading.type === 'sun') {
-        // Adapt exposure like an eye: a dazzling point from afar, a disk with
-        // visible limb darkening once it fills a good part of the view.
-        u.intensity.value = THREE.MathUtils.lerp(6.0, 0.95, THREE.MathUtils.smoothstep(trueAngular, 0.01, 0.12));
+        // Adapt exposure like an eye: a dazzling white point from afar. Once
+        // the disk fills a good part of the view it takes on the 304 Å look
+        // (shaders/sun.ts), dim enough that its orange survives tone mapping.
+        const look = THREE.MathUtils.smoothstep(trueAngular, 0.01, 0.12);
+        u.look.value = look;
+        u.intensity.value = THREE.MathUtils.lerp(6.0, 0.95, look);
+        // Wall-clock time: the surface keeps churning while the simulation is paused.
+        u.time.value += ctx.dt;
+        if (v.limb) {
+          v.limb.position.copy(v.mesh.position);
+          v.limb.quaternion.copy(v.mesh.quaternion);
+          v.limb.scale.setScalar(R * SUN_SHELL);
+          // Camera in body-fixed axes (transpose of body -> EQJ), in solar radii.
+          const m = st.orient;
+          const lu = (v.limb.material as THREE.ShaderMaterial).uniforms;
+          lu.camObj.value.set(
+            -(m[0] * p[0] + m[3] * p[1] + m[6] * p[2]) / R,
+            -(m[1] * p[0] + m[4] * p[1] + m[7] * p[2]) / R,
+            -(m[2] * p[0] + m[5] * p[1] + m[8] * p[2]) / R,
+          );
+          lu.intensity.value = look;
+          v.limb.visible = v.mesh.visible && look > 0.001;
+        }
       } else {
         u.sunPos.value.set(sunRel[0], sunRel[1], sunRel[2]);
         // Sunlight falls off as 1/d^2; exposure is set relative to the focus.
