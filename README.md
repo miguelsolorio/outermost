@@ -1,8 +1,23 @@
+![Outermost](public/og.png)
+
 # Outermost
 
 An objective-free exploration of the observable universe in the browser, at true scale and with real positions. You can scroll from a regional, Google-Earth-style view of Earth out through the solar system, the nearby stars, the Milky Way seen from outside, the Local Group and the cosmic web, to the cosmic microwave background at the edge of what we can observe.
 
 Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs. Every fact on an info card cites its source. An automated fact-check suite compares the rendered universe against JPL Horizons, SIMBAD, the IAU and VizieR.
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Earth from 12,000 km, with Blue Marble imagery and clouds](docs/screenshots/earth.jpg) | ![The Moon, with LOLA terrain relief](docs/screenshots/moon.jpg) |
+| **Earth** from 12,000 km | **The Moon** from 5,000 km |
+| ![Jupiter with moving cloud bands](docs/screenshots/jupiter.jpg) | ![Saturn and its rings](docs/screenshots/saturn.jpg) |
+| **Jupiter** | **Saturn** and its rings |
+| ![The Sun in the style of SDO extreme-ultraviolet images](docs/screenshots/sun.jpg) | ![M87*, bending the light behind it](docs/screenshots/m87.jpg) |
+| **The Sun** | **M87\***, bending the light behind it |
+| ![The Milky Way seen from outside, with the Magellanic Clouds](docs/screenshots/milky-way.jpg) | ![The Planck CMB map at the edge of the observable universe](docs/screenshots/cmb.jpg) |
+| **The Milky Way** from outside | **The cosmic microwave background** |
 
 ## What's in it
 
