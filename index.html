@@ -23,6 +23,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <!-- Google Analytics, on the deployed site only. The hash holds live camera state, so it is left out of page_location. -->
+    <script>
+      if (location.hostname.endsWith('github.io')) {
+        const s = document.createElement('script');
+        s.async = true;
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-PDB3DT24E5';
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        window.gtag = function () { dataLayer.push(arguments); };
+        gtag('js', new Date());
+        gtag('config', 'G-PDB3DT24E5', { page_location: location.origin + location.pathname });
+      }
+    </script>
   </head>
   <body>
     <canvas id="scene"></canvas>
