@@ -1,12 +1,14 @@
 <script lang="ts">
   import { actions, ui, type SearchEntry } from './state.svelte.ts';
-  import { findMatches, go, type Match } from './searchMatch.ts';
+  import { findMatches, go, PAGE, type Match } from './searchMatch.ts';
   import ResultRow from './ResultRow.svelte';
 
   const LIMIT = 8;
 
   let query = $state('');
   let active = $state(0);
+  // How many search results to show; "Show more" adds another page.
+  let shown = $state(PAGE);
   // The nearest list is ordered once when it opens, so rows stay put while you click through them.
   let nearest = $state.raw<SearchEntry[]>([]);
   // Bumped every second while open so distances follow the camera and the clock.
@@ -16,10 +18,10 @@
 
   const open = $derived(ui.openMenu === 'search');
   const searching = $derived(query.trim() !== '');
-  const matches = $derived(searching ? findMatches(ui.searchIndex, query.trim(), LIMIT) : []);
+  const result = $derived(searching ? findMatches(ui.searchIndex, query.trim(), shown) : null);
   const rows = $derived.by(() => {
     void tick;
-    return (searching ? matches : nearest).map((entry: Match) => ({
+    return (result ? result.matches : nearest).map((entry: Match) => ({
       entry,
       dist: entry.diffuse || entry.event ? null : actions.distanceTo(entry.id),
     }));
@@ -38,6 +40,7 @@
     if (open) return;
     ui.openMenu = 'search';
     active = 0;
+    shown = PAGE;
     nearest = actions.nearby(LIMIT);
   }
 
@@ -49,19 +52,33 @@
   function onInput() {
     ui.openMenu = 'search';
     active = 0;
+    shown = PAGE;
     if (!searching) nearest = actions.nearby(LIMIT);
+  }
+
+  function showMore() {
+    active = shown;
+    shown += PAGE;
+    input.focus();
+  }
+
+  function move(to: number) {
+    active = Math.max(0, Math.min(rows.length - (result?.more ? 0 : 1), to));
+    document.getElementById(`search-opt-${active}`)?.scrollIntoView({ block: 'nearest' });
   }
 
   function onKey(e: KeyboardEvent) {
     if (e.key === 'ArrowDown') {
       if (!open) show();
-      else active = Math.min(rows.length - 1, active + 1);
+      else move(active + 1);
       e.preventDefault();
     } else if (e.key === 'ArrowUp') {
-      active = Math.max(0, active - 1);
+      move(active - 1);
       e.preventDefault();
     } else if (e.key === 'Enter' && open && rows[active]) {
       go(rows[active].entry);
+    } else if (e.key === 'Enter' && open && result?.more && active === rows.length) {
+      showMore();
     }
   }
 </script>
@@ -102,7 +119,7 @@
     role="combobox"
     aria-expanded={open && rows.length > 0}
     aria-controls="search-list"
-    aria-activedescendant={open && rows[active] ? `search-opt-${active}` : undefined}
+    aria-activedescendant={open && (rows[active] || (result?.more && active === rows.length)) ? `search-opt-${active}` : undefined}
     aria-label="Search the universe"
   />
   {#if open && (rows.length || searching)}
@@ -125,6 +142,20 @@
               </button>
             </li>
           {/each}
+          {#if result?.more}
+            <li id="search-opt-{rows.length}" role="option" aria-selected={active === rows.length}>
+              <button
+                tabindex="-1"
+                class="more"
+                class:active={active === rows.length}
+                onmousedown={(e) => e.preventDefault()}
+                onclick={showMore}
+                onmouseenter={() => (active = rows.length)}
+              >
+                Show more
+              </button>
+            </li>
+          {/if}
         </ul>
       {:else}
         <div class="empty">No matches for “{query.trim()}”</div>
@@ -165,6 +196,8 @@
     border: 1px solid var(--border);
     border-radius: 10px;
     box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+    max-height: min(420px, 60vh);
+    overflow-y: auto;
   }
   .heading {
     padding: 6px 8px 4px;
@@ -196,6 +229,14 @@
   }
   li button.active {
     background: var(--hover);
+  }
+  li button.more {
+    justify-content: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  li button.more.active {
+    color: var(--text);
   }
   .empty {
     padding: 8px;
