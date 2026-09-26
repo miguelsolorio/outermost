@@ -1,0 +1,586 @@
+// Application orchestrator: owns the clock, world, renderer, camera and layers,
+// and runs the frame loop.
+
+import * as THREE from 'three';
+import { SimClock } from './astro/time.ts';
+import { AU, DEG, PC } from './astro/units.ts';
+import { length, normalize, smoothstep, sub, type Vec3 } from './astro/vec.ts';
+import { Assets } from './engine/assets.ts';
+import { CameraController } from './engine/camera/controller.ts';
+import { formatDistance } from './engine/format.ts';
+import { attachInput } from './engine/input.ts';
+import { LabelLayer, type LabelItem, type Occluder } from './engine/labels.ts';
+import { createRenderContext, FOV_DEG, type RenderContext } from './engine/renderer.ts';
+import { readUrlState, writeUrlState } from './engine/urlState.ts';
+import { BODIES, BODY_BY_ID, meanRadius } from './scene/catalog.ts';
+import type { FrameCtx, Settings } from './scene/frame.ts';
+import { rel } from './scene/frame.ts';
+import { BodiesLayer } from './scene/layers/bodies.ts';
+import { ConstellationsLayer, type ConstellationData } from './scene/layers/constellations.ts';
+import { OrbitsLayer } from './scene/layers/orbits.ts';
+import { SkyLayer } from './scene/layers/sky.ts';
+import { loadStarCatalog, StarsLayer } from './scene/layers/stars.ts';
+import { StarBodyLayer } from './scene/layers/starBody.ts';
+import { GalaxyLayer } from './scene/layers/galaxy.ts';
+import { GalaxyProvider } from './scene/providers/galaxy.ts';
+import { SpacecraftLayer } from './scene/layers/spacecraft.ts';
+import { SmallBodiesLayer } from './scene/layers/smallBodies.ts';
+import { Ambient } from './audio/ambient.ts';
+import { CosmosLayer } from './scene/layers/cosmos.ts';
+import { CosmosProvider } from './scene/providers/cosmos.ts';
+import { GalaxySpritesLayer } from './scene/layers/galaxySprites.ts';
+import { SunGlareLayer } from './scene/layers/sunGlare.ts';
+import { BodiesProvider } from './scene/providers/bodies.ts';
+import { starDisplayName, StarsProvider } from './scene/providers/stars.ts';
+import { Registry, type SearchEntry } from './scene/registry.ts';
+import { World } from './scene/world.ts';
+import { loadEphemerisTables } from './data/tables.ts';
+import { bindActions, ui } from './ui/state.svelte.ts';
+
+export class App {
+  readonly clock: SimClock;
+  readonly world = new World();
+  readonly rc: RenderContext;
+  readonly assets: Assets;
+  readonly registry = new Registry();
+  readonly camera: CameraController;
+  readonly bodies: BodiesLayer;
+  readonly orbits = new OrbitsLayer();
+  readonly glare = new SunGlareLayer();
+  readonly stars = new StarsLayer();
+  readonly starBody = new StarBodyLayer(this.stars);
+  readonly sky: SkyLayer;
+  readonly constellations = new ConstellationsLayer();
+  readonly galaxy: GalaxyLayer;
+  readonly spacecraft: SpacecraftLayer;
+  readonly cosmos: CosmosLayer;
+  readonly cosmosProvider: CosmosProvider;
+  readonly sprites: GalaxySpritesLayer;
+  readonly smallBodies: SmallBodiesLayer;
+  readonly audio = new Ambient();
+  readonly labels: LabelLayer;
+  settings: Settings = { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true };
+  private last = performance.now();
+  private frames = 0;
+  private fpsT = 0;
+  private uiT = 0;
+  private urlT = 0;
+  private selected: string | null = null;
+  private searchIndex: SearchEntry[] = [];
+
+  constructor(
+    private canvas: HTMLCanvasElement,
+    labelRoot: HTMLElement,
+  ) {
+    const params = new URLSearchParams(location.search);
+    this.rc = createRenderContext(canvas, params.has('logdepth'));
+    this.assets = new Assets(this.rc.renderer);
+    this.bodies = new BodiesLayer(this.assets);
+    this.sky = new SkyLayer(this.assets);
+    this.galaxy = new GalaxyLayer(this.rc.renderer);
+    this.spacecraft = new SpacecraftLayer(this.world);
+    this.cosmos = new CosmosLayer(this.assets);
+    this.sprites = new GalaxySpritesLayer(this.assets, this.cosmos);
+    this.cosmosProvider = new CosmosProvider(this.world, this.cosmos, this.sprites);
+    this.smallBodies = new SmallBodiesLayer(this.assets, this.world);
+    this.rc.scene.add(
+      this.sky.mesh,
+      this.galaxy.composite,
+      this.cosmos.group,
+      this.sprites.group,
+      this.stars.points,
+      this.stars.sun,
+      this.constellations.group,
+      this.bodies.group,
+      this.orbits.group,
+      this.glare.mesh,
+      this.starBody.group,
+      this.spacecraft.group,
+      this.smallBodies.group,
+    );
+
+    this.registry.add(new BodiesProvider(this.world));
+    this.registry.add(new StarsProvider(this.world, this.stars));
+    this.registry.add(new GalaxyProvider(this.world));
+    this.registry.add(this.spacecraft);
+    this.registry.add(this.cosmosProvider);
+    this.registry.add(this.smallBodies);
+    this.camera = new CameraController((id) => this.registry.target(id));
+    this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
+
+    const url = readUrlState();
+    this.clock = new SimClock(url.time ?? Date.now());
+    if (url.rate !== undefined) this.clock.rate = url.rate;
+    if (url.paused) this.clock.paused = true;
+    this.world.update(this.clock.ms);
+    const focus = url.focus && this.registry.target(url.focus) ? url.focus : 'earth';
+    this.camera.set(this.chainFor(focus), url.altitude ?? 3.2e7, url.dir ?? this.defaultDir(focus));
+
+    attachInput(canvas, this.camera, {
+      surfaceDirAt: (x, y) => this.surfaceDirAt(x, y),
+      pick: (x, y) => this.pick(x, y),
+      select: (id) => this.select(id),
+      flyTo: (id) => this.flyTo(id),
+      fovRad: () => FOV_DEG * DEG,
+      onUserInteraction: () => {},
+      togglePause: () => {
+        this.clock.setPaused(!this.clock.paused);
+        ui.paused = this.clock.paused;
+      },
+    });
+
+    window.addEventListener('resize', () => this.resize());
+    // Deep links pasted or edited by hand (replaceState never fires this).
+    window.addEventListener('hashchange', () => this.applyUrl());
+    this.resize();
+    this.bindUi();
+  }
+
+  private chainFor(id: string): string[] {
+    return CameraController.chainFor(id, (x) => this.registry.target(x));
+  }
+
+  private applyUrl(): void {
+    const url = readUrlState();
+    if (url.time !== undefined) this.clock.set(url.time);
+    if (url.rate !== undefined) this.clock.setRate(url.rate);
+    this.clock.setPaused(!!url.paused);
+    this.world.update(this.clock.ms);
+    const focus = url.focus && this.registry.target(url.focus) ? url.focus : this.camera.focusId;
+    this.camera.set(this.chainFor(focus), url.altitude ?? this.camera.altitude, url.dir ?? this.defaultDir(focus));
+  }
+
+  /** Start looking at the day side from slightly north of the orbit plane. */
+  private defaultDir(id: string): Vec3 {
+    const t = this.registry.target(id);
+    const p = t ? t.pos() : ([0, 0, 0] as Vec3);
+    if (length(p) < 1) return normalize([0.2, -0.9, 0.4]);
+    const toSun = normalize([-p[0], -p[1], -p[2]]);
+    const side = normalize([toSun[1], -toSun[0], 0.35]);
+    return normalize([toSun[0] + side[0] * 0.9, toSun[1] + side[1] * 0.9, toSun[2] + 0.35]);
+  }
+
+  async init(): Promise<void> {
+    await this.assets.init();
+    ui.assetsMissing = !this.assets.manifest;
+    ui.depthMode = this.rc.depthMode;
+    this.refreshSearch();
+    ui.ready = true;
+    requestAnimationFrame(this.frame);
+    void this.bodies.init();
+    void this.spacecraft.refreshTle();
+    void this.smallBodies.init().then(() => this.refreshSearch());
+
+    // Galaxy catalogs, Horizons tables (dwarf planets, spacecraft) and stars stream in after the first frame.
+    void this.cosmos.init().then(async () => {
+      this.refreshSearch();
+      await this.sprites.init();
+    });
+    void loadEphemerisTables().then(() => this.refreshSearch());
+    const cat = await loadStarCatalog(this.assets);
+    if (cat) {
+      this.stars.setCatalog(cat);
+      const cons = await this.assets.json<ConstellationData>('stars/constellations.json');
+      if (cons) this.constellations.build(cons, cat);
+      this.refreshSearch();
+      // A deep link to a star needs the catalog first.
+      const url = readUrlState();
+      if (url.focus?.startsWith('star-')) this.applyUrl();
+    }
+  }
+
+  private bindUi(): void {
+    ui.settings = { ...this.settings };
+    ui.soundOn = this.audio.on;
+    bindActions({
+      setRate: (r) => {
+        this.clock.setRate(r);
+        this.clock.setPaused(false);
+      },
+      setPaused: (p) => this.clock.setPaused(p),
+      setTime: (ms) => this.clock.set(ms),
+      now: () => {
+        this.clock.set(Date.now());
+        this.clock.setRate(1);
+        this.clock.setPaused(false);
+      },
+      flyTo: (id) => this.flyTo(id),
+      select: (id) => this.select(id),
+      nearby: (limit) => this.nearby(limit),
+      distanceTo: (id) => this.distanceTo(id),
+      setSound: (on) => {
+        this.audio.setEnabled(on);
+        ui.soundOn = on;
+      },
+      toggle: (key) => {
+        this.settings[key] = !this.settings[key];
+        ui.settings = { ...this.settings };
+      },
+    });
+  }
+
+  flyTo(id: string): void {
+    if (!this.registry.target(id)) return;
+    this.select(id);
+    this.camera.flyTo(id, FOV_DEG * DEG);
+  }
+
+  select(id: string | null): void {
+    this.selected = id;
+    ui.selectedId = id;
+  }
+
+  private refreshSearch(): void {
+    // Kept unproxied here: nearby() walks every entry.
+    this.searchIndex = this.registry.search();
+    ui.searchIndex = this.searchIndex;
+  }
+
+  nearby(limit: number): SearchEntry[] {
+    const out: Array<{ entry: SearchEntry; dist: number }> = [];
+    for (const entry of this.searchIndex) {
+      if (entry.diffuse || entry.id === this.camera.focusId) continue;
+      const dist = this.distanceTo(entry.id);
+      if (dist !== null) out.push({ entry, dist });
+    }
+    return out
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, limit)
+      .map((x) => x.entry);
+  }
+
+  /** Camera to surface (m); null when the target has no position now or the camera is inside it. */
+  distanceTo(id: string): number | null {
+    const t = this.registry.target(id);
+    if (!t) return null;
+    const d = length(rel(t.pos(), this.camera.pose.position)) - t.radius;
+    return Number.isFinite(d) && d >= 0 ? d : null;
+  }
+
+  private resize(): void {
+    this.rc.resize();
+    const w = this.canvas.clientWidth;
+    const h = this.canvas.clientHeight;
+    this.orbits.setResolution(w, h);
+    this.galaxy.setSize(w, h, this.rc.pixelRatio);
+    this.constellations.setResolution(w, h);
+    this.spacecraft.setResolution(w, h);
+  }
+
+  // ---- picking ---------------------------------------------------------------
+
+  private screenOf(p: Vec3): { x: number; y: number; z: number } | null {
+    const v = new THREE.Vector3(p[0], p[1], p[2]).applyMatrix4(this.rc.camera.matrixWorldInverse);
+    if (v.z >= 0) return null;
+    const depth = -v.z;
+    v.applyMatrix4(this.rc.camera.projectionMatrix);
+    return { x: (v.x * 0.5 + 0.5) * this.canvas.clientWidth, y: (-v.y * 0.5 + 0.5) * this.canvas.clientHeight, z: depth };
+  }
+
+  pick(x: number, y: number): string | null {
+    const cam = this.camera.pose.position;
+    let best: { id: string; score: number } | null = null;
+    for (const def of BODIES) {
+      const vis = this.bodies.visuals.get(def.id)!;
+      if (!this.world.get(def.id).valid) continue;
+      const s = this.screenOf(rel(this.world.get(def.id).pos, cam));
+      if (!s) continue;
+      const d = Math.hypot(s.x - x, s.y - y);
+      const reach = Math.max(vis.apparentPx + 4, 12);
+      if (d > reach) continue;
+      // Prefer bodies whose disk contains the cursor, then nearer ones.
+      const score = (d <= vis.apparentPx ? 0 : 1e6) + s.z * 1e-12 + d;
+      if (!best || score < best.score) best = { id: def.id, score };
+    }
+    if (best) return best.id;
+    // Then the visible named stars (their labels are the main way to click them).
+    for (const id of this.labels.visibleIds) {
+      if (!id.startsWith('star-')) continue;
+      const t = this.registry.target(id);
+      const s = t && this.screenOf(rel(t.pos(), cam));
+      if (s && Math.hypot(s.x - x, s.y - y) < 10) return id;
+    }
+    return null;
+  }
+
+  /** Direction from the focus center to the surface point under a pixel, if hit. */
+  private surfaceDirAt(x: number, y: number): Vec3 | null {
+    const target = this.camera.focus;
+    if (target.radius <= 0) return null;
+    const ndc = new THREE.Vector3((x / this.canvas.clientWidth) * 2 - 1, -(y / this.canvas.clientHeight) * 2 + 1, 0.5);
+    ndc.unproject(this.rc.camera);
+    const d = normalize([ndc.x, ndc.y, ndc.z]);
+    const c = rel(target.pos(), this.camera.pose.position);
+    const b = d[0] * c[0] + d[1] * c[1] + d[2] * c[2];
+    const cc = c[0] * c[0] + c[1] * c[1] + c[2] * c[2];
+    const disc = b * b - (cc - target.radius * target.radius);
+    if (disc < 0) return null;
+    const t = b - Math.sqrt(disc);
+    if (t <= 0) return null;
+    const hit: Vec3 = [d[0] * t, d[1] * t, d[2] * t];
+    return normalize(sub(hit, c));
+  }
+
+  // ---- frame loop -----------------------------------------------------------
+
+  private frame = (now: number): void => {
+    const dt = Math.min(0.1, (now - this.last) / 1000);
+    this.last = now;
+    this.tick(dt, now);
+    requestAnimationFrame(this.frame);
+  };
+
+  /** Advance and render one frame. Public so tests can step deterministically. */
+  tick(dt: number, now = performance.now()): void {
+    this.clock.tick(dt);
+    this.world.update(this.clock.ms);
+    if (!this.registry.target(this.camera.focusId)) {
+      // The focus has no data at this time (e.g. before a spacecraft launched).
+      this.camera.set(this.chainFor('sun'), Math.max(this.camera.pose.r, 5 * 1.496e11), this.camera.dir);
+    }
+    const pose = this.camera.update(dt);
+
+    // Camera: fixed at the origin, rotated to the pose basis.
+    const cam3 = this.rc.camera;
+    const m = new THREE.Matrix4().makeBasis(
+      new THREE.Vector3(...pose.right),
+      new THREE.Vector3(...pose.up),
+      new THREE.Vector3(-pose.forward[0], -pose.forward[1], -pose.forward[2]),
+    );
+    cam3.quaternion.setFromRotationMatrix(m);
+
+    // Near plane: a tenth of the distance to the nearest surface.
+    let nearest = Infinity;
+    for (const def of BODIES) {
+      if (!this.world.get(def.id).valid) continue;
+      const d = length(rel(this.world.get(def.id).pos, pose.position)) - meanRadius(def) * (this.bodies.visuals.get(def.id)?.boost ?? 1);
+      nearest = Math.min(nearest, d);
+    }
+    const focusT = this.camera.focus;
+    if (focusT.radius > 0) nearest = Math.min(nearest, length(rel(focusT.pos(), pose.position)) - focusT.radius);
+    cam3.near = Math.min(1e7, Math.max(1, nearest * 0.1));
+    cam3.far = 1e30;
+    cam3.updateProjectionMatrix();
+    cam3.updateMatrixWorld();
+
+    const ctx = this.frameCtx(dt);
+    this.sky.update(ctx);
+    this.galaxy.update(ctx);
+    this.cosmos.update(ctx);
+    this.sprites.update(ctx);
+    this.stars.update(ctx);
+    // The focused (or selected) catalog star is drawn as a sphere when close.
+    const starId = [this.camera.focusId, this.selected].find((x) => x?.startsWith('star-'));
+    const starT = starId ? this.registry.target(starId) : undefined;
+    this.starBody.update(ctx, starId && starT ? Number(starId.slice(5)) : -1, starT?.radius ?? 0);
+    this.constellations.update(ctx);
+    this.bodies.update(ctx);
+    this.orbits.update(ctx);
+    this.spacecraft.update(ctx);
+    this.smallBodies.update(ctx);
+    this.glare.update(ctx);
+    this.audio.update(pose.r, length(rel(this.world.get('sun').pos, pose.position)));
+    this.updateLabels(ctx);
+
+    this.galaxy.render();
+    this.rc.render();
+    this.syncUi(now, dt);
+  }
+
+  private frameCtx(dt: number): FrameCtx {
+    const pose = this.camera.pose;
+    const h = this.canvas.clientHeight;
+    const fov = FOV_DEG * DEG;
+    const focusDef = BODY_BY_ID.get(this.camera.focusId);
+    // Exposure follows the focused body (or its planet) and relaxes to 1 AU when zoomed out.
+    let exposureDist = AU;
+    if (focusDef) {
+      const planet = focusDef.kind === 'moon' ? BODY_BY_ID.get(focusDef.parent!)! : focusDef;
+      const planetDist = Math.max(this.world.get(planet.id).sunDist, 0.2 * AU);
+      const w = planet.semiMajorAxis ? smoothstep(Math.log(0.3 * planet.semiMajorAxis), Math.log(1.5 * planet.semiMajorAxis), Math.log(pose.r)) : 1;
+      exposureDist = Math.exp(Math.log(planetDist) * (1 - w) + Math.log(AU) * w);
+    }
+    return {
+      world: this.world,
+      pose,
+      cam: pose.position,
+      camera: this.rc.camera,
+      viewportH: h,
+      viewportW: this.canvas.clientWidth,
+      fov,
+      pxPerRad: h / fov,
+      exposureDist,
+      skyBrightness: 0.4,
+      focusId: this.camera.focusId,
+      focusBody: this.camera.chain.find((id) => BODY_BY_ID.has(id)) ?? 'sun',
+      selectedId: this.selected,
+      settings: this.settings,
+      dt,
+    };
+  }
+
+  private updateLabels(ctx: FrameCtx): void {
+    const items: LabelItem[] = [];
+    const occluders: Occluder[] = [];
+    for (const def of BODIES) {
+      const st = this.world.get(def.id);
+      const vis = this.bodies.visuals.get(def.id)!;
+      const p = rel(st.pos, ctx.cam);
+      const R = meanRadius(def) * vis.boost;
+      occluders.push({ id: def.id, center: p, radius: R });
+      // Hide a moon's label when it sits on top of its planet on screen.
+      let alpha = 1;
+      if (def.kind === 'moon' && def.parent) {
+        const pp = rel(this.world.get(def.parent).pos, ctx.cam);
+        const sepPx = (def.semiMajorAxis / Math.max(length(pp), 1)) * ctx.pxPerRad;
+        alpha = smoothstep(14, 30, sepPx);
+      }
+      // Planet labels fade out once we are among the stars; the Sun's label
+      // hands over to the Milky Way's once we see the Galaxy from outside.
+      const fromSun = length(rel(this.world.get('sun').pos, ctx.cam));
+      if (def.kind !== 'star') alpha *= 1 - smoothstep(Math.log(2000 * AU), Math.log(20000 * AU), Math.log(fromSun));
+      else if (this.camera.focusId !== 'sun') alpha *= 1 - smoothstep(Math.log(40 * PC * 1000), Math.log(400 * PC * 1000), Math.log(fromSun));
+      if (vis.apparentPx > ctx.viewportH * 0.9 || !st.valid) alpha = 0;
+      const focused = def.id === this.camera.focusId || def.id === this.selected;
+      items.push({
+        id: def.id,
+        text: def.name,
+        priority: (focused ? 1000 : 0) + (def.kind === 'star' ? 90 : def.kind === 'planet' ? 80 : def.kind === 'dwarf-planet' ? 60 : 50),
+        pos: p,
+        offsetPx: Math.min(vis.apparentPx, 200),
+        kind: def.kind,
+        alpha,
+        focused,
+      });
+    }
+
+    // Named stars, prioritized by their apparent brightness from the camera.
+    const cat = this.stars.catalog;
+    if (cat) {
+      const sunRel = rel(this.world.get('sun').pos, ctx.cam);
+      for (const m of cat.meta) {
+        const isFocus = this.camera.focusId === `star-${m.i}` || this.selected === `star-${m.i}`;
+        if (!m.name && !isFocus) continue;
+        const sp = this.stars.starPos(m.i, this.world.ms);
+        const p: Vec3 = [sunRel[0] + sp[0], sunRel[1] + sp[1], sunRel[2] + sp[2]];
+        const dpc = length(p) / PC;
+        const mag = m.absmag + 5 * Math.log10(Math.max(dpc, 1e-9) / 10);
+        if (mag > 2.6 && !isFocus) continue;
+        const R = isFocus ? (this.registry.target(`star-${m.i}`)?.radius ?? 0) : 0;
+        const diskPx = R ? Math.asin(Math.min(1, R / Math.max(length(p), R))) * ctx.pxPerRad : 0;
+        items.push({
+          id: `star-${m.i}`,
+          text: starDisplayName(m),
+          priority: (isFocus ? 1000 : 0) + 40 - mag * 5,
+          pos: p,
+          offsetPx: Math.max(4, Math.min(diskPx, 300)),
+          kind: 'star-catalog',
+          alpha: isFocus ? 1 : smoothstep(2.6, 1.2, mag),
+          focused: isFocus,
+        });
+      }
+    }
+
+    for (const c of this.spacecraft.labels()) {
+      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      items.push({ id: c.id, text: c.name, priority: focused ? 1000 : 45, pos: rel(c.pos, ctx.cam), offsetPx: 6, kind: 'craft', alpha: focused ? 1 : c.alpha, focused });
+    }
+
+    // Named asteroids and trans-Neptunian objects, and the populations' names.
+    for (const c of this.smallBodies.labels(ctx)) {
+      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: rel(c.pos, ctx.cam), offsetPx: 5, kind: c.group ? 'region' : 'smallbody', alpha: focused ? 1 : c.alpha, focused });
+    }
+
+    // Famous galaxies, clusters and superclusters at their catalog positions.
+    {
+      const fromSunMpc = length(rel(this.world.get('sun').pos, ctx.cam)) / (PC * 1e6);
+      for (const c of this.cosmosProvider.labels()) {
+        const focused = this.camera.focusId === c.id || this.selected === c.id;
+        const vis = smoothstep(Math.log(c.minMpc), Math.log(c.minMpc * 3), Math.log(fromSunMpc)) * (1 - smoothstep(Math.log(c.maxMpc), Math.log(c.maxMpc * 3), Math.log(fromSunMpc)));
+        if (vis < 0.02 && !focused) continue;
+        items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: rel(c.pos, ctx.cam), offsetPx: 8, kind: 'galaxy', alpha: focused ? 1 : vis, focused });
+      }
+    }
+
+    // The Galaxy's own label once we can see it from outside.
+    {
+      const fromSun = length(rel(this.world.get('sun').pos, ctx.cam));
+      const mw = this.registry.target('milky-way')!;
+      const focused = this.camera.focusId === 'milky-way' || this.selected === 'milky-way';
+      items.push({
+        id: 'milky-way',
+        text: 'Milky Way',
+        priority: focused ? 1000 : 95,
+        pos: rel(mw.pos(), ctx.cam),
+        offsetPx: 12,
+        kind: 'galaxy',
+        alpha: focused ? 1 : smoothstep(3 * PC * 1000, 12 * PC * 1000, fromSun),
+        focused,
+      });
+    }
+
+    // Constellation names, placed on the sky from the Sun's point of view.
+    if (this.settings.constellations) {
+      const fromSunPc = length(rel(this.world.get('sun').pos, ctx.cam)) / PC;
+      const a = 1 - smoothstep(30, 300, fromSunPc);
+      for (const c of this.constellations.labels) {
+        items.push({
+          id: `con-${c.abbr}`,
+          text: c.name.toUpperCase(),
+          priority: 10,
+          pos: [c.dir[0] * 1e20, c.dir[1] * 1e20, c.dir[2] * 1e20],
+          offsetPx: -20,
+          kind: 'constellation',
+          alpha: a * 0.8,
+        });
+      }
+    }
+    this.labels.update(items, ctx.camera, ctx.viewportW, ctx.viewportH, occluders, this.settings.labels);
+  }
+
+  private syncUi(now: number, dt: number): void {
+    this.frames++;
+    this.fpsT += dt;
+    if (this.fpsT >= 1) {
+      ui.fps = Math.round(this.frames / this.fpsT);
+      this.frames = 0;
+      this.fpsT = 0;
+    }
+    if (now - this.uiT > 100) {
+      this.uiT = now;
+      ui.timeMs = this.clock.ms;
+      ui.rate = this.clock.rate;
+      ui.paused = this.clock.paused;
+      // The title names a clicked object until it is deselected; otherwise where the camera is.
+      const picked = this.selected && this.selected !== this.camera.focusId && this.registry.target(this.selected) ? this.selected : null;
+      const id = picked ?? (this.camera.flying ? this.camera.focusId : this.camera.dominantId());
+      if (ui.card?.id !== id) ui.card = this.registry.info(id) ?? null;
+      ui.focusId = id;
+      ui.focusName = ui.card?.name ?? id;
+      ui.canFlyTo = picked !== null;
+      const focus = this.registry.target(id) ?? this.camera.focus;
+      const alt = id === this.camera.focusId ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
+      const def = BODY_BY_ID.get(id);
+      ui.distanceText =
+        def?.kind === 'star' || !def
+          ? id === 'observable-universe'
+            ? `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from Earth`
+            : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${def ? 'the center of the ' : ''}${ui.focusName}`
+          : alt < 50 * focus.radius
+            ? `Altitude ${formatDistance(alt)} above ${ui.focusName}`
+            : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${ui.focusName}`;
+    }
+    if (now - this.urlT > 1000 && !this.camera.flying) {
+      this.urlT = now;
+      writeUrlState({
+        focus: this.camera.focusId,
+        altitude: this.camera.altitude,
+        dir: this.camera.dir,
+        time: this.clock.ms,
+        rate: this.clock.rate,
+        paused: this.clock.paused,
+      });
+    }
+  }
+}

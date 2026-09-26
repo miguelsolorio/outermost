@@ -1,0 +1,132 @@
+:root {
+  --text: #e8ecf4;
+  --muted: #9aa4b8;
+  --accent: #8fb8ff;
+  --accent-dim: rgb(143 184 255 / 0.45);
+  --panel: rgb(12 16 26 / 0.62);
+  --panel-solid: rgb(14 18 28 / 0.96);
+  --border: rgb(255 255 255 / 0.1);
+  --hover: rgb(255 255 255 / 0.07);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  touch-action: none;
+  cursor: grab;
+}
+
+#scene:active {
+  cursor: grabbing;
+}
+
+#labels {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+#ui > * {
+  pointer-events: auto;
+}
+
+.label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 0 4px;
+  height: 16px;
+  line-height: 16px;
+  font: 500 11.5px/16px Inter, system-ui, sans-serif;
+  letter-spacing: 0.02em;
+  color: rgb(220 228 245 / 0.82);
+  background: none;
+  border: 0;
+  white-space: nowrap;
+  cursor: pointer;
+  text-shadow: 0 0 4px #000, 0 0 8px #000;
+  transition: opacity 0.2s;
+  will-change: transform;
+}
+
+.label:hover {
+  color: #fff;
+}
+
+.label.focused {
+  color: #fff;
+  font-weight: 600;
+}
+
+.label-moon {
+  color: rgb(190 196 210 / 0.72);
+  font-size: 10.5px;
+}
+
+.label-star {
+  color: rgb(255 236 200 / 0.9);
+}
+
+.label-star-catalog {
+  color: rgb(236 226 205 / 0.8);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.label-constellation {
+  color: rgb(140 170 220 / 0.55);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  pointer-events: none !important;
+}
+
+.label-galaxy {
+  color: rgb(255 226 190 / 0.9);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.label-smallbody {
+  color: rgb(222 214 198 / 0.8);
+  font-size: 10px;
+}
+
+.label-region {
+  color: rgb(200 212 235 / 0.7);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.label-craft {
+  color: rgb(255 214 150 / 0.85);
+  font-size: 10.5px;
+}
