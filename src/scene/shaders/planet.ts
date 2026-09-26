@@ -15,6 +15,7 @@
 // look.ts and scene/looks.ts). Moons keep the identity defaults.
 
 import { atmosphereChunk } from './atmosphere.ts';
+import { eclipseChunk } from './eclipse.ts';
 import { lookChunk } from './look.ts';
 import { ringChunk } from './rings.ts';
 
@@ -73,12 +74,12 @@ uniform bool hasClouds;
 uniform float cloudShadow;
 uniform float cloudHeight;    // cloud-top height / radius
 uniform vec3 sunDirBody;      // unit Sun direction in the body-fixed frame
-uniform vec3 sunPos;       // camera-relative position of the Sun's center (m)
 uniform float irradiance;  // relative solar irradiance incl. exposure
 uniform int model;
 uniform float lunarL;
 uniform float minnaertK;
 uniform float nightGain;
+${eclipseChunk}
 ${atmosphereChunk}
 ${ringChunk}
 uniform bool hasRings;
@@ -91,11 +92,6 @@ uniform float bodyRadiusKm;
 uniform float synthCraters;  // crater density in the synthetic relief (1 = Pluto-like)
 uniform bool hasGlint;
 uniform float glintSlope2;   // Cox-Munk mean square wave slope
-// Eclipses: bodies that can block the Sun (camera-relative center, radius in m).
-uniform vec4 occluders[4];
-uniform float occluderRed[4]; // > 0: sunlight refracted red through its atmosphere
-uniform int occluderCount;
-uniform float sunRadius;
 ${lookChunk}
 
 // The base map, with local contrast raised against a blurred read of itself
@@ -113,41 +109,6 @@ vec3 mapAt(vec2 uv) {
 float cloudAt(vec2 uv, vec2 flowA, vec2 flowB, float w) {
   if (atmo != 2) return texture2D(cloudMap, uv).r;
   return mix(texture2D(cloudMap, uv + flowA).r, texture2D(cloudMap, uv + flowB).r, w);
-}
-
-// Area of overlap of two disks (radii r1, r2, centers d apart), small angles.
-float diskOverlap(float r1, float r2, float d) {
-  if (d >= r1 + r2) return 0.0;
-  if (d <= abs(r1 - r2)) return 3.14159265 * min(r1, r2) * min(r1, r2);
-  float a = r1 * r1 * acos(clamp((d * d + r1 * r1 - r2 * r2) / (2.0 * d * r1), -1.0, 1.0));
-  float b = r2 * r2 * acos(clamp((d * d + r2 * r2 - r1 * r1) / (2.0 * d * r2), -1.0, 1.0));
-  float c = 0.5 * sqrt(max((-d + r1 + r2) * (d + r1 - r2) * (d - r1 + r2) * (d + r1 + r2), 0.0));
-  return a + b - c;
-}
-
-// Fraction of the solar disk visible from p, and the red light bent into
-// the umbra by an occluder's atmosphere (as in a lunar eclipse).
-vec2 sunVisibility(vec3 p) {
-  vec3 S = sunPos - p;
-  float dS = length(S);
-  float aS = asin(clamp(sunRadius / dS, 0.0, 1.0));
-  float vis = 1.0;
-  float red = 0.0;
-  for (int k = 0; k < 4; k++) {
-    if (k >= occluderCount) break;
-    vec3 O = occluders[k].xyz - p;
-    float dO = length(O);
-    float r = occluders[k].w;
-    if (dO <= r * 1.001 || dO >= dS) continue;
-    float aO = asin(clamp(r / dO, 0.0, 1.0));
-    // Well conditioned for small angles (acos of a dot product is not in float32).
-    float sep = 2.0 * asin(min(1.0, 0.5 * length(S / dS - O / dO)));
-    if (sep >= aS + aO) continue;
-    float blocked = diskOverlap(aS, aO, sep) / (3.14159265 * aS * aS);
-    vis *= 1.0 - clamp(blocked, 0.0, 1.0);
-    red = max(red, occluderRed[k] * clamp(blocked, 0.0, 1.0));
-  }
-  return vec2(vis, red);
 }
 
 
@@ -382,13 +343,14 @@ void main() {
     }
   }
 
-  vec2 ecl = occluderCount > 0 ? sunVisibility(vPosW) : vec2(1.0, 0.0);
-  sunT *= ecl.x;
+  // Eclipses: the limb-darkened Sun, partly hidden; its last light is redder.
+  vec4 ecl = occluderCount > 0 ? sunVisibility(vPosW) : vec4(1.0, 1.0, 1.0, 0.0);
+  sunT *= ecl.rgb;
   vec3 color = albedo * f * irradiance * sunT;
   // In Earth's umbra the Moon is lit only by sunlight refracted red through
   // Earth's atmosphere. Physically that is ~1/10,000 of full-Moon brightness
   // (Danjon L≈2-3); it is shown ~1/10 as bright, as a dark-adapted eye sees it.
-  color += albedo * f * irradiance * ecl.y * (1.0 - ecl.x) * vec3(0.25, 0.06, 0.012);
+  color += albedo * f * irradiance * ecl.a * (1.0 - ecl.g) * vec3(0.25, 0.06, 0.012);
 
   if (hasGlint && mu0 > 0.0) {
     // Sun glint on open water. The imagery marks water by its deep blue (Blue
@@ -427,7 +389,14 @@ void main() {
 
   if (hasNight) {
     // City lights fade in as the Sun drops below the horizon (civil twilight ~ -6 deg).
-    float dark = smoothstep(0.05, -0.12, mu0);
+    float dark = 1.0 - smoothstep(-0.12, 0.05, mu0);
+    // In the Moon's umbra, streetlights on photocells switch on (near 10 lux,
+    // ANSI C136.10). Clear-sky light is ~1.2e5·μ0 lux direct plus ~700 lux of
+    // skylight at sunset, both scaled by the Sun left visible. Streetlights are
+    // ~13% of Tucson's light seen from orbit (Kyba et al. 2021); with other
+    // photocell-controlled lighting, about 30% comes on.
+    float lux = (1.2e5 * max(mu0, 0.0) + 700.0) * ecl.g;
+    dark = max(dark, 0.3 * (1.0 - smoothstep(10.0, 50.0, lux)));
     vec3 lights = texture2D(nightMap, vUv).rgb;
     color += lights * lights * dark * nightGain;
   }
@@ -435,8 +404,7 @@ void main() {
   if (hasAtmosphere) {
     vec3 inscatter, transmit;
     atmScatter(atmCamPos, normalize(vPosW), tGround, irradiance, inscatter, transmit);
-    // The air inside the Moon's shadow is unlit too.
-    color = color * transmit + inscatter * ecl.x;
+    color = color * transmit + inscatter;
   }
 
   gl_FragColor = vec4(agxVivid(color, gradeVivid), 1.0);

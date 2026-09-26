@@ -3,11 +3,13 @@
 
 import * as THREE from 'three';
 import { length, type Mat3 } from '../../astro/vec.ts';
-import { AU } from '../../astro/units.ts';
+import { AU, R_SUN } from '../../astro/units.ts';
 import type { Assets } from '../../engine/assets.ts';
 import { BODIES, meanRadius, type BodyDef } from '../catalog.ts';
 import { ATMO_ID, LOOKS } from '../looks.ts';
 import { createBodySphere } from '../geometry.ts';
+import { penumbraReaches } from '../eclipse.ts';
+import { ECLIPSE_UNIFORMS } from '../shaders/eclipse.ts';
 import { planetFragment, planetVertex } from '../shaders/planet.ts';
 import { sunLimbFragment, sunLimbVertex, sunSurfaceFragment, sunSurfaceVertex } from '../shaders/sun.ts';
 import { noiseTexture } from '../shaders/noise.ts';
@@ -167,7 +169,12 @@ export class BodiesLayer {
           new THREE.ShaderMaterial({
             vertexShader: atmosphereVertex,
             fragmentShader: atmosphereFragment,
-            uniforms: { irradiance: material.uniforms.irradiance, ...atmosphereUniforms(atm, def.radii[0], material) },
+            uniforms: {
+              irradiance: material.uniforms.irradiance,
+              // The same objects as the surface's, so the air darkens in eclipse shadows too.
+              ...Object.fromEntries(ECLIPSE_UNIFORMS.map((k) => [k, material.uniforms[k]])),
+              ...atmosphereUniforms(atm, def.radii[0], material),
+            },
             side: THREE.BackSide,
             transparent: true,
             depthWrite: false,
@@ -342,7 +349,7 @@ export class BodiesLayer {
         occluders: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
         occluderRed: { value: [0, 0, 0, 0] },
         occluderCount: { value: 0 },
-        sunRadius: { value: 6.957e8 },
+        sunRadius: { value: R_SUN },
         detailTex: { value: null },
         detailIndex: { value: null },
         hasDetail: { value: false },
@@ -546,12 +553,14 @@ export class BodiesLayer {
         const sy = -st.pos[1] / d;
         const sz = -st.pos[2] / d;
         u.sunDirBody.value.set(m[0] * sx + m[3] * sy + m[6] * sz, m[1] * sx + m[4] * sy + m[7] * sz, m[2] * sx + m[5] * sy + m[8] * sz).normalize();
-        // Eclipses need true sizes; skip them when sizes are boosted.
+        // Eclipses need true sizes; skip them when sizes are boosted, and skip
+        // occluders whose penumbra can't reach the body or its air.
         let n = 0;
         if (radiusScale < 1.01) {
+          const reach = def.radii[0] + (def.appearance.atmosphere?.top ?? 0) * 1000;
           for (const o of v.occluders) {
             const os = world.get(o.id);
-            if (!os.valid) continue;
+            if (!os.valid || !penumbraReaches(world.get('sun').pos, R_SUN, os.pos, meanRadius(o), st.pos, reach)) continue;
             const op = rel(os.pos, cam);
             u.occluders.value[n].set(op[0], op[1], op[2], meanRadius(o));
             u.occluderRed.value[n] = o.appearance.atmosphere?.redUmbra ? 1 : 0;

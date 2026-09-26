@@ -1,8 +1,12 @@
 // Eclipses as a joint check of the Sun, Moon and Earth-rotation models:
 // where the Moon's shadow axis meets Earth, and how deep the Moon sits in
 // Earth's umbra, compared with NASA's eclipse predictions (Espenak).
+import * as A from 'astronomy-engine';
 import { describe, expect, it } from 'vitest';
 import { World } from '../../src/scene/world.ts';
+import { meanRadius, BODIES } from '../../src/scene/catalog.ts';
+import { diskOverlap, penumbraReaches, sunVisibleFrom } from '../../src/scene/eclipse.ts';
+import { R_SUN } from '../../src/astro/units.ts';
 import type { Vec3 } from '../../src/astro/vec.ts';
 
 const DEG = 180 / Math.PI;
@@ -64,5 +68,63 @@ describe('eclipses vs NASA predictions', () => {
     const earth = w.get('earth').pos;
     const sepDeg = Math.acos(dot(norm(sub(w.get('moon').pos, earth)), norm(sub(earth, w.get('sun').pos)))) * DEG;
     expect(sepDeg).toBeGreaterThan(20);
+  });
+});
+
+describe('eclipse shading', () => {
+  const radius = (id: string) => meanRadius(BODIES.find((b) => b.id === id)!);
+  const reaches = (ms: number, occluder: string, body: string) => {
+    const w = new World();
+    w.update(ms);
+    return penumbraReaches(w.get('sun').pos, R_SUN, w.get(occluder).pos, radius(occluder), w.get(body).pos, radius(body) + 100_000);
+  };
+
+  it("the Moon's penumbra reaches Earth only during a solar eclipse", () => {
+    expect(reaches(Date.UTC(2024, 3, 8, 18, 17), 'moon', 'earth')).toBe(true);
+    expect(reaches(Date.UTC(2024, 3, 22, 18, 17), 'moon', 'earth')).toBe(false);
+    // New moon with no eclipse: the shadow passes south of Earth.
+    expect(reaches(Date.UTC(2024, 4, 8, 3, 22), 'moon', 'earth')).toBe(false);
+  });
+
+  it("Earth's penumbra reaches the Moon only during a lunar eclipse", () => {
+    expect(reaches(Date.UTC(2026, 2, 3, 11, 33, 43), 'earth', 'moon')).toBe(true);
+    expect(reaches(Date.UTC(2026, 2, 10, 11, 33, 43), 'earth', 'moon')).toBe(false);
+  });
+
+  it('New York, 2024-04-08: obscuration matches astronomy-engine, and the limb-darkened Sun is dimmer still', () => {
+    const lat = 40.7128;
+    const lon = -74.006;
+    const e = A.SearchLocalSolarEclipse(new Date(Date.UTC(2024, 2, 20)), new A.Observer(lat, lon, 0));
+    expect(e.peak.time.date.toISOString().slice(0, 10)).toBe('2024-04-08');
+    const w = new World();
+    w.update(e.peak.time.date.getTime());
+    const earth = w.get('earth');
+    // WGS84 site -> Earth-fixed -> EQJ (body -> EQJ is m·v).
+    const a = 6_378_137;
+    const e2 = 0.00669437999014;
+    const phi = lat / DEG;
+    const lam = lon / DEG;
+    const n = a / Math.sqrt(1 - e2 * Math.sin(phi) ** 2);
+    const b: Vec3 = [n * Math.cos(phi) * Math.cos(lam), n * Math.cos(phi) * Math.sin(lam), n * (1 - e2) * Math.sin(phi)];
+    const m = earth.orient;
+    const p: Vec3 = [
+      earth.pos[0] + m[0] * b[0] + m[1] * b[1] + m[2] * b[2],
+      earth.pos[1] + m[3] * b[0] + m[4] * b[1] + m[5] * b[2],
+      earth.pos[2] + m[6] * b[0] + m[7] * b[1] + m[8] * b[2],
+    ];
+    const sun = w.get('sun').pos;
+    const moon = w.get('moon').pos;
+    // Uniform-disk obscuration from the same geometry the shader uses.
+    const S = sub(sun, p);
+    const O = sub(moon, p);
+    const aS = Math.asin(R_SUN / Math.hypot(...S));
+    const aO = Math.asin(radius('moon') / Math.hypot(...O));
+    const sep = Math.acos(dot(norm(S), norm(O)));
+    const obscuration = diskOverlap(1, aO / aS, sep / aS) / Math.PI;
+    expect(Math.abs(obscuration - e.obscuration), `ours ${obscuration.toFixed(3)} vs ${e.obscuration.toFixed(3)}`).toBeLessThan(0.03);
+    // Most of the bright center is covered, so less light is left than the uncovered area suggests.
+    const [, g] = sunVisibleFrom(p, sun, R_SUN, moon, radius('moon'));
+    expect(g).toBeLessThan(1 - e.obscuration);
+    expect(g).toBeGreaterThan(0);
   });
 });

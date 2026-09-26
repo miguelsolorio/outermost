@@ -270,7 +270,8 @@ export class CameraController {
     return Math.max(r, target.radius + target.minAltitude);
   }
 
-  flyTo(id: string, fovRad: number, opts: { distance?: number; onDone?: () => void } = {}): void {
+  /** `from`: arrive on the side of the target that faces this object (e.g. down the Moon's shadow onto Earth). */
+  flyTo(id: string, fovRad: number, opts: { distance?: number; onDone?: () => void; from?: string } = {}): void {
     const target = this.resolve(id);
     if (!target) return;
     const toR = opts.distance ?? this.framingDistance(target, fovRad);
@@ -278,7 +279,7 @@ export class CameraController {
     const p0 = this.pose.pivot;
     const p1 = target.pos();
     const d = length(sub(p1, p0));
-    const dir1 = this.approachDirection(target, p0);
+    const dir1 = this.approachDirection(target, p0, opts.from ? this.resolve(opts.from) : undefined);
     const dLog = Math.abs(Math.log10(toR) - Math.log10(fromR));
     const duration = clamp(1.2 + 0.25 * dLog + 0.25 * Math.log10(1 + d / Math.max(fromR, toR)), 1.5, 7);
     this.flight = {
@@ -298,8 +299,15 @@ export class CameraController {
     this.zoomAnchor = null;
   }
 
-  /** Arrive looking at the lit side (about 50 degrees phase), slightly above the orbit plane. */
-  private approachDirection(target: FocusTarget, from: Vec3): Vec3 {
+  /**
+   * Arrive looking at the lit side (about 50 degrees phase), slightly above the
+   * orbit plane, or, given `facing`, from the direction of that object.
+   */
+  private approachDirection(target: FocusTarget, from: Vec3, facing?: FocusTarget): Vec3 {
+    if (facing) {
+      const toward = sub(facing.pos(), target.pos());
+      if (length(toward) > 0) return normalize(toward);
+    }
     if (target.approach) return normalize(target.approach());
     const pos = target.pos();
     const toSun = length(pos) > 1 ? normalize(scale(pos, -1)) : null;

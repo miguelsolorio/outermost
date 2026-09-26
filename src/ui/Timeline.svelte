@@ -69,7 +69,7 @@
 
   /** Clicking a landmark moves time there, then flies to its object (which may only exist at that date). */
   function visit(lm: Landmark) {
-    scrub.animateTo(lm.ms, 650, () => actions.flyTo(lm.target));
+    scrub.animateTo(lm.ms, 650, () => actions.flyTo(lm.target, { from: lm.from }));
   }
 
   function goLive() {

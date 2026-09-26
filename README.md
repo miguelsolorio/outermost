@@ -19,7 +19,8 @@ Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs
 - The Moon and Mars also get detail tiles, 0.67 km and 1.3 km per pixel respectively.
 - Terrain relief from measured elevation: LOLA for the Moon, MOLA for Mars, GEBCO for Earth. Craters and canyons catch the light near the terminator.
 - Real eclipses:
-  - the Moon's shadow on Earth
+  - the Moon's shadow on Earth, cast by a limb-darkened Sun (Neckel & Labs), so the penumbra deepens and reddens toward totality
+  - air that goes dark inside the shadow, and streetlights that switch on in totality
   - a red Moon inside Earth's umbra
   - moons' shadows on their planets
 - Saturn's rings from the Voyager occultation profile.
@@ -92,6 +93,7 @@ Each fact carries one of these badges:
 | Cosmology | Planck 2018 |
 | ISS | Altitude, inclination and period checked |
 | 2026 eclipses | Solar: the Moon's shadow falls within 1° of NASA's greatest-eclipse point. Lunar: the Moon sits deep in Earth's umbra |
+| Eclipse shading | Limb-darkened coverage within 0.005 of a direct integral; New York's 2024 obscuration within 0.03 of astronomy-engine |
 
 ## Development
 

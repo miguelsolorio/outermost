@@ -1,8 +1,10 @@
 // Notable moments marked on the timeline. Clicking one sets the clock to it and
 // flies the camera to `target`, a registry id that has a position on that date
 // (Voyager 1's and JWST's trajectory tables start after launch, so their
-// launches go to Earth). Eclipse, transit and conjunction times are checked
-// against astronomy-engine in tests/factcheck/landmarks.test.ts.
+// launches go to Earth). Solar eclipses go to Earth, arriving from the Moon's
+// side so the view looks straight down its shadow. Eclipse, transit and
+// conjunction times are checked against astronomy-engine in
+// tests/factcheck/landmarks.test.ts.
 
 export type LandmarkKind = 'mission' | 'sky' | 'discovery';
 
@@ -12,6 +14,8 @@ export interface Landmark {
   name: string;
   kind: LandmarkKind;
   target: string;
+  /** Arrive on the side of `target` facing this object. */
+  from?: string;
 }
 
 export const KIND_LABEL: Record<LandmarkKind, string> = {
@@ -23,7 +27,13 @@ export const KIND_LABEL: Record<LandmarkKind, string> = {
 /** Marker colors, shared by the timeline and search results. */
 export const KIND_COLOR: Record<LandmarkKind, string> = { mission: '#8fb8ff', sky: '#ffc27a', discovery: '#d6c8ff' };
 
-const at = (iso: string, name: string, kind: LandmarkKind, target: string): Landmark => ({ ms: Date.parse(iso), name, kind, target });
+const at = (iso: string, name: string, kind: LandmarkKind, target: string, from?: string): Landmark => ({
+  ms: Date.parse(iso),
+  name,
+  kind,
+  target,
+  ...(from ? { from } : {}),
+});
 
 export const LANDMARKS: readonly Landmark[] = [
   at('1610-01-07T18:00Z', 'Galileo spots the moons of Jupiter', 'discovery', 'jupiter'),
@@ -42,15 +52,15 @@ export const LANDMARKS: readonly Landmark[] = [
   at('1994-07-16T20:13Z', 'Comet Shoemaker–Levy 9 hits Jupiter', 'sky', 'jupiter'),
   at('2012-08-06T05:17Z', 'Curiosity lands on Mars', 'mission', 'mars'),
   at('2015-07-14T11:49Z', 'New Horizons flies past Pluto', 'mission', 'new-horizons'),
-  at('2017-08-21T18:25Z', 'Total solar eclipse over North America', 'sky', 'moon'),
+  at('2017-08-21T18:25Z', 'Total solar eclipse over North America', 'sky', 'earth', 'moon'),
   at('2017-09-15T10:32Z', 'Cassini dives into Saturn', 'mission', 'saturn'),
   at('2020-12-21T18:20Z', 'Jupiter and Saturn in great conjunction', 'sky', 'jupiter'),
   at('2021-12-25T12:20Z', 'JWST launches', 'mission', 'earth'),
-  at('2024-04-08T18:17Z', 'Total solar eclipse over North America', 'sky', 'moon'),
-  at('2027-08-02T10:07Z', 'Total solar eclipse over North Africa', 'sky', 'moon'),
+  at('2024-04-08T18:17Z', 'Total solar eclipse over North America', 'sky', 'earth', 'moon'),
+  at('2027-08-02T10:07Z', 'Total solar eclipse over North Africa', 'sky', 'earth', 'moon'),
   at('2029-04-13T21:46Z', 'Asteroid Apophis passes close to Earth', 'sky', 'earth'),
   at('2032-11-13T08:54Z', 'Transit of Mercury', 'sky', 'mercury'),
-  at('2045-08-12T17:42Z', 'Total solar eclipse across the United States', 'sky', 'moon'),
+  at('2045-08-12T17:42Z', 'Total solar eclipse across the United States', 'sky', 'earth', 'moon'),
   at('2117-12-11T02:48Z', 'Transit of Venus', 'sky', 'venus'),
 ];
 

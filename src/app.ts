@@ -218,7 +218,7 @@ export class App {
         this.clock.setRate(1);
         this.clock.setPaused(false);
       },
-      flyTo: (id) => this.flyTo(id),
+      flyTo: (id, opts) => this.flyTo(id, opts),
       select: (id) => this.select(id),
       nearby: (limit) => this.nearby(limit),
       distanceTo: (id) => this.distanceTo(id),
@@ -242,11 +242,12 @@ export class App {
     if (!this.camera.flying) this.applyUrl();
   }
 
-  flyTo(id: string): void {
+  /** `from`: arrive on the side of `id` facing this object. */
+  flyTo(id: string, opts: { from?: string } = {}): void {
     if (!this.registry.target(id)) return;
     this.pendingFocus = null;
     this.select(id);
-    this.camera.flyTo(id, FOV_DEG * DEG);
+    this.camera.flyTo(id, FOV_DEG * DEG, { from: opts.from });
   }
 
   select(id: string | null): void {

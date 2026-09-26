@@ -42,7 +42,8 @@ export interface Actions {
   setPaused(p: boolean): void;
   setTime(ms: number): void;
   now(): void;
-  flyTo(id: string): void;
+  /** `from`: arrive on the side of `id` facing this object. */
+  flyTo(id: string, opts?: { from?: string }): void;
   select(id: string | null): void;
   /** Search entries closest to the camera, nearest first. */
   nearby(limit: number): SearchEntry[];
@@ -75,6 +76,6 @@ export const nav = {
   /** Jump the clock to a landmark, then fly to its object. The timeline swaps in its eased jump when it mounts. */
   visit(lm: Landmark): void {
     actions.setTime(lm.ms);
-    actions.flyTo(lm.target);
+    actions.flyTo(lm.target, { from: lm.from });
   },
 };

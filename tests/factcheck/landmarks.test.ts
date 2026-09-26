@@ -16,6 +16,14 @@ describe('timeline landmarks vs astronomy-engine', () => {
       expect(e.kind).toBe(A.EclipseKind.Total);
       expect(Math.abs(e.peak.date.getTime() - lm.ms) / MIN, `peak ${e.peak.date.toISOString()}`).toBeLessThan(5);
     });
+
+    it(`${iso(lm.ms)} arrives at Earth from the Moon's side, looking down the shadow`, () => {
+      expect(lm.target).toBe('earth');
+      expect(lm.from).toBe('moon');
+      // From Earth the Moon sits in front of the Sun, so the view from the Moon's side is the Sun's.
+      const date = new Date(lm.ms);
+      expect(A.AngleBetween(A.GeoMoon(date), A.GeoVector(A.Body.Sun, date, true))).toBeLessThan(1);
+    });
   }
 
   for (const lm of named(/transit of (venus|mercury)/i)) {
