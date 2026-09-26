@@ -36,6 +36,14 @@ Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs
 - The IAU constellations, which distort as you travel away from the Sun.
 - A model of the Milky Way built from Reid et al. (2019) spiral arms.
 
+**Black holes**
+- 15 black holes you can fly to, each with its measured mass:
+  - Sagittarius A\* and M87\*, the two the Event Horizon Telescope imaged
+  - Cygnus X-1, beside its blue supergiant companion
+  - Gaia BH1, BH2 and BH3, V404 Cygni and A0620-00
+  - the central black holes of seven nearby galaxies
+- Up close they bend the light behind them. The shadow and the bending are computed exactly for a non-spinning black hole.
+
 **Galaxies and cosmology**
 - The Local Group and the Local Volume. Hubble, ESO and NOIRLab photographs are placed at each galaxy's true position, size and orientation.
 - The 2MASS and SDSS redshift surveys, and SDSS quasars.
@@ -89,6 +97,7 @@ Each fact carries one of these badges:
 | Bright stars vs SIMBAD | Checked |
 | All 88 IAU constellations | Lines resolve; boundaries within 0.02° of VizieR VI/49 |
 | Galactic frame | Matches the Hipparcos matrix |
+| Black holes | Positions within 1″ of SIMBAD; shadows of Sgr A\* and M87\* within the EHT ring sizes; light bending matches the weak-field and strong-field limits |
 | Local Group distances (M31, M33, LMC, SMC) | Match published values |
 | Cosmology | Planck 2018 |
 | ISS | Altitude, inclination and period checked |
@@ -136,6 +145,8 @@ data/sources.json  registry of every source, with license and credit
 ### Precision
 
 Distances in the scene span about 10⁶ m to 10²⁷ m. The camera sits at the origin and every object is positioned relative to it in float64. The depth buffer is reversed-Z with a float depth buffer, falling back to logarithmic depth where `EXT_clip_control` is missing. Point clouds use float32 in their native units (AU, pc, Mpc).
+
+A kiloparsec from the Sun, float64 positions are only good to about 10 km, so the camera's position can wobble by several pixels around a black hole a few thousand kilometers across (more up close). The camera pose keeps its offset from the pivot exactly, and black holes are placed from the pivot (`relPrecise`).
 
 ## Deployment
 
