@@ -55,7 +55,7 @@ void main() {
 // the ramp is written in AgX's working space and mapped back through the
 // inverse of its channel mix. On screen, x = 0.5 is deep red, 1 orange,
 // 2 yellow-orange, 4 nearly white.
-const sunRamp = /* glsl */ `
+export const sunRamp = /* glsl */ `
 ${agxChunk}
 vec3 sunRamp(float x) {
   x = max(x, 0.0);

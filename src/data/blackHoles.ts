@@ -4,11 +4,14 @@
 // faint for our star catalog), except Cygnus X-1, which orbits a catalog star.
 // Positions under `published` are SIMBAD's and are only used by the fact-check.
 
-import type { InfoFact } from '../scene/registry.ts';
+import type { InfoFact, ObjectInfo } from '../scene/registry.ts';
 
 type Cite = InfoFact['source'];
 
 export type BlackHoleClass = 'stellar' | 'supermassive';
+
+/** Search-result marker for each class: coral for stellar holes, violet for supermassive ones. */
+export const BLACK_HOLE_CLASS_COLOR: Record<BlackHoleClass, string> = { stellar: '#ff9478', supermassive: '#c58bff' };
 
 export type Placement =
   /** At the position of another registry target (a galaxy, the Milky Way, the Virgo Cluster marker at M87). */
@@ -29,6 +32,28 @@ export interface Binary {
   /** For drawing the companion as a sphere (Cygnus X-1 only). */
   companionRsun?: number;
   companionTeff?: number;
+}
+
+/** An accretion disk or hot flow to draw around the hole (see docs/plans/accretion-disks.md). */
+export interface DiskDef {
+  /** 'thin': an opaque Keplerian disk; 'thick': an optically thin hot flow, as the EHT sees. */
+  kind: 'thin' | 'thick';
+  /** Angle between the disk's angular-momentum axis and the direction to Earth (deg). */
+  inclinationDeg: number;
+  inclinationSource: Cite;
+  /** Position angle (deg east of north) of the axis on the sky; omit when unmeasured. */
+  axisPaDeg?: number;
+  /** Axis points away from Earth, i.e. clockwise rotation on the sky (M87*). */
+  axisAway?: boolean;
+  /** Inner and outer radius in horizon radii: 3 and 40 for thin disks. */
+  rInRs: number;
+  rOutRs: number;
+  /** Inner-edge temperature (K), for the card; the palette is artistic. */
+  tInnerK?: number;
+  /** ISO date ranges when the disk shines (outbursts); omit for always. */
+  active?: Array<[string, string]>;
+  facts: InfoFact[];
+  notes: ObjectInfo['notes'];
 }
 
 export interface BlackHoleDef {
@@ -55,6 +80,7 @@ export interface BlackHoleDef {
   hostFactLabel?: string;
   facts: InfoFact[];
   note: string;
+  disk?: DiskDef;
 }
 
 const simbad = (id: string): Cite => ({ name: 'SIMBAD', url: `https://simbad.cds.unistra.fr/simbad/sim-id?Ident=${encodeURIComponent(id)}` });
@@ -84,6 +110,44 @@ const HUMPHREYS13 = { name: 'Humphreys et al. 2013, ApJ 775, 13', url: 'https://
 const CAPPELLARI09 = { name: 'Cappellari et al. 2009, MNRAS 394, 660', url: 'https://doi.org/10.1111/j.1365-2966.2008.14377.x' };
 const JARDEL11 = { name: 'Jardel et al. 2011, ApJ 739, 21', url: 'https://doi.org/10.1088/0004-637X/739/1/21' };
 const GREENHILL03 = { name: 'Greenhill et al. 2003, ApJ 590, 162', url: 'https://doi.org/10.1086/374862' };
+const GOU11 = { name: 'Gou et al. 2011, ApJ 742, 85', url: 'https://doi.org/10.1088/0004-637X/742/2/85' };
+const WALKER18 = { name: 'Walker et al. 2018, ApJ 855, 128', url: 'https://doi.org/10.3847/1538-4357/aaafcc' };
+const EHT19_V = { name: 'Event Horizon Telescope Collaboration 2019, ApJL 875, L5', url: 'https://doi.org/10.3847/2041-8213/ab0f43' };
+const PLOTKIN17 = { name: 'Plotkin et al. 2017, ApJ 834, 104', url: 'https://doi.org/10.3847/1538-4357/834/2/104' };
+const CORBEL08 = { name: 'Corbel, Koerding & Kaaret 2008, MNRAS 389, 1697', url: 'https://doi.org/10.1111/j.1365-2966.2008.13542.x' };
+const KALUZIENSKI77 = { name: 'Kaluzienski et al. 1977, ApJ 212, 203', url: 'https://doi.org/10.1086/155036' };
+const EHT22_V = { name: 'Event Horizon Telescope Collaboration 2022, ApJL 930, L16', url: 'https://doi.org/10.3847/2041-8213/ac6672' };
+
+const THIN_ARTISTIC = 'Colors follow NASA’s visualizations. The disk shines mostly in X-rays; in visible light it would look blue-white. The streaks and their speed are illustrative.';
+const EHT_ARTISTIC = 'Colors follow the Event Horizon Telescope’s false-color images. The real glow is radio light (1.3 mm) and has no visible color. The flow is drawn smooth; the real one flickers.';
+
+/** Thin disk shown only during recorded outbursts, for V404 Cygni and A0620-00. */
+const outburstDisk = (
+  inclinationDeg: number,
+  inclinationSource: Cite,
+  outbursts: Array<{ from: string; to: string; text: string; source: Cite }>,
+): DiskDef => {
+  const when = outbursts.map((o) => o.text).join(' and ');
+  return {
+    kind: 'thin',
+    inclinationDeg,
+    inclinationSource,
+    rInRs: 3,
+    rOutRs: 40,
+    active: outbursts.map((o) => [o.from, o.to]),
+    facts: [
+      { label: 'Orbit tilt to our line of sight', value: `${inclinationDeg}°`, kind: 'measured', source: inclinationSource },
+      ...outbursts.map((o): InfoFact => ({ label: `${o.from.slice(0, 4)} outburst`, value: o.text, kind: 'measured', source: o.source })),
+    ],
+    notes: [
+      {
+        text: `A disk is drawn only during its recorded outbursts (${when}); between them the inner disk is faint and cut off, so none is shown. When shown, it is a thin disk from the innermost stable orbit of a non-spinning hole (3 r_s) to 40 r_s, with its light bent, Doppler-boosted and redshifted exactly. The disk's tilt is measured; which way it leans on the sky and which way it turns are not, so those are chosen.`,
+        kind: 'model',
+      },
+      { text: THIN_ARTISTIC, kind: 'artistic' },
+    ],
+  };
+};
 
 export const BLACK_HOLES: readonly BlackHoleDef[] = [
   {
@@ -102,6 +166,21 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
       { label: 'First image', value: '12 May 2022, Event Horizon Telescope', kind: 'measured', source: EHT22 },
     ],
     note: 'The black hole at the center of our galaxy. Its mass comes from the orbits of stars that swing around it, such as S2.',
+    disk: {
+      kind: 'thick',
+      inclinationDeg: 30,
+      inclinationSource: EHT22_V,
+      rInRs: 1,
+      rOutRs: 10,
+      facts: [{ label: 'Glowing flow', value: 'Favored within 30° of face-on; most views past 50° ruled out', kind: 'measured', source: EHT22_V }],
+      notes: [
+        {
+          text: 'The glow is drawn as a hot, thick, see-through flow of gas circling the hole, with its light bent, Doppler-boosted and redshifted exactly, so the bright ring and the shadow inside it appear on their own. The tilt uses the upper end of what the Event Horizon Telescope allows (30°); which way the axis leans on the sky and which way the gas turns are not measured, so those are chosen.',
+          kind: 'model',
+        },
+        { text: EHT_ARTISTIC, kind: 'artistic' },
+      ],
+    },
   },
   {
     id: 'bh-m87',
@@ -119,6 +198,26 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
       { label: 'First image', value: '10 April 2019, the first picture of a black hole', kind: 'measured', source: EHT19_I },
     ],
     note: 'The first black hole ever photographed, at the heart of the giant elliptical galaxy M87. It launches a jet of particles moving at nearly the speed of light.',
+    disk: {
+      kind: 'thick',
+      inclinationDeg: 17,
+      inclinationSource: WALKER18,
+      axisPaDeg: 288,
+      axisAway: true,
+      rInRs: 1,
+      rOutRs: 10,
+      facts: [
+        { label: 'Jet tilt', value: '17° from our line of sight', kind: 'measured', source: WALKER18 },
+        { label: 'Glowing gas', value: 'Turns clockwise on the sky; the jet points west-northwest (288°)', kind: 'measured', source: EHT19_V },
+      ],
+      notes: [
+        {
+          text: 'The glow is drawn as a hot, thick, see-through flow of gas circling the hole, its axis along the jet and turning clockwise as the Event Horizon Telescope found. Its light is bent, Doppler-boosted and redshifted exactly, so the bright ring, its brighter south side and the shadow appear on their own. The jet itself is not drawn.',
+          kind: 'model',
+        },
+        { text: EHT_ARTISTIC, kind: 'artistic' },
+      ],
+    },
   },
   {
     id: 'bh-cyg-x-1',
@@ -146,6 +245,25 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
       { label: 'Found independently', value: 'Bolton 1972', kind: 'measured', source: BOLTON72 },
     ],
     note: 'The first object widely accepted to be a black hole. Gas pulled from its blue supergiant companion heats up as it falls in and glows in X-rays.',
+    disk: {
+      kind: 'thin',
+      inclinationDeg: 27.51,
+      inclinationSource: MJ21,
+      rInRs: 3,
+      rOutRs: 40,
+      tInnerK: 6e6,
+      facts: [
+        { label: 'Accretion disk', value: 'Fed by its supergiant’s wind; tilted 27.5° to our line of sight', kind: 'measured', source: MJ21 },
+        { label: 'Inner disk temperature', value: '≈ 6 million K (0.5 keV), shining in X-rays', kind: 'measured', source: GOU11 },
+      ],
+      notes: [
+        {
+          text: 'Drawn as a thin disk from the innermost stable orbit of a non-spinning hole (3 r_s) to 40 r_s, with its light bent, Doppler-boosted and redshifted exactly. The real disk reaches much farther but is far dimmer there, and Cygnus X-1 spins so fast that its inner edge sits closer in. The disk’s tilt is measured; which way it leans on the sky is not, so that is chosen.',
+          kind: 'model',
+        },
+        { text: THIN_ARTISTIC, kind: 'artistic' },
+      ],
+    },
   },
   {
     id: 'bh-gaia-bh1',
@@ -206,6 +324,10 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
     binary: { companion: 'a cool subgiant star', periodDays: 6.473, source: CASARES92 },
     facts: [{ label: 'Distance method', value: 'Radio parallax, the first measured for a black hole', kind: 'measured', source: MJ09 }],
     note: 'A black hole that bursts into X-ray outbursts decades apart, most recently in 2015, as it swallows gas from its companion.',
+    disk: outburstDisk(67, KHARGHARIA10, [
+      { from: '1989-05-22', to: '1989-11-01', text: 'May to October 1989', source: CORBEL08 },
+      { from: '2015-06-15', to: '2015-08-05', text: '15 June to early August 2015', source: PLOTKIN17 },
+    ]),
   },
   {
     id: 'bh-a0620-00',
@@ -221,6 +343,9 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
     binary: { companion: 'an orange dwarf star', periodDays: 0.323016, source: CANTRELL10 },
     facts: [{ label: 'Shown to be a black hole', value: '1986, from its companion’s orbit', kind: 'measured', source: MCCLINTOCK86 }],
     note: 'One of the nearest known black holes. It flared as a bright X-ray nova in 1975 and has been quiet since.',
+    disk: outburstDisk(50.98, CANTRELL10, [
+      { from: '1975-08-03', to: '1976-03-15', text: '3 August 1975 to mid-March 1976', source: KALUZIENSKI77 },
+    ]),
   },
   {
     id: 'bh-m31',

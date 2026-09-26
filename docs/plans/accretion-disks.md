@@ -1,6 +1,6 @@
 # Plan: accretion disks around black holes
 
-Status: ready to implement. Builds on commit `243bfac` ("Add 15 black holes with exact gravitational lensing").
+Status: implemented (phases 1–3). Builds on commit `243bfac` ("Add 15 black holes with exact gravitational lensing").
 
 ## Context
 

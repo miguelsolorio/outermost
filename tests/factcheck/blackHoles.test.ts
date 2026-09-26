@@ -97,3 +97,36 @@ describe('binary orbits', () => {
     expect(a / (b.binary!.companionRsun! * R_SUN)).toBeGreaterThan(2);
   });
 });
+
+describe('accretion disks', () => {
+  const disk = (id: string) => BLACK_HOLE_BY_ID.get(id)!.disk!;
+  it('inclinations and orientations match the papers', () => {
+    expect(disk('bh-cyg-x-1').inclinationDeg).toBe(27.51); // Miller-Jones et al. 2021, Table 1: 27.51 (+0.77 / −0.57)°
+    expect(disk('bh-v404-cyg').inclinationDeg).toBe(67); // Khargharia et al. 2010, §5: (67 +3 −1)°
+    expect(disk('bh-a0620-00').inclinationDeg).toBe(50.98); // Cantrell et al. 2010, §4: 50.98 ± 0.87°
+    expect(disk('bh-m87').inclinationDeg).toBe(17); // Walker et al. 2018, §1: jet viewing angle ≈ 17°
+    expect(disk('bh-m87').axisPaDeg).toBe(288); // EHT 2019 Paper V, §2: jet PA ≈ 288°
+    expect(disk('bh-m87').axisAway).toBe(true); // EHT 2019 Paper V: clockwise, spin pointing away from Earth
+    expect(disk('bh-sgr-a-star').inclinationDeg).toBeLessThanOrEqual(30); // EHT 2022 Paper V: favored models i ≤ 30°
+  });
+
+  it('outbursts match the record', () => {
+    // V404 Cyg: Ginga, late May 1989, very faint by 1 November (Corbel et al. 2008);
+    // Swift/BAT, 15 June 2015, quiescent by early August (Plotkin et al. 2017).
+    expect(disk('bh-v404-cyg').active).toEqual([
+      ['1989-05-22', '1989-11-01'],
+      ['2015-06-15', '2015-08-05'],
+    ]);
+    // A0620-00: Ariel V, 3 August 1975 (Elvis et al. 1975); final decline mid-March 1976 (Kaluzienski et al. 1977).
+    expect(disk('bh-a0620-00').active).toEqual([['1975-08-03', '1976-03-15']]);
+    for (const id of ['bh-gaia-bh1', 'bh-gaia-bh2', 'bh-gaia-bh3']) expect(BLACK_HOLE_BY_ID.get(id)!.disk, `${id} is dormant`).toBeUndefined();
+  });
+
+  it('cites every disk number', () => {
+    for (const b of BLACK_HOLES) {
+      if (!b.disk) continue;
+      expect(b.disk.inclinationSource.url).toMatch(/^https:\/\//);
+      for (const f of b.disk.facts) expect(f.source.url, `${b.id}: ${f.label}`).toMatch(/^https:\/\//);
+    }
+  });
+});

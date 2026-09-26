@@ -1,6 +1,7 @@
 <script lang="ts">
   // One search result: a place with its distance, or a timeline landmark with its date,
-  // marked in the same color the timeline uses for its kind.
+  // marked in the same color the timeline uses for its kind. Places with a
+  // category color (stellar vs supermassive black holes) get a dot too.
   import { KIND_COLOR } from '../data/landmarks.ts';
   import { formatDistanceShort } from '../engine/format.ts';
   import { ui } from './state.svelte.ts';
@@ -21,6 +22,10 @@
     <span class="kind event" style:--c={KIND_COLOR[event.kind]}>
       <span class="dot" class:predicted aria-hidden="true"></span>
       <span class="tag">{predicted ? 'Predicted' : match.kind}</span> · {target}
+    </span>
+  {:else if match.color}
+    <span class="kind" style:--c={match.color}>
+      <span class="dot" aria-hidden="true"></span>{match.detail ?? match.kind}
     </span>
   {:else}
     <span class="kind">{match.detail ?? match.kind}</span>

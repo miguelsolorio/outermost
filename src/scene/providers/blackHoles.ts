@@ -3,11 +3,11 @@
 // draws each frame.
 
 import { blackbodyLinearRgb } from '../../astro/color.ts';
-import { keplerSeparation, schwarzschildRadius, shadowAngularRadius } from '../../astro/blackHole.ts';
+import { diskAxis, keplerSeparation, schwarzschildRadius, shadowAngularRadius } from '../../astro/blackHole.ts';
 import { galaxyFrame } from '../../astro/galactic.ts';
 import { AU, DEG, KPC, PC, R_SUN } from '../../astro/units.ts';
-import { add, fromRaDec, length, normalize, scale, smoothstep, sub, type Vec3 } from '../../astro/vec.ts';
-import { BLACK_HOLE_BY_ID, BLACK_HOLES, type BlackHoleDef } from '../../data/blackHoles.ts';
+import { add, dot, fromRaDec, length, normalize, scale, smoothstep, sub, type Vec3 } from '../../astro/vec.ts';
+import { BLACK_HOLE_BY_ID, BLACK_HOLE_CLASS_COLOR, BLACK_HOLES, type BlackHoleDef, type DiskDef } from '../../data/blackHoles.ts';
 import type { FocusTarget, Resolver } from '../../engine/camera/controller.ts';
 import { formatDistance } from '../../engine/format.ts';
 import { relPrecise, type FrameCtx } from '../frame.ts';
@@ -21,6 +21,8 @@ const SYNGE = { name: 'Synge 1966, MNRAS 131, 463 (shadow of a black hole)', url
 /** Where a camera goes to look at a black hole: 40 horizon radii, closest 6 (the innermost stable orbit). */
 const FRAMING_RS = 40;
 const MIN_ALTITUDE_RS = 5;
+/** Far enough back that a 40 r_s thin disk fits on screen. */
+const DISK_FRAMING_RS = 110;
 
 /** A black hole in view, for the lensing pass. */
 export interface LensSource {
@@ -29,6 +31,37 @@ export interface LensSource {
   rs: number;
   /** Camera-relative position (m), exact near the camera's pivot. */
   rel: Vec3;
+  /** Accretion disk, when it is shining now. */
+  disk?: LensDisk;
+}
+
+export interface LensDisk {
+  /** Unit angular-momentum axis (world, EQJ). */
+  axis: Vec3;
+  kind: DiskDef['kind'];
+  /** Inner and outer radius (horizon radii). */
+  rIn: number;
+  rOut: number;
+  /** 0..1: fades over a few days at the ends of an outburst. */
+  brightness: number;
+}
+
+/** Arrive this far from a thin disk's axis: just above edge-on, as NASA frames it. */
+const DISK_VIEW_DEG = 80;
+/** Days an outburst disk takes to fade in or out. */
+const FADE_DAYS = 3;
+
+/** How brightly a disk shines at time ms: 1 without outburst dates, faded at their ends. */
+export function diskBrightness(disk: DiskDef, ms: number): number {
+  if (!disk.active) return 1;
+  const fade = FADE_DAYS * 86_400_000;
+  let b = 0;
+  for (const [a, z] of disk.active) {
+    const t0 = Date.parse(a);
+    const t1 = Date.parse(z);
+    b = Math.max(b, smoothstep(t0 - fade, t0, ms) * (1 - smoothstep(t1, t1 + fade, ms)));
+  }
+  return b;
 }
 
 export interface BlackHoleLabel {
@@ -137,6 +170,21 @@ export class BlackHolesProvider implements Provider {
         return normalize(add(scale(skyNorth(toBh), Math.cos(30 * DEG)), scale(toBh, Math.sin(30 * DEG))));
       };
     }
+    const disk = def.disk;
+    // A hot flow arrives from Earth's side, the view the Event Horizon Telescope has.
+    if (disk?.kind === 'thick') approach = () => normalize(sub(this.sun(), pos()));
+    if (disk?.kind === 'thin') {
+      // Come in just above edge-on, turned from the old approach about the disk axis.
+      const w = approach;
+      approach = () => {
+        const n = this.diskAxisWorld(def)!;
+        const old = w ? normalize(w()) : normalize(sub(this.sun(), pos()));
+        let side = sub(old, scale(n, dot(old, n)));
+        if (length(side) < 1e-6) side = sub([0, 0, 1], scale(n, n[2]));
+        const c = Math.cos(DISK_VIEW_DEG * DEG);
+        return normalize(add(scale(n, c), scale(normalize(side), Math.sqrt(1 - c * c))));
+      };
+    }
     const t: FocusTarget = {
       id,
       radius: rs,
@@ -145,11 +193,23 @@ export class BlackHolesProvider implements Provider {
       pole: () => null,
       handoff,
       parent: host,
-      framing: FRAMING_RS * rs,
+      framing: (disk?.kind === 'thin' ? DISK_FRAMING_RS : FRAMING_RS) * rs,
       approach,
     };
     this.cache.set(id, t);
     return t;
+  }
+
+  /**
+   * Disk axis in world coordinates (EQJ), from the hole's current position:
+   * tilted from the direction to the Sun by the measured inclination.
+   */
+  diskAxisWorld(def: BlackHoleDef): Vec3 | undefined {
+    const disk = def.disk;
+    const pos = disk && this.target(def.id)?.pos();
+    if (!disk || !pos) return undefined;
+    const e = normalize(sub(this.sun(), pos));
+    return diskAxis(e, skyNorth(scale(e, -1)), disk.inclinationDeg, disk.axisPaDeg, disk.axisAway);
   }
 
   /** Distance fact: published for stellar holes, the host's for supermassive ones. */
@@ -181,6 +241,7 @@ export class BlackHolesProvider implements Provider {
       if (a) facts.push({ label: 'Orbit size (Kepler’s third law)', value: `${(a / AU).toLocaleString('en-US', { maximumSignificantDigits: 3 })} AU`, kind: 'derived', source: b.source });
     }
     facts.push(...def.facts);
+    if (def.disk) facts.push(...def.disk.facts);
 
     const p = def.placement;
     const where =
@@ -202,7 +263,7 @@ export class BlackHolesProvider implements Provider {
           text: `Drawn as a non-spinning black hole: the shadow and the bending of starlight around it are computed exactly for that case, including the rings of repeated images at the shadow's edge. Only what is on screen can be bent into view; light from elsewhere is filled in from a mirrored copy of the view. ${where}`,
           kind: 'model',
         },
-        { text: 'No accretion disk or jet is drawn.', kind: 'model' },
+        ...(def.disk?.notes ?? [{ text: 'No accretion disk or jet is drawn.', kind: 'model' as const }]),
       ],
     };
   }
@@ -216,8 +277,9 @@ export class BlackHolesProvider implements Provider {
         name: def.name,
         aliases: def.aliases,
         kind: 'Black hole',
-        detail: `${def.cls === 'stellar' ? 'Black hole' : 'Supermassive black hole'} · ${def.where}`,
+        detail: `${def.cls === 'stellar' ? 'Stellar black hole' : 'Supermassive black hole'} · ${def.where}`,
         rank: def.rank,
+        color: BLACK_HOLE_CLASS_COLOR[def.cls],
       });
     }
     return out;
@@ -239,7 +301,12 @@ export class BlackHolesProvider implements Provider {
     const out: LensSource[] = [];
     for (const def of BLACK_HOLES) {
       const t = this.target(def.id);
-      if (t) out.push({ id: def.id, rs: t.radius, rel: relPrecise(t.pos(), ctx.pose) });
+      if (!t) continue;
+      const src: LensSource = { id: def.id, rs: t.radius, rel: relPrecise(t.pos(), ctx.pose) };
+      const d = def.disk;
+      const brightness = d ? diskBrightness(d, this.world.ms) : 0;
+      if (d && brightness > 0) src.disk = { axis: this.diskAxisWorld(def)!, kind: d.kind, rIn: d.rInRs, rOut: d.rOutRs, brightness };
+      out.push(src);
     }
     return out;
   }
