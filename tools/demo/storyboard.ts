@@ -68,16 +68,20 @@ export async function* storyboard(d: Director): Action {
   yield* d.moveTo(await d.clear([900, 300]), { seconds: 0.6 });
   yield* d.hold(1.2);
 
-  // 23–36: to V404 Cygni, quiet today. Pause, then drag the playhead back to
-  // 1989, where it snaps to the start of the outburst that year: the
-  // accretion disk blazes up. Circle it.
+  // 23–36: pause, and run back along the timeline to 1989, reading the
+  // landmarks, to the outburst V404 Cygni had that year. Clicking it jumps
+  // there and flies to the black hole, its accretion disk ablaze. Circle it.
   d.mark('v404');
-  yield* palette('v404', 'V404 Cygni');
   yield* d.click('button.play');
   yield* d.moveTo(await playhead());
-  // Just left of the outburst's landmark, so the snap picks it over Voyager 2 at Neptune three months on.
-  const to = (await timelineX(Date.parse('1989-05-22'))) - 1;
-  yield* d.drag([to - d.cursor.x, -1], 1.7, { curve: 0 });
+  // Just left of the outburst's dot, so it's the landmark under the pointer rather than Voyager 2 at Neptune three months on.
+  const to = (await timelineX(Date.parse('1989-05-22'))) - 2;
+  yield* d.glide([to - d.cursor.x, 1], 1.9, { curve: 0 });
+  yield* d.hold(0.45);
+  const tip = await page.locator('.rail .tip b').textContent();
+  if (tip !== 'V404 Cygni erupts in X-rays') throw new Error(`demo: expected the V404 Cygni outburst under the pointer, not "${tip}"`);
+  yield* d.click();
+  yield* d.waitFlight();
   yield* d.moveTo(await d.clear([760, 330]), { seconds: 0.5 });
   yield* d.drag([-200, -26], 2.1);
   d.mark('poster');
