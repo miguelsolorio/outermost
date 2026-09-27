@@ -113,12 +113,13 @@ describe('accretion disks', () => {
   it('outbursts match the record', () => {
     // V404 Cyg: Ginga, late May 1989, very faint by 1 November (Corbel et al. 2008);
     // Swift/BAT, 15 June 2015, quiescent by early August (Plotkin et al. 2017).
-    expect(disk('bh-v404-cyg').active).toEqual([
+    const dates = (id: string) => disk(id).active!.map(({ from, to }) => [from, to]);
+    expect(dates('bh-v404-cyg')).toEqual([
       ['1989-05-22', '1989-11-01'],
       ['2015-06-15', '2015-08-05'],
     ]);
     // A0620-00: Ariel V, 3 August 1975 (Elvis et al. 1975); final decline mid-March 1976 (Kaluzienski et al. 1977).
-    expect(disk('bh-a0620-00').active).toEqual([['1975-08-03', '1976-03-15']]);
+    expect(dates('bh-a0620-00')).toEqual([['1975-08-03', '1976-03-15']]);
     for (const id of ['bh-gaia-bh1', 'bh-gaia-bh2', 'bh-gaia-bh3']) expect(BLACK_HOLE_BY_ID.get(id)!.disk, `${id} is dormant`).toBeUndefined();
   });
 

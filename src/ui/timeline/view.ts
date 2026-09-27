@@ -1,5 +1,6 @@
-// The Landmarks timeline: a zoomable window onto 1600–2400 with landmark dots,
-// the playhead and tick labels, drawn on a canvas. It owns the window (start
+// The Landmarks timeline: a zoomable window onto 1600–2400 with landmark dots
+// (and bars for those that last, like outbursts), the playhead and tick
+// labels, drawn on a canvas. It owns the window (start
 // and span), zoom, hover, dragging and keys; changes to time go through the
 // Scrubber so they never start or stop playback.
 
@@ -298,6 +299,18 @@ export class TimelineView {
       ctx.fillStyle = 'rgba(255,255,255,.7)';
       ctx.fillRect(Math.round(nx) - 0.5, LANE_Y - 6, 1, 12);
     }
+
+    // Outbursts: a faint bar under the dots, brighter while its dot is hovered.
+    // Only the dot takes clicks, so landmarks inside the span stay reachable.
+    for (const lm of LANDMARKS) {
+      if (lm.until === undefined) continue;
+      const xa = Math.max(x0, X(lm.ms)), xb = Math.min(x1, X(lm.until));
+      if (xb - xa < 2) continue;
+      ctx.globalAlpha = lm === this.hover ? 0.55 : 0.3;
+      ctx.fillStyle = KIND_COLOR[lm.kind];
+      ctx.fillRect(xa, LANE_Y - 1.5, xb - xa, 3);
+    }
+    ctx.globalAlpha = 1;
 
     // Landmarks: past ones filled, predicted ones as rings.
     const today = Date.now();

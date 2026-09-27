@@ -50,8 +50,8 @@ export interface DiskDef {
   rOutRs: number;
   /** Inner-edge temperature (K), for the card; the palette is artistic. */
   tInnerK?: number;
-  /** ISO date ranges when the disk shines (outbursts); omit for always. */
-  active?: Array<[string, string]>;
+  /** Outbursts, when the disk shines: ISO dates and the name the timeline gives each; omit for always. */
+  active?: Array<{ from: string; to: string; name: string }>;
   facts: InfoFact[];
   notes: ObjectInfo['notes'];
 }
@@ -125,7 +125,7 @@ const EHT_ARTISTIC = 'Colors follow the Event Horizon Telescope’s false-color 
 const outburstDisk = (
   inclinationDeg: number,
   inclinationSource: Cite,
-  outbursts: Array<{ from: string; to: string; text: string; source: Cite }>,
+  outbursts: Array<{ from: string; to: string; name: string; text: string; source: Cite }>,
 ): DiskDef => {
   const when = outbursts.map((o) => o.text).join(' and ');
   return {
@@ -134,7 +134,7 @@ const outburstDisk = (
     inclinationSource,
     rInRs: 3,
     rOutRs: 40,
-    active: outbursts.map((o) => [o.from, o.to]),
+    active: outbursts.map(({ from, to, name }) => ({ from, to, name })),
     facts: [
       { label: 'Orbit tilt to our line of sight', value: `${inclinationDeg}°`, kind: 'measured', source: inclinationSource },
       ...outbursts.map((o): InfoFact => ({ label: `${o.from.slice(0, 4)} outburst`, value: o.text, kind: 'measured', source: o.source })),
@@ -325,8 +325,8 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
     facts: [{ label: 'Distance method', value: 'Radio parallax, the first measured for a black hole', kind: 'measured', source: MJ09 }],
     note: 'A black hole that bursts into X-ray outbursts decades apart, most recently in 2015, as it swallows gas from its companion.',
     disk: outburstDisk(67, KHARGHARIA10, [
-      { from: '1989-05-22', to: '1989-11-01', text: 'May to October 1989', source: CORBEL08 },
-      { from: '2015-06-15', to: '2015-08-05', text: '15 June to early August 2015', source: PLOTKIN17 },
+      { from: '1989-05-22', to: '1989-11-01', name: 'V404 Cygni erupts in X-rays', text: 'May to October 1989', source: CORBEL08 },
+      { from: '2015-06-15', to: '2015-08-05', name: 'V404 Cygni erupts again', text: '15 June to early August 2015', source: PLOTKIN17 },
     ]),
   },
   {
@@ -344,7 +344,7 @@ export const BLACK_HOLES: readonly BlackHoleDef[] = [
     facts: [{ label: 'Shown to be a black hole', value: '1986, from its companion’s orbit', kind: 'measured', source: MCCLINTOCK86 }],
     note: 'One of the nearest known black holes. It flared as a bright X-ray nova in 1975 and has been quiet since.',
     disk: outburstDisk(50.98, CANTRELL10, [
-      { from: '1975-08-03', to: '1976-03-15', text: '3 August 1975 to mid-March 1976', source: KALUZIENSKI77 },
+      { from: '1975-08-03', to: '1976-03-15', name: 'A0620-00 flares as an X-ray nova', text: '3 August 1975 to mid-March 1976', source: KALUZIENSKI77 },
     ]),
   },
   {

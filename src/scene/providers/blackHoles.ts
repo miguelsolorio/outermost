@@ -56,9 +56,9 @@ export function diskBrightness(disk: DiskDef, ms: number): number {
   if (!disk.active) return 1;
   const fade = FADE_DAYS * 86_400_000;
   let b = 0;
-  for (const [a, z] of disk.active) {
-    const t0 = Date.parse(a);
-    const t1 = Date.parse(z);
+  for (const { from, to } of disk.active) {
+    const t0 = Date.parse(from);
+    const t1 = Date.parse(to);
     b = Math.max(b, smoothstep(t0 - fade, t0, ms) * (1 - smoothstep(t1, t1 + fade, ms)));
   }
   return b;

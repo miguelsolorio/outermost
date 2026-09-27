@@ -4,13 +4,18 @@
 // launches go to Earth). Solar eclipses go to Earth, arriving from the Moon's
 // side so the view looks straight down its shadow. Eclipse, transit and
 // conjunction times are checked against astronomy-engine in
-// tests/factcheck/landmarks.test.ts.
+// tests/factcheck/landmarks.test.ts. Black hole outbursts come from the dates
+// that switch their disks on, and land on the first day of each.
 
-export type LandmarkKind = 'mission' | 'sky' | 'discovery';
+import { BLACK_HOLE_CLASS_COLOR, BLACK_HOLES } from './blackHoles.ts';
+
+export type LandmarkKind = 'mission' | 'sky' | 'discovery' | 'outburst';
 
 export interface Landmark {
   /** UTC milliseconds. */
   ms: number;
+  /** End of an event that lasts (UTC ms), such as an outburst. */
+  until?: number;
   name: string;
   kind: LandmarkKind;
   target: string;
@@ -22,10 +27,16 @@ export const KIND_LABEL: Record<LandmarkKind, string> = {
   mission: 'Mission',
   sky: 'Sky event',
   discovery: 'Discovery',
+  outburst: 'Outburst',
 };
 
 /** Marker colors, shared by the timeline and search results. */
-export const KIND_COLOR: Record<LandmarkKind, string> = { mission: '#8fb8ff', sky: '#ffc27a', discovery: '#d6c8ff' };
+export const KIND_COLOR: Record<LandmarkKind, string> = {
+  mission: '#8fb8ff',
+  sky: '#ffc27a',
+  discovery: '#d6c8ff',
+  outburst: BLACK_HOLE_CLASS_COLOR.stellar,
+};
 
 const at = (iso: string, name: string, kind: LandmarkKind, target: string, from?: string): Landmark => ({
   ms: Date.parse(iso),
@@ -35,6 +46,12 @@ const at = (iso: string, name: string, kind: LandmarkKind, target: string, from?
   ...(from ? { from } : {}),
 });
 
+/** Every recorded outburst, from the dates that switch the disks on, so the two can't disagree. */
+const OUTBURSTS: Landmark[] = BLACK_HOLES.flatMap((b) =>
+  (b.disk?.active ?? []).map((o) => ({ ms: Date.parse(o.from), until: Date.parse(o.to), name: o.name, kind: 'outburst' as const, target: b.id })),
+);
+
+// In date order: Shift+arrows on the timeline step through them with find and findLast.
 export const LANDMARKS: readonly Landmark[] = [
   at('1610-01-07T18:00Z', 'Galileo spots the moons of Jupiter', 'discovery', 'jupiter'),
   at('1769-06-03T22:25Z', 'Transit of Venus, timed by Cook', 'sky', 'venus'),
@@ -62,7 +79,8 @@ export const LANDMARKS: readonly Landmark[] = [
   at('2032-11-13T08:54Z', 'Transit of Mercury', 'sky', 'mercury'),
   at('2045-08-12T17:42Z', 'Total solar eclipse across the United States', 'sky', 'earth', 'moon'),
   at('2117-12-11T02:48Z', 'Transit of Venus', 'sky', 'venus'),
-];
+  ...OUTBURSTS,
+].sort((a, b) => a.ms - b.ms);
 
 /** The landmark closest to `ms`, if one is within `tol` ms. */
 export function nearestLandmark(ms: number, tol: number): Landmark | null {

@@ -118,6 +118,9 @@
   let pickerX = $state(0);
 
   const fmtDate = (t: number) => new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' });
+  // "May 22 – Nov 1, 1989", or "Aug 3, 1975 – Mar 15, 1976" across years.
+  const fmtRange = (a: number, b: number) =>
+    new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).formatRange(a, b);
   const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
   const rateLabel = (r: number) => capitalize(formatRate(Math.abs(r)));
 
@@ -137,7 +140,8 @@
     if (!tipFor) return '';
     const kind = tipFor.ms > Date.now() ? 'Predicted' : KIND_LABEL[tipFor.kind];
     const target = ui.searchIndex.find((e) => e.id === tipFor!.target)?.name ?? tipFor.target;
-    return `${kind} · ${fmtDate(tipFor.ms)} · ${target}`;
+    const when = tipFor.until ? fmtRange(tipFor.ms, tipFor.until) : fmtDate(tipFor.ms);
+    return `${kind} · ${when} · ${target}`;
   });
 
   /** Clicking a landmark moves time there, then flies to its object (which may only exist at that date). */

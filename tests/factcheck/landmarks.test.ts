@@ -1,8 +1,11 @@
 // Timeline landmarks that astronomy-engine can predict, checked against it:
 // greatest solar eclipse, greatest transit, and the 2020 great conjunction.
+// Black hole outbursts are checked against the disk dates they come from.
 import * as A from 'astronomy-engine';
 import { describe, expect, it } from 'vitest';
+import { BLACK_HOLES } from '../../src/data/blackHoles.ts';
 import { LANDMARKS } from '../../src/data/landmarks.ts';
+import { diskBrightness } from '../../src/scene/providers/blackHoles.ts';
 
 const MIN = 60_000;
 const DAY = 86_400_000;
@@ -49,5 +52,21 @@ describe('timeline landmarks vs astronomy-engine', () => {
     expect([...ms].sort((a, b) => a - b)).toEqual(ms);
     expect(Math.min(...ms)).toBeGreaterThan(Date.UTC(1600, 0, 1));
     expect(Math.max(...ms)).toBeLessThan(Date.UTC(2400, 0, 1));
+  });
+});
+
+describe('black hole outbursts on the timeline', () => {
+  it('marks every recorded outburst, landing where its disk shines', () => {
+    const outbursts = LANDMARKS.filter((l) => l.kind === 'outburst');
+    // A0620-00 in 1975; V404 Cygni in 1989 and 2015.
+    expect(outbursts).toHaveLength(3);
+    for (const b of BLACK_HOLES) {
+      for (const o of b.disk?.active ?? []) {
+        const hits = outbursts.filter((l) => l.target === b.id && l.ms === Date.parse(o.from));
+        expect(hits, `${b.id} ${o.from}`).toHaveLength(1);
+        expect(hits[0].until).toBe(Date.parse(o.to));
+        expect(diskBrightness(b.disk!, hits[0].ms), `${b.id} ${o.from} disk lit on arrival`).toBe(1);
+      }
+    }
   });
 });
