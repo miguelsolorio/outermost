@@ -268,10 +268,10 @@ export class Director {
     yield* this.until('!app.camera.flying', 12, 'the flight to land');
   }
 
-  /** Fail early if the search or palette row that Enter would pick isn't what the storyboard expects. */
-  async expectPick(list: string, text: string): Promise<void> {
-    const row = await this.page.locator(`${list} [role=option][aria-selected=true]`).first().textContent();
-    if (!row?.includes(text)) throw new Error(`demo: expected Enter in ${list} to pick "${text}", not "${row?.trim()}"`);
+  /** Fail early if the search or palette row that Enter would pick isn't the one named `name`. */
+  async expectPick(list: string, name: string): Promise<void> {
+    const row = (await this.page.locator(`${list} [role=option][aria-selected=true] .name`).first().textContent())?.trim();
+    if (row !== name) throw new Error(`demo: expected Enter in ${list} to pick "${name}", not "${row}"`);
   }
 
   /** Run actions side by side, one frame at a time, until all have finished. */

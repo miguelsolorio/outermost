@@ -69,14 +69,14 @@ export async function* storyboard(d: Director): Action {
   yield* d.hold(1.2);
 
   // 23–36: to V404 Cygni, quiet today. Pause, then drag the playhead back to
-  // 1989, where it snaps to Voyager 2 at Neptune: the black hole was in
-  // outburst then, and its accretion disk blazes up. Circle it.
+  // 1989, where it snaps to the start of the outburst that year: the
+  // accretion disk blazes up. Circle it.
   d.mark('v404');
   yield* palette('v404', 'V404 Cygni');
   yield* d.click('button.play');
   yield* d.moveTo(await playhead());
-  // Just left of Voyager 2's landmark, so the snap picks it over the Pale Blue Dot six months on.
-  const to = (await timelineX(Date.parse('1989-08-25T03:56Z'))) - 2;
+  // Just left of the outburst's landmark, so the snap picks it over Voyager 2 at Neptune three months on.
+  const to = (await timelineX(Date.parse('1989-05-22'))) - 1;
   yield* d.drag([to - d.cursor.x, -1], 1.7, { curve: 0 });
   yield* d.moveTo(await d.clear([760, 330]), { seconds: 0.5 });
   yield* d.drag([-200, -26], 2.1);
