@@ -5,118 +5,114 @@
 
 import type { Action, Director, Point } from './director.ts';
 
-/** How the recording opens: Earth's day side, live, from this far out (m). */
-export const OPENING = { focus: 'earth', altitude: 2.4e7 };
+/** How the recording opens: Earth's day side, live, from this far out (m), with "My location" pinned to Seattle. */
+export const OPENING = { focus: 'earth', altitude: 2.4e7, location: [47.6062, -122.3321] };
+
+// The timeline's opening window (src/ui/timeline/view.ts), for aiming at a date before it's been zoomed.
+const TL_PAD = 10;
+const TL_START = Date.UTC(1900, 0, 1);
+const TL_SPAN = Date.UTC(2130, 0, 1) - TL_START;
 
 export async function* storyboard(d: Director): Action {
   const { page } = d;
+  const track = async () => (await page.locator('.rail > .track').boundingBox())!;
   /** Where to grab the playhead: under the date, which rides it. */
   const playhead = async (): Promise<Point> => {
     const stamp = (await page.locator('.stamp').boundingBox())!;
-    const track = (await page.locator('.rail > .track').boundingBox())!;
-    return [stamp.x + stamp.width / 2, track.y + track.height * 0.55];
+    const t = await track();
+    return [stamp.x + stamp.width / 2, t.y + t.height * 0.55];
   };
+  /** Where a moment sits on the timeline, while it still shows its opening window. */
+  const timelineX = async (ms: number): Promise<number> => {
+    const t = await track();
+    return t.x + TL_PAD + ((ms - TL_START) / TL_SPAN) * (t.width - 2 * TL_PAD);
+  };
+  /** Park the pointer clear of the palette (hovering a row selects it), ⌘K, type, check the pick, and go. */
+  async function* palette(query: string, pick: string): Action {
+    yield* d.moveTo(await d.clear([1050, 450]), { seconds: 0.45 });
+    yield* d.key('ControlOrMeta+k', 0.25);
+    yield* d.type(query);
+    yield* d.hold(0.3);
+    await d.expectPick('#palette-list', pick);
+    yield* d.key('Enter');
+    yield* d.waitFlight();
+  }
 
-  // 0–5: Earth, live. The cursor comes in from the lower right, turns the
-  // planet, and scrolls in toward the ground under it.
+  // 0–6: Earth, live, with "My location" on over Seattle. The cursor turns
+  // the planet toward it and rests on the marker.
   d.mark('earth');
   yield* d.hold(0.3);
-  yield* d.moveTo(await d.clear([700, 400]), { seconds: 1.0 });
-  yield* d.drag([-130, 18], 1.3);
-  yield* d.moveTo(await d.clear([610, 350]), { seconds: 0.45 });
-  yield* d.wheel(-520, 1.1);
+  yield* d.moveTo(await d.clear([700, 300]), { seconds: 1.0 });
+  yield* d.drag([-120, 30], 1.3);
   yield* d.hold(0.2);
+  yield* d.drag([110, 70], 1.3);
+  yield* d.moveTo('.user-location .hit');
+  yield* d.hold(0.9);
 
-  // 5–11: the timeline. Pinch it from centuries down to about a month around
-  // the playhead (re-aiming halfway, since a 2000× zoom magnifies any miss),
-  // drag the playhead a few days ahead, then jump back to Live.
-  d.mark('timeline');
-  yield* d.moveTo(await playhead());
-  yield* d.wheel(-330, 0.6, { ctrl: true });
-  yield* d.moveTo(await playhead(), { seconds: 0.25 });
-  yield* d.wheel(-310, 0.6, { ctrl: true });
-  yield* d.hold(0.15);
-  yield* d.moveTo(await playhead(), { seconds: 0.3 });
-  yield* d.drag([160, 2], 1.6, { curve: 0.01 });
+  // 6–16: to Mars. Turn it, then open the speed menu and pick an hour a
+  // second, so the planet spins.
+  d.mark('mars');
+  yield* palette('mars', 'Mars');
+  yield* d.moveTo(await d.clear([720, 380]), { seconds: 0.45 });
+  yield* d.drag([-170, 18], 1.5);
+  yield* d.click('button.speed-btn');
   yield* d.hold(0.2);
-  yield* d.click('button.live');
-
-  // 11–16: search for Saturn (with a slip of the finger) and fly there.
-  d.mark('saturn');
-  yield* d.click('input#search');
-  yield* d.hold(0.15);
-  yield* d.type('saturn', { typo: { at: 3, wrong: 'r' } });
-  yield* d.hold(0.25);
-  await d.expectTop('#search-list', 'Saturn');
-  yield* d.key('Enter', 0.1);
-  yield* d.key('Escape', 0.05);
-  yield* d.waitFlight();
-
-  // 16–21: drag the speed control up to a week a second so the moons race
-  // around the rings, hold it there, and bring it back to real time.
-  d.mark('speed');
-  yield* d.moveTo('button.speed-btn');
-  yield* d.hold(0.15);
-  yield* d.press();
-  yield* d.glide([102, -2], 1.0, { curve: 0 });
-  yield* d.hold(1.7);
-  yield* d.glide([-100, 1], 0.7, { curve: 0 });
-  yield* d.hold(0.12);
-  yield* d.release();
-
-  // 21–28: the command palette, to M87*, the first black hole ever imaged.
-  d.mark('m87');
-  yield* d.moveTo(await d.clear([820, 330]), { seconds: 0.5 });
-  yield* d.key('ControlOrMeta+k', 0.25);
-  yield* d.type('powehi');
-  yield* d.hold(0.35);
-  await d.expectTop('#palette-list', 'M87');
-  yield* d.key('Enter');
-  yield* d.waitFlight();
-
-  // 28–33: circle it slowly to watch the light bend, and peek at its facts.
-  yield* d.moveTo(await d.clear([760, 360]), { seconds: 0.45 });
-  yield* d.drag([-220, -24], 2.0);
-  d.mark('poster');
-  yield* d.moveTo({ sel: 'button.title', at: [0.3, 0.5] });
+  yield* d.click('.menu .option:has-text("1 hr/s")');
   yield* d.hold(1.2);
 
-  // 33–40: on to Sagittarius A*, at the heart of our own galaxy.
-  d.mark('sgr');
-  yield* d.moveTo(await d.clear([900, 420]), { seconds: 0.5 });
-  yield* d.key('/', 0.15);
-  yield* d.type('sgr a*');
-  yield* d.hold(0.3);
-  await d.expectTop('#search-list', 'Sagittarius A');
-  yield* d.key('Enter', 0.1);
-  yield* d.key('Escape', 0.05);
-  yield* d.waitFlight();
-  yield* d.moveTo(await d.clear([640, 380]), { seconds: 0.45 });
-  yield* d.drag([-90, -14], 1.1);
+  // 16–23: to the Sun, and drag the speed up a notch to a day a second.
+  d.mark('sun');
+  yield* palette('sun', 'Sun');
+  yield* d.moveTo('button.speed-btn');
+  yield* d.drag([34, -1], 0.6, { curve: 0 });
+  yield* d.moveTo(await d.clear([900, 300]), { seconds: 0.6 });
+  yield* d.hold(1.2);
 
-  // 40–46: flick outward: the Milky Way, the Local Group, the cosmic web,
-  // and the microwave background at the edge of what we can see.
+  // 23–36: to V404 Cygni, quiet today. Pause, then drag the playhead back to
+  // 1989, where it snaps to Voyager 2 at Neptune: the black hole was in
+  // outburst then, and its accretion disk blazes up. Circle it.
+  d.mark('v404');
+  yield* palette('v404', 'V404 Cygni');
+  yield* d.click('button.play');
+  yield* d.moveTo(await playhead());
+  // Just left of Voyager 2's landmark, so the snap picks it over the Pale Blue Dot six months on.
+  const to = (await timelineX(Date.parse('1989-08-25T03:56Z'))) - 2;
+  yield* d.drag([to - d.cursor.x, -1], 1.7, { curve: 0 });
+  yield* d.moveTo(await d.clear([760, 330]), { seconds: 0.5 });
+  yield* d.drag([-200, -26], 2.1);
+  d.mark('poster');
+
+  // 36–42: flick outward, out of the Milky Way and past the cosmic web to
+  // the microwave background at the edge of what we can see.
   d.mark('zoom-out');
   yield* d.moveTo(await d.clear([560, 460]), { seconds: 0.35 });
   for (const [px, pause] of [
-    [2900, 0.15],
-    [3300, 0.12],
-    [3400, 0.9], // the Milky Way from outside
-    [3300, 0.1],
-    [3300, 0.3],
+    [4200, 0.1],
+    [4500, 0.1],
+    [4500, 0.1],
+    [4400, 0.1],
+    [4200, 0.3],
   ]) {
-    yield* d.wheel(px, 0.9);
+    yield* d.wheel(px, 0.85);
     yield* d.hold(pause);
   }
 
-  // 46–end: home, for the next total solar eclipse, over North Africa.
-  d.mark('eclipse');
-  yield* d.key('ControlOrMeta+k', 0.25);
-  yield* d.type('north africa');
-  yield* d.hold(0.3);
-  await d.expectTop('#palette-list', 'North Africa');
-  yield* d.key('Enter');
+  // 42–end: run along the timeline from 1989 to the next total solar
+  // eclipse, reading the landmarks, and click it: time jumps to August 2027
+  // and the camera flies home to the Moon's shadow on Africa. Then circle
+  // around to the night side, where the Sun comes out past the limb.
+  d.mark('timeline');
+  yield* d.moveTo(await playhead());
+  yield* d.glide([260, 2], 2.4, { curve: 0, until: `document.querySelector('.rail .tip b')?.textContent.includes('North Africa')` });
+  yield* d.hold(0.45);
+  yield* d.click();
   yield* d.waitFlight();
-  d.mark('home');
-  yield* d.moveTo([1060, 560], { seconds: 1.4 });
+  d.mark('eclipse');
+  yield* d.hold(0.3);
+  yield* d.moveTo(await d.clear([1000, 380]), { seconds: 0.5 });
+  yield* d.drag([-380, 10], 1.7);
+  // Around to the night side and down a little, until the Sun clears the limb (the new Moon is beside it, dark side on).
+  yield* d.moveTo(await d.clear([1040, 470]), { seconds: 0.45 });
+  yield* d.drag([-510, -160], 2.3);
+  yield* d.hold(0.6);
 }

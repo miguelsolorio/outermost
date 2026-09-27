@@ -74,6 +74,8 @@ export class App {
   private selected: string | null = null;
   /** A deep-linked focus whose catalog is still loading; the URL is left alone until it resolves. */
   private pendingFocus: string | null = null;
+  /** "My location" pinned by the link (degrees), kept in the URL as it's rewritten. */
+  private pinnedLocation: [number, number] | null = null;
   private searchIndex: SearchEntry[] = [];
 
   constructor(
@@ -121,6 +123,7 @@ export class App {
     this.userLocation = new UserLocationLayer(labelRoot);
 
     const url = readUrlState();
+    if (url.location) this.pinLocation(url.location);
     this.clock = new SimClock(url.time ?? Date.now());
     if (url.rate !== undefined) this.clock.rate = url.rate;
     if (url.paused) this.clock.paused = true;
@@ -153,8 +156,14 @@ export class App {
     return CameraController.chainFor(id, (x) => this.registry.target(x));
   }
 
+  private pinLocation(at: [number, number]): void {
+    this.pinnedLocation = at;
+    this.userLocation.pin(at[0], at[1]);
+  }
+
   private applyUrl(): void {
     const url = readUrlState();
+    if (url.location) this.pinLocation(url.location);
     if (url.time !== undefined) this.clock.set(url.time);
     if (url.rate !== undefined) this.clock.setRate(url.rate);
     this.clock.setPaused(!!url.paused);
@@ -621,6 +630,7 @@ export class App {
         time: this.clock.ms,
         rate: this.clock.rate,
         paused: this.clock.paused,
+        location: this.pinnedLocation ?? undefined,
       });
     }
   }

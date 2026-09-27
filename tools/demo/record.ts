@@ -3,6 +3,7 @@
 //   npm run demo                                 build, render, write docs/demo.mp4 and its poster
 //   node tools/demo/record.ts --draft            1280×720 at 30 fps, to .cache/demo/draft.mp4
 //   node tools/demo/record.ts --draft --start 30 simulate the first 30 s, record the rest
+//   node tools/demo/record.ts --draft --end 10   record only the first 10 s
 //   --headed       watch it render         --url <url>   record a running server (npm run dev)
 //   --seed <n>     vary the hand motion and the audio's noise
 // Frames are stepped on a fake clock instead of captured live, so motion is
@@ -22,6 +23,7 @@ const { values: args } = parseArgs({
   options: {
     draft: { type: 'boolean', default: false },
     start: { type: 'string', default: '0' },
+    end: { type: 'string' },
     headed: { type: 'boolean', default: false },
     url: { type: 'string' },
     seed: { type: 'string', default: '7' },
@@ -43,8 +45,9 @@ const BT709 = 'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:
 const CACHE = '.cache/demo';
 const draft = args.draft;
 const start = Number(args.start);
+const end = Math.min(SECONDS, Number(args.end ?? SECONDS));
 const seed = Number(args.seed);
-const final = !draft && start === 0;
+const final = !draft && start === 0 && end === SECONDS;
 const every = draft ? 2 : 1;
 /**
  * 1280×720 CSS px at 1.5× is 1920×1080, and the renderer caps its pixel ratio
@@ -118,7 +121,7 @@ async function main(): Promise<void> {
     // Ours first, so the clock's fakes are installed on top of it.
     await page.addInitScript(inject);
     await page.clock.install({ time: T0 });
-    await page.goto(`${url}#f=${OPENING.focus}`);
+    await page.goto(`${url}#f=${OPENING.focus}&l=${OPENING.location.join(',')}`);
 
     // Loaded: catalogs, both black holes' host galaxies, fonts, and every asset in flight.
     await page.waitForFunction(
@@ -216,7 +219,7 @@ async function main(): Promise<void> {
     await page.evaluate(() => ((window as unknown as Win).__demo.track.length = 0));
 
     const video = `${CACHE}/video.mp4`;
-    const shown = SECONDS - start;
+    const shown = end - start;
     encoder = spawn(
       'ffmpeg',
       [
@@ -230,7 +233,7 @@ async function main(): Promise<void> {
     );
     const encoded = once(encoder, 'close');
 
-    const total = SECONDS * FPS;
+    const total = Math.round(end * FPS);
     const first = Math.round(start * FPS);
     const story = storyboard(d);
     let rest: AsyncGenerator<void, void, void> | null = null;
@@ -248,7 +251,7 @@ async function main(): Promise<void> {
         process.stdout.write(`\r[demo] ${(d.t / 1000).toFixed(1)} s / ${SECONDS} s  (${(d.frame / el).toFixed(1)} frames/s, ${stats.ackMisses} input misses, ${stats.gateWaits} load waits)   `);
       }
     }
-    if (!rest) console.warn(`\n[demo] the storyboard runs past ${SECONDS} s; cut there`);
+    if (!rest && end === SECONDS) console.warn(`\n[demo] the storyboard runs past ${SECONDS} s; cut there`);
     await checkScale('after recording');
     encoder.stdin!.end();
     const [code] = await encoded;

@@ -38,6 +38,8 @@ export class UserLocationLayer {
   private watchId: number | null = null;
   /** Geodetic latitude and longitude (rad), once the browser reports a fix. */
   private fix: { lat: number; lon: number } | null = null;
+  /** Set from a link, in place of the browser's position. */
+  private pinned = false;
 
   constructor(root: HTMLElement) {
     this.el = document.createElement('div');
@@ -63,8 +65,8 @@ export class UserLocationLayer {
       this.watchId = null;
       return;
     }
-    // Automated test browsers have no location and would log a denial.
-    if (this.watchId !== null || !('geolocation' in navigator) || navigator.webdriver) return;
+    // A pinned place needs no browser position. Automated test browsers have none and would log a denial.
+    if (this.pinned || this.watchId !== null || !('geolocation' in navigator) || navigator.webdriver) return;
     this.watchId = navigator.geolocation.watchPosition(
       (p) => (this.fix = { lat: p.coords.latitude * THREE.MathUtils.DEG2RAD, lon: p.coords.longitude * THREE.MathUtils.DEG2RAD }),
       () => {
@@ -72,6 +74,14 @@ export class UserLocationLayer {
       },
       { enableHighAccuracy: false, maximumAge: 60_000, timeout: 30_000 },
     );
+  }
+
+  /** Use this place (degrees) instead of the browser's position, without asking for permission. */
+  pin(latDeg: number, lonDeg: number): void {
+    this.pinned = true;
+    this.fix = { lat: latDeg * THREE.MathUtils.DEG2RAD, lon: lonDeg * THREE.MathUtils.DEG2RAD };
+    if (this.watchId !== null) navigator.geolocation.clearWatch(this.watchId);
+    this.watchId = null;
   }
 
   /** `earthPx` is Earth's apparent radius and `boost` its size multiplier, from the bodies layer. */

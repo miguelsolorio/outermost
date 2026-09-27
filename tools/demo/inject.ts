@@ -7,6 +7,7 @@
 //     showing them pop in a few frames late
 //   - input events are counted, so each lands before its frame renders
 //   - a drawn cursor (headless capture has none) follows the real pointer
+//   - SVG (SMIL) animations, like the location marker's pulse, follow the frame step
 // Everything here must be self-contained: Playwright serializes the function.
 
 export interface CursorState {
@@ -269,6 +270,11 @@ export function inject(): void {
 
   hooks.frame = (t, dt, cursor) => {
     stepAnimations(dt);
+    for (const svg of document.querySelectorAll<SVGSVGElement>('svg')) {
+      if (!svg.querySelector('animate')) continue;
+      svg.pauseAnimations();
+      svg.setCurrentTime(t / 1000);
+    }
     drawCursor(t, cursor);
     if (audioArgs) hooks.track.push({ t: t / 1000, viewScale: audioArgs[0], fromSun: audioArgs[1] });
   };

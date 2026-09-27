@@ -173,9 +173,10 @@ export class Director {
   /**
    * Move by (dx, dy) over `seconds` along a slightly curved, eased path,
    * pressed or not. It ends on sub-pixel moves, so a drag stops the camera
-   * rather than leaving it coasting; `fling` ends mid-motion instead.
+   * rather than leaving it coasting; `fling` ends mid-motion instead, and
+   * `until` (a page expression) stops it as soon as it holds.
    */
-  async *glide(by: Point, seconds: number, opts: { curve?: number; fling?: boolean } = {}): Action {
+  async *glide(by: Point, seconds: number, opts: { curve?: number; fling?: boolean; until?: string } = {}): Action {
     const from: Point = [this.cursor.x, this.cursor.y];
     const to: Point = [from[0] + by[0], from[1] + by[1]];
     const len = Math.hypot(...by) || 1;
@@ -187,6 +188,8 @@ export class Director {
       const u = opts.fling ? (i / n) ** 1.6 : minJerk(i / n);
       await this.point(...bezier(from, lerp(from, mid, 0.66), lerp(to, mid, 0.66), to, u));
       yield;
+      // Stop where something turns up (a tooltip, say), as a person would.
+      if (opts.until && (await this.page.evaluate(opts.until))) return;
     }
   }
 
@@ -265,10 +268,10 @@ export class Director {
     yield* this.until('!app.camera.flying', 12, 'the flight to land');
   }
 
-  /** Fail early if the top search or palette row isn't what the storyboard expects. */
-  async expectTop(list: string, text: string): Promise<void> {
-    const top = await this.page.locator(`${list} [role=option]`).first().textContent();
-    if (!top?.includes(text)) throw new Error(`demo: expected "${text}" at the top of ${list}, got "${top?.trim()}"`);
+  /** Fail early if the search or palette row that Enter would pick isn't what the storyboard expects. */
+  async expectPick(list: string, text: string): Promise<void> {
+    const row = await this.page.locator(`${list} [role=option][aria-selected=true]`).first().textContent();
+    if (!row?.includes(text)) throw new Error(`demo: expected Enter in ${list} to pick "${text}", not "${row?.trim()}"`);
   }
 
   /** Run actions side by side, one frame at a time, until all have finished. */
