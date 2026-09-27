@@ -17,7 +17,8 @@
     "pipeline": "node tools/pipeline/run.ts",
     "postinstall": "node tools/copy-vendor.ts",
     "pack": "node tools/pack/pack.ts",
-    "pull": "node tools/pack/pull.ts"
+    "pull": "node tools/pack/pull.ts",
+    "demo": "vite build && node tools/demo/record.ts"
   },
   "dependencies": {
     "astronomy-engine": "^2.1.19",

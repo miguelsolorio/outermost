@@ -6,6 +6,12 @@ An objective-free exploration of the observable universe in the browser, at true
 
 Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs. Every fact on an info card cites its source. An automated fact-check suite compares the rendered universe against JPL Horizons, SIMBAD, the IAU and VizieR.
 
+## Demo
+
+[![A minute in Outermost: flying from Earth to Saturn, M87*, Sagittarius A* and the cosmic microwave background](docs/screenshots/demo.jpg)](docs/demo.mp4)
+
+A minute of exploring, with sound: search, the timeline, Saturn, two black holes, the edge of the observable universe, and back home for the next eclipse. **[Watch the video](docs/demo.mp4)** (MP4, 1080p, 31 MB).
+
 ## Screenshots
 
 | | |
@@ -127,6 +133,7 @@ npm run dev          # http://localhost:5173
 npm run typecheck
 npm test             # unit + fact-check (asset checks run when assets exist)
 npm run test:e2e     # Playwright smoke test and journey (Chromium + WebKit), needs `npm run build`
+npm run demo         # renders docs/demo.mp4, needs ffmpeg with libx264
 ```
 
 Without processed assets the app still runs, with bodies in flat colors. There are two ways to get assets:
@@ -143,6 +150,8 @@ Without processed assets the app still runs, with bodies in flat colors. There a
 
 `npm run bake` refreshes the small reference data committed under `data/baked/` and `tests/fixtures/` from JPL Horizons, the SBDB, SIMBAD, CelesTrak and NSSDCA. The app itself never calls Horizons: it has no CORS headers, so everything is baked at build time.
 
+`npm run demo` records the video above. It drives a production build in headless Chromium through the beats in `tools/demo/storyboard.ts`, with a drawn cursor, and steps the app one frame at a time on a fake clock, so the motion is smooth and a run plays out the same way every time. The soundtrack is the app's own ambient audio, rendered offline along the camera's path. A full render takes about six minutes on an M1 Pro. While working on the storyboard, `node tools/demo/record.ts --draft` renders 720p at 30 fps into `.cache/demo/`, and `--start 30` skips ahead to the part you're changing.
+
 ### Layout
 
 ```
@@ -154,6 +163,7 @@ src/audio/     procedural ambient sound
 tools/bake/    build-time data fetchers → data/baked, tests/fixtures
 tools/pipeline/ asset pipeline → public/assets (+ manifest.json with hashes and sources)
 tools/pack/    asset bundle for GitHub Releases (pack / pull)
+tools/demo/    demo video recorder (npm run demo)
 data/sources.json  registry of every source, with license and credit
 ```
 
