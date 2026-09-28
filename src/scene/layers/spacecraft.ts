@@ -155,7 +155,8 @@ export class SpacecraftLayer implements Provider {
         minAltitude: def.sgp4 ? 2.5e6 : 1e5,
         pos: () => this.visuals.find((v) => v.def.id === def.id)!.pos,
         pole: () => null,
-        handoff: def.sgp4 ? [3e7, 3e8] : def.center === 'earth' ? [4e9, 3e10] : [2 * AU, 20 * AU],
+        // Deep-space craft hand off to the Sun well beyond their framing distance, so a trip there stays centered on the craft.
+        handoff: def.sgp4 ? [3e7, 3e8] : def.center === 'earth' ? [4e9, 3e10] : [100 * AU, 1000 * AU],
         parent: def.center,
         framing: def.framing,
         // Low-orbit craft: arrive above them, tilted toward the Sun, so the

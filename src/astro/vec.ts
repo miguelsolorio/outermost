@@ -58,6 +58,23 @@ export function rotateAxisAngle(v: Vec3, k: Vec3, a: number): Vec3 {
   ];
 }
 
+/** Rotation taking unit vector a to b, as axis × angle (rad). */
+export function rotationBetween(a: Vec3, b: Vec3): Vec3 {
+  const c = cross(a, b);
+  const s = length(c);
+  const theta = Math.atan2(s, dot(a, b));
+  if (theta < 1e-12) return [0, 0, 0];
+  // Antipodal: any perpendicular axis will do.
+  const axis = s > 1e-9 ? scale(c, 1 / s) : normalize(cross(a, Math.abs(a[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]));
+  return scale(axis, theta);
+}
+
+/** Rotate v by a rotation vector (axis × angle). */
+export function rotateBy(v: Vec3, rv: Vec3): Vec3 {
+  const theta = length(rv);
+  return theta < 1e-15 ? v : rotateAxisAngle(v, scale(rv, 1 / theta), theta);
+}
+
 export const mat3Identity = (): Mat3 => [1, 0, 0, 0, 1, 0, 0, 0, 1];
 
 export function mat3Mul(a: Mat3, b: Mat3): Mat3 {

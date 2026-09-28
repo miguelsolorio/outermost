@@ -327,7 +327,8 @@ export class SmallBodiesLayer implements Provider {
           return this.rotateEcliptic(sun, [j[0] - sun[0], j[1] - sun[1], j[2] - sun[2]], deg);
         },
         pole: () => null,
-        handoff: [2 * AU, 10 * AU],
+        // Beyond the 4 AU framing, so a trip here stays centered on the swarm.
+        handoff: [6 * AU, 30 * AU],
         parent: 'sun',
         framing: 4 * AU,
       });

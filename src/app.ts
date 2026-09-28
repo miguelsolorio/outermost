@@ -40,6 +40,13 @@ import { World } from './scene/world.ts';
 import { loadEphemerisTables } from './data/tables.ts';
 import { bindActions, ui } from './ui/state.svelte.ts';
 
+/**
+ * How far out (in radii of the body in view) a landmark visit rises. The clock
+ * jumps partway up, once the body is a dot, and the flight to the landmark
+ * takes over before the rise ends, so the camera never stops.
+ */
+const PULL_BACK_RADII = 400;
+
 export class App {
   readonly clock: SimClock;
   readonly world = new World();
@@ -228,6 +235,8 @@ export class App {
         this.clock.setPaused(false);
       },
       flyTo: (id, opts) => this.flyTo(id, opts),
+      pullBack: () => this.pullBack(),
+      flightHigh: () => this.camera.transit?.high ?? true,
       select: (id) => this.select(id),
       nearby: (limit) => this.nearby(limit),
       distanceTo: (id) => this.distanceTo(id),
@@ -251,12 +260,33 @@ export class App {
     if (!this.camera.flying) this.applyUrl();
   }
 
+  /** On the way somewhere: flying, or a landmark visit's pull-back and clock jump before its flight. */
+  get travelling(): boolean {
+    return this.camera.flying || ui.visiting;
+  }
+
   /** `from`: arrive on the side of `id` facing this object. */
   flyTo(id: string, opts: { from?: string } = {}): void {
     if (!this.registry.target(id)) return;
     this.pendingFocus = null;
     this.select(id);
     this.camera.flyTo(id, FOV_DEG * DEG, { from: opts.from });
+  }
+
+  /**
+   * Before the clock jumps: rise straight up from the body in view, looking the
+   * same way, so it's a dot (not seen spinning) by the time the clock moves.
+   * Nothing to do when already that far out, or mid-flight.
+   */
+  pullBack(): void {
+    if (this.camera.flying) return;
+    const id = this.camera.viewFocusId;
+    const t = this.registry.target(id);
+    const view = this.camera.view;
+    if (!t || !view || t.radius <= 0) return;
+    const clear = PULL_BACK_RADII * t.radius;
+    if (view.r >= clear) return;
+    this.camera.flyTo(id, FOV_DEG * DEG, { distance: clear, arrive: view.dir });
   }
 
   select(id: string | null): void {
@@ -390,8 +420,12 @@ export class App {
       const d = length(rel(this.world.get(def.id).pos, pose.position)) - meanRadius(def) * (this.bodies.visuals.get(def.id)?.boost ?? 1);
       nearest = Math.min(nearest, d);
     }
-    const focusT = this.camera.focus;
-    if (focusT.radius > 0) nearest = Math.min(nearest, length(rel(focusT.pos(), pose.position)) - focusT.radius);
+    // Mid-flight both ends of the trip count, so the destination isn't clipped until landing.
+    const transit = this.camera.transit;
+    for (const id of transit ? [transit.fromChain[0], transit.toChain[0]] : [this.camera.focusId]) {
+      const t = this.registry.target(id);
+      if (t && t.radius > 0) nearest = Math.min(nearest, length(rel(t.pos(), pose.position)) - t.radius);
+    }
     cam3.near = Math.min(1e7, Math.max(1, nearest * 0.1));
     cam3.far = 1e30;
     cam3.updateProjectionMatrix();
@@ -404,10 +438,10 @@ export class App {
     this.sprites.update(ctx);
     this.stars.update(ctx);
     // The focused (or selected) catalog star is drawn as a sphere when close.
-    const starId = [this.camera.focusId, this.selected].find((x) => x?.startsWith('star-'));
+    const starId = [this.camera.viewFocusId, this.selected].find((x) => x?.startsWith('star-'));
     const starT = starId ? this.registry.target(starId) : undefined;
     // A black hole's companion star (Cygnus X-1's) is drawn beside it at its published size and temperature.
-    const companion = starT ? null : this.blackHoles.companion(this.camera.focusId);
+    const companion = starT ? null : this.blackHoles.companion(this.camera.viewFocusId);
     if (companion) this.starBody.update(ctx, companion.index, companion.radius, companion.color);
     else this.starBody.update(ctx, starId && starT ? Number(starId.slice(5)) : -1, starT?.radius ?? 0);
     this.constellations.update(ctx);
@@ -427,19 +461,26 @@ export class App {
     this.syncUi(now, dt);
   }
 
+  /** Exposure follows a focused body (or its planet) and relaxes to 1 AU when zoomed out to distance r. */
+  private exposureFor(id: string, r: number): number {
+    const focusDef = BODY_BY_ID.get(id);
+    if (!focusDef) return AU;
+    const planet = focusDef.kind === 'moon' ? BODY_BY_ID.get(focusDef.parent!)! : focusDef;
+    const planetDist = Math.max(this.world.get(planet.id).sunDist, 0.2 * AU);
+    const w = planet.semiMajorAxis ? smoothstep(Math.log(0.3 * planet.semiMajorAxis), Math.log(1.5 * planet.semiMajorAxis), Math.log(r)) : 1;
+    return Math.exp(Math.log(planetDist) * (1 - w) + Math.log(AU) * w);
+  }
+
   private frameCtx(dt: number): FrameCtx {
     const pose = this.camera.pose;
     const h = this.canvas.clientHeight;
     const fov = FOV_DEG * DEG;
-    const focusDef = BODY_BY_ID.get(this.camera.focusId);
-    // Exposure follows the focused body (or its planet) and relaxes to 1 AU when zoomed out.
-    let exposureDist = AU;
-    if (focusDef) {
-      const planet = focusDef.kind === 'moon' ? BODY_BY_ID.get(focusDef.parent!)! : focusDef;
-      const planetDist = Math.max(this.world.get(planet.id).sunDist, 0.2 * AU);
-      const w = planet.semiMajorAxis ? smoothstep(Math.log(0.3 * planet.semiMajorAxis), Math.log(1.5 * planet.semiMajorAxis), Math.log(pose.r)) : 1;
-      exposureDist = Math.exp(Math.log(planetDist) * (1 - w) + Math.log(AU) * w);
-    }
+    // Mid-flight, blend from the origin's exposure to the destination's as the pan goes.
+    const transit = this.camera.transit;
+    const exposureDist = transit
+      ? Math.exp(Math.log(this.exposureFor(transit.fromChain[0], pose.r)) * (1 - transit.w) + Math.log(this.exposureFor(transit.toChain[0], pose.r)) * transit.w)
+      : this.exposureFor(this.camera.focusId, pose.r);
+    const bodyOf = (chain: string[]): string => chain.find((id) => BODY_BY_ID.has(id)) ?? 'sun';
     return {
       world: this.world,
       pose,
@@ -451,8 +492,9 @@ export class App {
       pxPerRad: h / fov,
       exposureDist,
       skyBrightness: 0.4,
-      focusId: this.camera.focusId,
-      focusBody: this.camera.chain.find((id) => BODY_BY_ID.has(id)) ?? 'sun',
+      focusId: this.camera.viewFocusId,
+      focusBody: bodyOf(this.camera.viewChain),
+      focusBlend: transit ? { from: bodyOf(transit.fromChain), to: bodyOf(transit.toChain), w: transit.w } : null,
       selectedId: this.selected,
       settings: this.settings,
       dt,

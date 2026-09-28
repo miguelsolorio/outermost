@@ -57,14 +57,28 @@ export class OrbitsLayer {
     this.material.resolution.set(w, h);
   }
 
+  /**
+   * Deep inside another planet's neighborhood, other planets' orbits all collapse
+   * onto the ecliptic line and just add clutter: keep only the local system.
+   */
+  private clutterFor(focusBody: string, r: number): (def: BodyDef) => number {
+    // Focus may be a star or galaxy: then only the Sun's planets count as local.
+    const focusDef = BODY_BY_ID.get(focusBody);
+    const focusPlanet = !focusDef ? 'sun' : focusDef.kind === 'moon' ? focusDef.parent! : focusDef.id;
+    const focusA = BODY_BY_ID.get(focusPlanet)!.semiMajorAxis || Infinity;
+    const far = THREE.MathUtils.smoothstep(r, 0.02 * focusA, 0.3 * focusA);
+    return (def) => (def.id === focusPlanet || def.parent === focusPlanet ? 1 : far);
+  }
+
   update(ctx: FrameCtx): void {
     this.group.visible = ctx.settings.orbits;
     if (!ctx.settings.orbits) return;
     const { world, cam, pxPerRad } = ctx;
-    // Focus may be a star or galaxy: then only the Sun's planets count as local.
-    const focusDef = BODY_BY_ID.get(ctx.focusBody);
-    const focusPlanet = !focusDef ? 'sun' : focusDef.kind === 'moon' ? focusDef.parent! : focusDef.id;
-    const focusA = BODY_BY_ID.get(focusPlanet)!.semiMajorAxis || Infinity;
+    // Mid-flight, the destination's local orbits fade in as the origin's fade out.
+    const blend = ctx.focusBlend;
+    const clutterFrom = this.clutterFor(blend ? blend.from : ctx.focusBody, ctx.pose.r);
+    const clutterTo = blend ? this.clutterFor(blend.to, ctx.pose.r) : clutterFrom;
+    const w = blend ? blend.w : 0;
     for (const o of this.orbits) {
       const st = world.get(o.def.id);
       if (!st.valid) {
@@ -83,10 +97,7 @@ export class OrbitsLayer {
       // are so close to the body that the line would slice across its disk.
       const orbitPx = (o.def.semiMajorAxis / Math.max(parentDist, 1)) * pxPerRad;
       const nearFade = THREE.MathUtils.smoothstep(camDist / meanRadius(o.def), 6, 40);
-      // Deep inside another planet's neighborhood, other planets' orbits all collapse
-      // onto the ecliptic line and just add clutter: keep only the local system.
-      const local = o.def.id === focusPlanet || o.def.parent === focusPlanet;
-      const clutter = local ? 1 : THREE.MathUtils.smoothstep(ctx.pose.r, 0.02 * focusA, 0.3 * focusA);
+      const clutter = clutterFrom(o.def) * (1 - w) + clutterTo(o.def) * w;
       const alpha = THREE.MathUtils.smoothstep(orbitPx, 12, 60) * nearFade * clutter * (o.def.kind === 'moon' ? 0.6 : 1);
       o.line.visible = alpha > 0.01;
       if (!o.line.visible) continue;

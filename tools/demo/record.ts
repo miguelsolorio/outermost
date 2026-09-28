@@ -164,7 +164,8 @@ async function main(): Promise<void> {
       await page.evaluate((id) => {
         const app = (window as unknown as Win).app;
         app.flyTo(id);
-        for (let i = 0; i < 260; i++) app.tick(1 / 30);
+        // Flights take up to 8 s.
+        for (let i = 0; i < 300; i++) app.tick(1 / 30);
       }, id);
       await settle(page, 30_000);
       process.stdout.write('.');

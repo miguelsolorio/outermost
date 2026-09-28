@@ -262,10 +262,10 @@ export class Director {
     }
   }
 
-  /** Wait out a camera flight: for it to start (a landmark eases the clock first), then to land. */
+  /** Wait out a camera flight: for it to start, then to land (a landmark pulls back and moves the clock first). */
   async *waitFlight(): Action {
-    yield* this.until('app.camera.flying', 2, 'a flight to start');
-    yield* this.until('!app.camera.flying', 12, 'the flight to land');
+    yield* this.until('app.travelling', 2, 'a flight to start');
+    yield* this.until('!app.travelling', 14, 'the flight to land');
   }
 
   /** Fail early if the search or palette row that Enter would pick isn't the one named `name`. */

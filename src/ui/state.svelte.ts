@@ -30,6 +30,8 @@ export const ui = $state({
   openMenu: null as 'search' | 'view' | null,
   /** The centered ⌘K palette for flying to a place. */
   paletteOpen: false,
+  /** A landmark visit is pulling back or moving the clock, before its flight. */
+  visiting: false,
 });
 
 export interface Actions {
@@ -44,6 +46,10 @@ export interface Actions {
   now(): void;
   /** `from`: arrive on the side of `id` facing this object. */
   flyTo(id: string, opts?: { from?: string }): void;
+  /** Rise clear of the body in view before a jump in time, so it isn't seen spinning. */
+  pullBack(): void;
+  /** Whether a flight under way is near the top of its climb (true when not flying). */
+  flightHigh(): boolean;
   select(id: string | null): void;
   /** Search entries closest to the camera, nearest first. */
   nearby(limit: number): SearchEntry[];
@@ -61,6 +67,8 @@ export const actions: Actions = {
   setTime: () => {},
   now: () => {},
   flyTo: () => {},
+  pullBack: () => {},
+  flightHigh: () => true,
   select: () => {},
   nearby: () => [],
   distanceTo: () => null,

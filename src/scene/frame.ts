@@ -34,6 +34,8 @@ export interface FrameCtx {
   focusId: string;
   /** Nearest solar-system body in the focus chain (e.g. 'earth' for the ISS). */
   focusBody: string;
+  /** Mid-flight: the origin's and destination's `focusBody`, and how far the pan has gone (0..1). */
+  focusBlend?: { from: string; to: string; w: number } | null;
   selectedId: string | null;
   settings: Settings;
   dt: number;

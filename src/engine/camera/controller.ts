@@ -15,6 +15,8 @@ import {
   lerp,
   normalize,
   rotateAxisAngle,
+  rotateBy,
+  rotationBetween,
   scale,
   slerp,
   smoothstep,
@@ -23,6 +25,7 @@ import {
 } from '../../astro/vec.ts';
 import { DEG, OBLIQUITY_J2000 } from '../../astro/units.ts';
 import { EQJ_TO_GAL, galaxyFrame } from '../../astro/galactic.ts';
+import { flightDuration, glide, settleCurve, zoomPath, type ZoomPath } from './path.ts';
 
 /** Something the camera can focus on. */
 export interface FocusTarget {
@@ -65,17 +68,91 @@ export const SUPERGALACTIC_NORTH: Vec3 = (() => {
 /** Galactic north (the Milky Way model's +z), for "up" at galactic scales. */
 export const GALACTIC_NORTH: Vec3 = galaxyFrame().z;
 
+/** Longest step (s) a flight or settle advances per frame: a hitch slows the trip instead of skipping it ahead. */
+const MAX_STEP = 0.05;
+/** Share of a flight's motion carried into a new destination picked mid-flight (0 = start from rest). */
+const CARRY = 1;
+/** How long (s) the carried motion takes to bend onto the new path. */
+const RETARGET_SETTLE = 0.5;
+
+/**
+ * What a pose is built from. The view looks at pivot + shift: the pivot stays
+ * an exact body position (float64 rounds ~16 km at 2 kpc) and the shift
+ * carries the rest, so points near the pivot stay exact (see `relPrecise`).
+ */
+interface ViewInputs {
+  pivot: Vec3;
+  shift: Vec3;
+  r: number;
+  dir: Vec3;
+  up: Vec3;
+  tilt: number;
+}
+
+/** The view as drawn (shift includes any settle), and the point it looks at. */
+export interface View extends ViewInputs {
+  lookAt: Vec3;
+}
+
+/** Per-channel offsets or rates: the pivot in units of r, dir and up as rotation vectors. */
+interface Motion {
+  pivot: Vec3;
+  lnR: number;
+  dir: Vec3;
+  up: Vec3;
+  tilt: number;
+}
+
+const STILL: Motion = { pivot: [0, 0, 0], lnR: 0, dir: [0, 0, 0], up: [0, 0, 0], tilt: 0 };
+
+/**
+ * An offset `x` (moving at `v` per second) from the view's source to what was
+ * on screen when the source jumped, eased away over T seconds. This is what
+ * keeps a new destination or an interrupted flight from snapping the view.
+ */
+interface Settle {
+  t: number;
+  T: number;
+  x: Motion;
+  v: Motion;
+}
+
 interface Flight {
   t: number;
-  duration: number;
+  T: number;
+  path: ZoomPath;
+  /** Start and end pivots, re-read every frame so moving bodies are tracked. */
+  from: () => Vec3;
+  to: () => Vec3;
+  upFrom: (r: number) => Vec3;
+  upTo: (r: number) => Vec3;
+  /** Up at the start, and on the last frame. */
+  up0: Vec3;
+  up: Vec3;
+  /** Distance at which to take the zoomed-out up (see `flightSource`). */
+  rMid: number;
   fromChain: string[];
-  fromR: number;
+  toChain: string[];
   toId: string;
+  facing?: string;
+  fromR: number;
   toR: number;
-  dir0: Vec3;
+  landLogH: number;
   dir1: Vec3;
+  /** The swing from dir0 to dir1 as azimuth and elevation about the up vector (see `swingDir`). */
+  swing: { up0: Vec3; up1: Vec3; ref: Vec3; az0: number; dAz: number; el0: number; el1: number };
   tilt0: number;
-  hump: number;
+  /** Share of the trip spent speeding up: none when taking over a flight already moving. */
+  rampIn: number;
+  /** How far up its climb from the start the flight got (0..1), for `transit.high`. */
+  climbed: number;
+  /** Flown to a set distance or direction, rather than the default framing. */
+  custom: boolean;
+  /** Last frame's eased progress, and fraction of the pan done and still to go. */
+  e: number;
+  pan: number;
+  rest: number;
+  landed: boolean;
   onDone?: () => void;
 }
 
@@ -96,11 +173,6 @@ export interface CameraPose {
   r: number;
 }
 
-const smootherstep = (x: number): number => {
-  const t = clamp(x, 0, 1);
-  return t * t * t * (t * (t * 6 - 15) + 10);
-};
-
 export class CameraController {
   chain: string[] = ['earth', 'sun'];
   /** ln(altitude in m) above the focus surface. */
@@ -115,6 +187,9 @@ export class CameraController {
   private elVel = 0;
   private zoomAnchor: Vec3 | null = null;
   private flight: Flight | null = null;
+  private settle: Settle | null = null;
+  private lastView: View | null = null;
+  private vel: Motion = STILL;
   pose: CameraPose = {
     position: [0, 0, 0],
     pivot: [0, 0, 0],
@@ -143,6 +218,30 @@ export class CameraController {
 
   get flying(): boolean {
     return this.flight !== null;
+  }
+
+  /**
+   * The trip under way: w is the fraction of the pan done; `high` once the
+   * camera is well up its climb (or it started out that high).
+   */
+  get transit(): { fromChain: string[]; toChain: string[]; w: number; high: boolean } | null {
+    const f = this.flight;
+    return f ? { fromChain: f.fromChain, toChain: f.toChain, w: f.pan, high: f.climbed >= 0.6 } : null;
+  }
+
+  /** The chain the view belongs to: mid-flight it switches at the zoomed-out peak. */
+  get viewChain(): string[] {
+    const f = this.flight;
+    return f ? (f.pan < 0.5 ? f.fromChain : f.toChain) : this.chain;
+  }
+
+  get viewFocusId(): string {
+    return this.viewChain[0];
+  }
+
+  /** The last view drawn. */
+  get view(): View | null {
+    return this.lastView;
   }
 
   get minLogH(): number {
@@ -270,33 +369,132 @@ export class CameraController {
     return Math.max(r, target.radius + target.minAltitude);
   }
 
-  /** `from`: arrive on the side of the target that faces this object (e.g. down the Moon's shadow onto Earth). */
-  flyTo(id: string, fovRad: number, opts: { distance?: number; onDone?: () => void; from?: string } = {}): void {
+  /**
+   * Fly to a target. `from`: arrive on the side of the target that faces this
+   * object (e.g. down the Moon's shadow onto Earth). Picking a new destination
+   * mid-flight starts from the view on screen and bends onto the new path.
+   * `distance` and `arrive` (the direction from the target to arrive from)
+   * override the default framing.
+   */
+  flyTo(id: string, fovRad: number, opts: { distance?: number; onDone?: () => void; from?: string; arrive?: Vec3 } = {}): void {
     const target = this.resolve(id);
     if (!target) return;
-    const toR = opts.distance ?? this.framingDistance(target, fovRad);
-    const fromR = this.pose.r;
-    const p0 = this.pose.pivot;
-    const p1 = target.pos();
-    const d = length(sub(p1, p0));
-    const dir1 = this.approachDirection(target, p0, opts.from ? this.resolve(opts.from) : undefined);
-    const dLog = Math.abs(Math.log10(toR) - Math.log10(fromR));
-    const duration = clamp(1.2 + 0.25 * dLog + 0.25 * Math.log10(1 + d / Math.max(fromR, toR)), 1.5, 7);
+    const old = this.flight;
+    const custom = opts.distance !== undefined || opts.arrive !== undefined;
+    if (old && !old.custom && !custom && old.toId === id && old.facing === opts.from && !opts.onDone) return;
+    const view = this.lastView ?? this.viewOf(this.freeSource(0));
+
+    // Land exactly where the free camera will take over, so the last frame of
+    // the flight and the first frame after it match.
+    const toChain = CameraController.chainFor(id, this.resolve);
+    const want = opts.distance ?? this.framingDistance(target, fovRad);
+    const landLogH = clamp(Math.log(Math.max(want - target.radius, target.minAltitude)), Math.log(Math.max(1, target.minAltitude)), this.maxLogH);
+    const toR = this.distanceFor(toChain, landLogH);
+    const to = this.holdPivot(toChain, toR);
+
+    let from: () => Vec3;
+    let upFrom: (r: number) => Vec3;
+    let fromChain: string[];
+    if (old) {
+      // Start from where the old flight is: the same fraction of the way between its (still moving) ends.
+      const { from: a, to: b, up, pan, rest } = old;
+      from = () => (pan <= 0.5 ? lerp(a(), b(), pan) : add(b(), scale(sub(a(), b()), rest)));
+      upFrom = () => up;
+      fromChain = pan < 0.5 ? old.fromChain : old.toChain;
+      this.chain = fromChain;
+    } else {
+      fromChain = [...this.chain];
+      from = this.holdPivot(fromChain, view.r);
+      upFrom = this.holdUp(fromChain);
+    }
+
+    const upTo = this.holdUp(toChain);
+    const dir1 = opts.arrive ?? this.approachDirection(target, view.lookAt, opts.from ? this.resolve(opts.from) : undefined);
+    const path = zoomPath(view.r, toR, length(sub(to(), from())), fovRad);
+    const up0 = upFrom(view.r);
     this.flight = {
       t: 0,
-      duration,
-      fromChain: [...this.chain],
-      fromR,
+      T: flightDuration(path.S, angleBetween(view.dir, dir1)),
+      path,
+      // Taking over a moving flight needs only a short ramp.
+      rampIn: old ? 0.1 : 0.25,
+      climbed: 0,
+      custom,
+      from,
+      to,
+      upFrom,
+      upTo,
+      up0,
+      up: up0,
+      // Up turns with scale only near the trip's own scales: a trip that merely
+      // passes through the Galaxy doesn't roll to galactic north and back.
+      rMid: Math.min(Math.exp(path.peakLnR), 100 * Math.max(view.r, toR)),
+      fromChain,
+      toChain,
       toId: id,
+      facing: opts.from,
+      fromR: view.r,
       toR,
-      dir0: this.dir,
+      landLogH,
       dir1,
-      tilt0: this.tilt,
-      hump: Math.max(0, Math.log((1.5 * d) / Math.max(fromR, toR))),
+      swing: CameraController.swingFor(view.dir, dir1, up0, upTo(toR)),
+      tilt0: view.tilt,
+      e: 0,
+      pan: 0,
+      rest: 1,
+      landed: false,
       onDone: opts.onDone,
     };
     this.stopInertia();
     this.zoomAnchor = null;
+    this.beginSettle(old ? CARRY : 0);
+  }
+
+  /**
+   * Azimuth and elevation of dir0 about up0 and of dir1 about up1, measured
+   * from a reference direction carried along as up turns.
+   */
+  private static swingFor(dir0: Vec3, dir1: Vec3, up0: Vec3, up1: Vec3): Flight['swing'] {
+    const level = (v: Vec3, up: Vec3): Vec3 => sub(v, scale(up, dot(v, up)));
+    const h = level(dir0, up0);
+    const ref = length(h) > 1e-6 ? normalize(h) : normalize(cross(up0, Math.abs(up0[0]) < 0.9 ? [1, 0, 0] : [0, 1, 0]));
+    const ref1 = normalize(level(rotateBy(ref, rotationBetween(up0, up1)), up1));
+    const az = (d: Vec3, up: Vec3, e1: Vec3): number => Math.atan2(dot(d, cross(up, e1)), dot(d, e1));
+    const el = (d: Vec3, up: Vec3): number => Math.asin(clamp(dot(d, up), -1, 1));
+    const az0 = az(dir0, up0, ref);
+    let dAz = az(dir1, up1, ref1) - az0;
+    dAz -= 2 * Math.PI * Math.round(dAz / (2 * Math.PI));
+    return { up0, up1, ref, az0, dAz, el0: el(dir0, up0), el1: el(dir1, up1) };
+  }
+
+  /**
+   * The arrival swing at progress e, as an orbit about an axis turning evenly
+   * from the start's up to the end's: azimuth and elevation move evenly, so the
+   * view never tips over the pole (where a straight slerp can pass and the roll
+   * spins). The axis ignores how `upFor` changes with scale, so zooming past a
+   * galaxy doesn't swing the view with it.
+   */
+  private swingDir(f: Flight, e: number): Vec3 {
+    const w = f.swing;
+    const up = normalize(slerp(w.up0, w.up1, e));
+    const r = rotateBy(w.ref, rotationBetween(w.up0, up));
+    const e1 = normalize(sub(r, scale(up, dot(r, up))));
+    const e2 = cross(up, e1);
+    const az = w.az0 + w.dAz * e;
+    const el = w.el0 + (w.el1 - w.el0) * e;
+    const c = Math.cos(el);
+    return normalize(add(add(scale(e1, c * Math.cos(az)), scale(e2, c * Math.sin(az))), scale(up, Math.sin(el))));
+  }
+
+  /** A chain's pivot at distance r, held at its last value if the chain's focus stops resolving (time scrubbed past it). */
+  private holdPivot(chain: string[], r: number): () => Vec3 {
+    let last: Vec3 = this.resolve(chain[0]) ? this.pivotFor(chain, r) : this.pose.pivot;
+    return () => (this.resolve(chain[0]) ? (last = this.pivotFor(chain, r)) : last);
+  }
+
+  private holdUp(chain: string[]): (r: number) => Vec3 {
+    let last: Vec3 = this.pose.up;
+    return (r) => (this.resolve(chain[0]) ? (last = this.upFor(chain, r)) : last);
   }
 
   /**
@@ -324,80 +522,215 @@ export class CameraController {
     return normalize(d);
   }
 
+  /** Stop a flight (the user grabbed the view): keep looking the same way and ease the pivot back to the focus. */
   cancelFlight(): void {
-    if (!this.flight) return;
-    // Freeze where we are: adopt the destination chain if past halfway.
     const f = this.flight;
-    const s = f.t / f.duration;
-    this.chain = s > 0.5 ? CameraController.chainFor(f.toId, this.resolve) : f.fromChain;
-    const R = this.resolve(this.chain[0])?.radius ?? 0;
-    const pivot = this.pivotFor(this.chain, Math.max(this.pose.r, R + 1));
-    const off = sub(this.pose.position, pivot);
-    this.dir = normalize(off);
-    this.logH = this.logHTarget = Math.log(Math.max(length(off) - R, Math.exp(this.minLogH)));
+    if (!f) return;
     this.flight = null;
+    const ok = (c: string[]): boolean => !!this.resolve(c[0]);
+    const [near, far] = f.pan < 0.5 ? [f.fromChain, f.toChain] : [f.toChain, f.fromChain];
+    this.chain = ok(near) ? near : ok(far) ? far : CameraController.chainFor('sun', this.resolve);
+    const view = this.lastView;
+    if (!view) return;
+    this.logH = this.logHTarget = clamp(Math.log(Math.max(view.r - this.focus.radius, 1)), this.minLogH, this.maxLogH);
+    this.dir = view.dir;
+    this.tilt = view.tilt;
+    this.tiltTarget = Math.min(view.tilt, this.maxTilt());
+    this.beginSettle(0);
+  }
+
+  /**
+   * The view's source is about to jump (new destination, interrupted flight):
+   * record how far the view on screen is from the new source, and ease that
+   * away. `carry` keeps that share of the view's current motion.
+   */
+  private beginSettle(carry: number): void {
+    const view = this.lastView;
+    this.settle = null;
+    if (!view) return;
+    const src = this.flight ? this.flightSource(0) : this.freeSource(0);
+    const x: Motion = {
+      pivot: scale(this.between(src, view), 1 / src.r),
+      lnR: Math.log(view.r / src.r),
+      dir: rotationBetween(src.dir, view.dir),
+      up: rotationBetween(src.up, view.up),
+      tilt: view.tilt - src.tilt,
+    };
+    // Carry the difference between how the view was moving and how the new source starts out.
+    const sv = this.flight ? this.flightStartVelocity() : STILL;
+    const v: Motion =
+      carry > 0
+        ? {
+            pivot: scale(sub(this.vel.pivot, sv.pivot), carry),
+            lnR: (this.vel.lnR - sv.lnR) * carry,
+            dir: scale(sub(this.vel.dir, sv.dir), carry),
+            up: scale(sub(this.vel.up, sv.up), carry),
+            tilt: (this.vel.tilt - sv.tilt) * carry,
+          }
+        : STILL;
+    const size = (m: Motion): number => length(m.pivot) + Math.abs(m.lnR) + length(m.dir) + length(m.up) + Math.abs(m.tilt);
+    if (size(x) + size(v) < 1e-9) return;
+    // A bigger jump takes a little longer, so it never races across the screen.
+    const T = carry > 0 ? RETARGET_SETTLE : clamp(0.5 + 0.35 * length(x.pivot), 0.5, 1);
+    this.settle = { t: 0, T, x, v };
+  }
+
+  /** How the flight just set up starts out moving (per second; pivot in units of r). */
+  private flightStartVelocity(): Motion {
+    const f = this.flight!;
+    const h = 1e-3;
+    const a = this.flightSource(0);
+    f.t = h;
+    const b = this.flightSource(0);
+    f.t = 0;
+    f.climbed = 0;
+    this.flightSource(0);
+    return {
+      pivot: scale(this.between(a, b), 1 / (h * a.r)),
+      lnR: Math.log(b.r / a.r) / h,
+      dir: scale(rotationBetween(a.dir, b.dir), 1 / h),
+      up: scale(rotationBetween(a.up, b.up), 1 / h),
+      tilt: (b.tilt - a.tilt) / h,
+    };
   }
 
   // ---- per-frame update ----------------------------------------------------
 
   update(dt: number): CameraPose {
-    if (this.flight) return this.updateFlight(dt);
-
-    // Zoom damping (critically damped, tau = 0.15 s).
-    const a = 1 - Math.exp(-dt / 0.15);
-    const prevLogH = this.logH;
-    this.logH += (this.logHTarget - this.logH) * a;
-    if (this.zoomAnchor && this.logH < prevLogH) {
-      const frac = 1 - Math.exp(this.logH - prevLogH);
-      const ang = angleBetween(this.dir, this.zoomAnchor);
-      if (ang > 1e-6) this.dir = normalize(slerp(this.dir, this.zoomAnchor, clamp((frac * 0.9 * ang) / ang, 0, 1)));
-    }
-
-    // Orbit inertia.
-    if (Math.abs(this.azVel) + Math.abs(this.elVel) > 1e-5) {
-      this.applyOrbit(this.azVel * dt, this.elVel * dt);
-      const decay = Math.exp(-dt / 0.25);
-      this.azVel *= decay;
-      this.elVel *= decay;
-    }
-
-    this.tiltTarget = Math.min(this.tiltTarget, this.maxTilt());
-    this.tilt += (this.tiltTarget - this.tilt) * a;
-
-    const r = this.distanceFor(this.chain, this.logH);
-    return this.composePose(this.pivotFor(this.chain, r), r, this.dir, this.upFor(this.chain, r), this.tilt);
-  }
-
-  private updateFlight(dt: number): CameraPose {
-    const f = this.flight!;
-    f.t += dt;
-    const s = smootherstep(f.t / f.duration);
-    const target = this.resolve(f.toId)!;
-    const p0 = this.pivotFor(f.fromChain, f.fromR);
-    const p1 = target.pos();
-    const sigma = smoothstep(0.15, 0.85, s);
-    // lerp(p0, p1, 1) is not bit-exact; land exactly on the target.
-    const pivot = sigma >= 1 ? p1 : lerp(p0, p1, sigma);
-    const lnR = Math.log(f.fromR) + (Math.log(f.toR) - Math.log(f.fromR)) * s + f.hump * Math.sin(Math.PI * s);
-    const r = Math.exp(lnR);
-    const dir = normalize(slerp(f.dir0, f.dir1, smoothstep(0, 1, s)));
-    const toChain = CameraController.chainFor(f.toId, this.resolve);
-    const up = normalize(slerp(this.upFor(f.fromChain, r), this.upFor(toChain, r), sigma));
-    const tilt = f.tilt0 * (1 - s);
-    const pose = this.composePose(pivot, r, dir, up, tilt);
-    if (f.t >= f.duration) {
-      this.chain = toChain;
-      this.dir = f.dir1;
-      this.logH = this.logHTarget = Math.log(Math.max(f.toR - target.radius, target.minAltitude));
-      this.tilt = this.tiltTarget = 0;
-      this.flight = null;
-      f.onDone?.();
-    }
+    const step = Math.min(dt, MAX_STEP);
+    const f = this.flight;
+    const pose = this.emit(f ? this.flightSource(step) : this.freeSource(dt), step);
+    if (f?.landed) f.onDone?.();
     return pose;
   }
 
-  private composePose(pivot: Vec3, r: number, dir: Vec3, upHint: Vec3, tilt: number): CameraPose {
-    const offset = scale(dir, r);
+  /** The free camera: zoom damping, orbit inertia and tilt. With dt = 0 it only reads. */
+  private freeSource(dt: number): ViewInputs {
+    if (dt > 0) {
+      // Zoom damping (critically damped, tau = 0.15 s).
+      const a = 1 - Math.exp(-dt / 0.15);
+      const prevLogH = this.logH;
+      this.logH += (this.logHTarget - this.logH) * a;
+      if (this.zoomAnchor && this.logH < prevLogH) {
+        const frac = 1 - Math.exp(this.logH - prevLogH);
+        const ang = angleBetween(this.dir, this.zoomAnchor);
+        if (ang > 1e-6) this.dir = normalize(slerp(this.dir, this.zoomAnchor, clamp((frac * 0.9 * ang) / ang, 0, 1)));
+      }
+
+      // Orbit inertia.
+      if (Math.abs(this.azVel) + Math.abs(this.elVel) > 1e-5) {
+        this.applyOrbit(this.azVel * dt, this.elVel * dt);
+        const decay = Math.exp(-dt / 0.25);
+        this.azVel *= decay;
+        this.elVel *= decay;
+      }
+
+      this.tiltTarget = Math.min(this.tiltTarget, this.maxTilt());
+      this.tilt += (this.tiltTarget - this.tilt) * a;
+    }
+
+    const r = this.distanceFor(this.chain, this.logH);
+    return { pivot: this.pivotFor(this.chain, r), shift: [0, 0, 0], r, dir: this.dir, up: this.upFor(this.chain, r), tilt: this.tilt };
+  }
+
+  private flightSource(step: number): ViewInputs {
+    const f = this.flight!;
+    if (!this.resolve(f.toId)) {
+      // The destination has no data at this time any more.
+      this.cancelFlight();
+      return this.freeSource(0);
+    }
+    f.t += step;
+    if (f.t >= f.T) {
+      this.chain = f.toChain;
+      this.dir = f.dir1;
+      this.logH = this.logHTarget = f.landLogH;
+      this.tilt = this.tiltTarget = 0;
+      this.flight = null;
+      f.landed = true;
+      return { pivot: f.to(), shift: [0, 0, 0], r: f.toR, dir: f.dir1, up: f.upTo(f.toR), tilt: 0 };
+    }
+    // One eased progress drives everything: the pan and zoom along the path,
+    // the swing to the arrival side, the up vector and the tilt.
+    const e = glide(f.t / f.T, f.rampIn);
+    const { f: pan, g: rest, lnR } = f.path.at(e * f.path.L);
+    const r = Math.exp(lnR);
+    // Climb from the start toward the path's top; a trip that starts at its top is high from the outset.
+    const lnStart = Math.log(f.fromR);
+    const rise = f.path.peakLnR - lnStart;
+    f.climbed = Math.max(f.climbed, rise > 0.1 ? clamp((lnR - lnStart) / rise, 0, 1) : 1);
+    // Up turns evenly from the start's to the end's, leaning toward the
+    // zoomed-out up (ecliptic north between planets) as the camera climbs.
+    // Following upFor's scale bands directly would roll the view fast as the
+    // zoom races through them.
+    const ends = normalize(slerp(f.up0, f.upTo(f.toR), e));
+    const mid = normalize(slerp(f.upFrom(f.rMid), f.upTo(f.rMid), e));
+    const lnHi = Math.log(Math.max(f.fromR, f.toR));
+    const lnMid = Math.log(f.rMid);
+    const climb = lnMid > lnHi ? smoothstep(lnHi, lnMid, lnR) : 0;
+    const up = normalize(slerp(ends, mid, climb));
+    f.up = up;
+    const a = f.from();
+    const b = f.to();
+    f.e = e;
+    f.pan = pan;
+    f.rest = rest;
+    return {
+      // Anchored on the nearer end, so a 1e19 m trip still lands on the meter.
+      pivot: pan <= 0.5 ? a : b,
+      shift: pan <= 0.5 ? scale(sub(b, a), pan) : scale(sub(a, b), rest),
+      r,
+      dir: this.swingDir(f, e),
+      up,
+      tilt: f.tilt0 * (1 - e),
+    };
+  }
+
+  private viewOf(src: ViewInputs): View {
+    return { ...src, lookAt: add(src.pivot, src.shift) };
+  }
+
+  /** Apply any settle, track the view's motion, and build the pose. */
+  private emit(src: ViewInputs, step: number): CameraPose {
+    let { shift, r, dir, up, tilt } = src;
+    const st = this.settle;
+    if (st) {
+      st.t += step;
+      if (st.t >= st.T) this.settle = null;
+      else {
+        const u = st.t / st.T;
+        const c = (x: number, v: number): number => settleCurve(x, v, u, st.T);
+        const cv = (x: Vec3, v: Vec3): Vec3 => [c(x[0], v[0]), c(x[1], v[1]), c(x[2], v[2])];
+        shift = add(src.shift, scale(cv(st.x.pivot, st.v.pivot), src.r));
+        r = Math.exp(Math.log(src.r) + c(st.x.lnR, st.v.lnR));
+        dir = normalize(rotateBy(src.dir, cv(st.x.dir, st.v.dir)));
+        up = normalize(rotateBy(src.up, cv(st.x.up, st.v.up)));
+        tilt = Math.max(0, src.tilt + c(st.x.tilt, st.v.tilt));
+      }
+    }
+    const view: View = { pivot: src.pivot, shift, r, dir, up, tilt, lookAt: add(src.pivot, shift) };
+    const prev = this.lastView;
+    if (prev && step > 1e-6) {
+      this.vel = {
+        pivot: scale(this.between(prev, view), 1 / (step * r)),
+        lnR: Math.log(r / prev.r) / step,
+        dir: scale(rotationBetween(prev.dir, dir), 1 / step),
+        up: scale(rotationBetween(prev.up, up), 1 / step),
+        tilt: (tilt - prev.tilt) / step,
+      };
+    }
+    this.lastView = view;
+    return this.composePose(src.pivot, r, dir, up, tilt, shift);
+  }
+
+  /** b's look point minus a's, exact when they share a pivot. */
+  private between(a: ViewInputs, b: ViewInputs): Vec3 {
+    return add(sub(b.pivot, a.pivot), sub(b.shift, a.shift));
+  }
+
+  /** The camera looks at pivot + shift. */
+  private composePose(pivot: Vec3, r: number, dir: Vec3, upHint: Vec3, tilt: number, shift: Vec3): CameraPose {
+    const offset = add(scale(dir, r), shift);
     const position = add(pivot, offset);
     let forward = scale(dir, -1);
     let right = cross(forward, upHint);
@@ -415,6 +748,9 @@ export class CameraController {
   /** Jump without animation (used for deep links). */
   set(chain: string[], altitude: number, dir: Vec3): void {
     this.flight = null;
+    this.settle = null;
+    this.lastView = null;
+    this.vel = STILL;
     this.chain = chain;
     this.logH = this.logHTarget = clamp(Math.log(Math.max(altitude, 1)), this.minLogH, this.maxLogH);
     this.dir = normalize(dir);

@@ -69,9 +69,21 @@ test('searching an event jumps the clock to it and flies to its object', async (
   await page.keyboard.press('ControlOrMeta+K');
   await page.keyboard.type('apollo 11');
   await expect(page.getByRole('option').first()).toContainText('Apollo 11 lands on the Moon');
+  // Note how far out the camera is when the clock first moves.
+  await page.evaluate(() => {
+    const w = window as unknown as { app: AppHandle; rAtJump?: number };
+    const ms0 = w.app.clock.ms;
+    const watch = () => {
+      if (w.app.clock.ms !== ms0) w.rAtJump = w.app.camera.pose.r;
+      else requestAnimationFrame(watch);
+    };
+    requestAnimationFrame(watch);
+  });
   await page.keyboard.press('Enter');
   const landing = Date.parse('1969-07-20T20:17Z');
   await page.waitForFunction((ms) => Math.abs((window as unknown as { app: AppHandle }).app.clock.ms - ms) < 60_000, landing);
+  // It pulled back first, so Earth was a dot (not seen spinning) while the clock jumped.
+  expect(await page.evaluate(() => (window as unknown as { rAtJump?: number }).rAtJump)).toBeGreaterThan(50 * 6.371e6);
   await page.evaluate(() => {
     const a = (window as unknown as { app: AppHandle }).app;
     for (let i = 0; i < 400; i++) a.tick(1 / 30);
@@ -97,4 +109,66 @@ test('journey: Earth -> observable universe -> Earth keeps a finite, consistent 
   expect(result.map((s) => s.focus)).toEqual(['moon', 'sun', 'milky-way', 'local-group', 'observable-universe', 'earth']);
   // Back home at a sensible distance (not stuck at cosmological scale).
   expect(result[result.length - 1].r).toBeLessThan(1e9);
+});
+
+test('flights glide: no per-frame jumps, including a retarget and a grab mid-flight', async ({ page }) => {
+  await page.goto('/#f=earth&h=2e7&p=1');
+  await ready(page);
+  // Spacecraft and black holes come from catalogs that load after the first frame.
+  await page.waitForFunction(() => {
+    const r = (window as unknown as { app: { registry: { target(id: string): unknown } } }).app.registry;
+    return ['voyager-1', 'bh-v404-cyg'].every((id) => r.target(id));
+  }, null, { timeout: 60_000 });
+  const result = await page.evaluate(() => {
+    type V = [number, number, number];
+    interface Cam {
+      view: { pivot: V; shift: V; r: number };
+      pose: { forward: V };
+      flying: boolean;
+      focusId: string;
+      orbit(dx: number, dy: number, h: number, fov: number): void;
+    }
+    const a = (window as unknown as { app: { camera: Cam; registry: { target(id: string): { pos(): V } | undefined }; flyTo(id: string): void; tick(dt: number): void } }).app;
+    const sub = (p: V, q: V): V => [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
+    const len = (p: V) => Math.hypot(p[0], p[1], p[2]);
+    const dot = (p: V, q: V) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2];
+    // Worst per-frame change over a trip at 60 Hz: pan in view distances, zoom in e-folds, turn in degrees.
+    const trip = (id: string, events: Record<number, () => void> = {}, frames = 0, ref = id) => {
+      let prev: { look: V; r: number; f: V } | null = null;
+      const worst = { pan: 0, zoom: 0, turn: 0 };
+      a.flyTo(id);
+      for (let i = 0; i < 600 && (i < frames || a.camera.flying); i++) {
+        events[i]?.();
+        a.tick(1 / 60);
+        const v = a.camera.view;
+        // Measured from the destination, exact near it.
+        const look = sub(v.pivot, a.registry.target(ref)!.pos()).map((x, k) => x + v.shift[k]) as V;
+        const cur = { look, r: v.r, f: a.camera.pose.forward };
+        if (prev) {
+          worst.pan = Math.max(worst.pan, len(sub(cur.look, prev.look)) / Math.min(cur.r, prev.r));
+          worst.zoom = Math.max(worst.zoom, Math.abs(Math.log(cur.r / prev.r)));
+          worst.turn = Math.max(worst.turn, (Math.acos(Math.min(1, dot(cur.f, prev.f))) * 180) / Math.PI);
+        }
+        prev = cur;
+      }
+      return { id, focus: a.camera.focusId, offCenter: len(prev!.look) / prev!.r, ...worst };
+    };
+    return [
+      // A new destination picked mid-flight bends onto the new path.
+      trip('mars', { 80: () => a.flyTo('saturn') }, 0, 'saturn'),
+      // Framed inside the craft's old handoff range: it used to snap to the Sun on landing.
+      trip('voyager-1'),
+      trip('bh-v404-cyg'),
+      trip('moon'),
+      // A drag late in the flight hands over without re-aiming, then settles on the focus.
+      trip('earth', { 90: () => a.camera.orbit(0, 0, 800, Math.PI / 4) }, 200),
+    ];
+  });
+  for (const t of result) {
+    expect(t.pan, JSON.stringify(t)).toBeLessThan(0.06);
+    expect(t.zoom, JSON.stringify(t)).toBeLessThan(0.3);
+    expect(t.turn, JSON.stringify(t)).toBeLessThan(2.5);
+    expect(t.offCenter, JSON.stringify(t)).toBeLessThan(1e-6);
+  }
+  expect(result.map((t) => t.focus)).toEqual(['saturn', 'voyager-1', 'bh-v404-cyg', 'moon', 'earth']);
 });

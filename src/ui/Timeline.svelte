@@ -144,12 +144,40 @@
     return `${kind} · ${when} · ${target}`;
   });
 
-  /** Clicking a landmark moves time there, then flies to its object (which may only exist at that date). */
+  /** A landmark visit waiting for the camera to climb before the clock moves. */
+  let pending: Landmark | null = null;
+
+  /**
+   * Clicking a landmark sets the camera rising and moves time once it's far
+   * enough out that the planet in view isn't seen spinning, while it's still
+   * rising. When the clock lands, the flight to the landmark's object (which may
+   * only exist at that date) takes over mid-rise, so it's one motion.
+   */
   function visit(lm: Landmark) {
-    scrub.animateTo(lm.ms, 650, () => actions.flyTo(lm.target, { from: lm.from }));
+    scrub.cancelTween();
+    pending = lm;
+    ui.visiting = true;
+    actions.pullBack();
+  }
+
+  function jumpWhenHigh() {
+    // Scrubbing by hand in the meantime overrides the visit's jump.
+    if (pending && scrub.active) {
+      pending = null;
+      ui.visiting = false;
+    }
+    if (!pending || !actions.flightHigh()) return;
+    const lm = pending;
+    pending = null;
+    scrub.animateTo(lm.ms, 650, () => {
+      ui.visiting = false;
+      actions.flyTo(lm.target, { from: lm.from });
+    });
   }
 
   function goLive() {
+    pending = null;
+    ui.visiting = false;
     scrub.reset();
     actions.now();
   }
@@ -171,6 +199,7 @@
       raf = requestAnimationFrame(frame);
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
+      jumpWhenHigh();
       scrub.step(now);
       const c = actions.readClock();
       v.frame(dt, c);
