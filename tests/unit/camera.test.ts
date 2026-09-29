@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CameraController, type FocusTarget, type View } from '../../src/engine/camera/controller.ts';
-import { add, angleBetween, length, normalize, sub, type Vec3 } from '../../src/astro/vec.ts';
+import { add, angleBetween, dot, length, normalize, scale, sub, type Vec3 } from '../../src/astro/vec.ts';
 
 const AU = 1.496e11;
 const FOV = (45 * Math.PI) / 180;
@@ -306,5 +306,132 @@ describe('camera flights', () => {
     expect(seen[0]).toBe('earth');
     expect(seen.at(-1)).toBe('mars');
     expect(new Set(seen).size).toBe(2);
+  });
+});
+
+describe('camera panning', () => {
+  const H = 800;
+  /** Camera position relative to `ref`. */
+  const eye = (cam: CameraController, ref: Vec3): Vec3 => add(sample(cam, ref).look, scale((cam.view as View).dir, (cam.view as View).r));
+
+  it('move the look point with the drag, keeping distance and direction', () => {
+    const { cam, targets } = world();
+    const e = targets.get('earth')!.pos();
+    const before = sample(cam, e);
+    const dir = (cam.view as View).dir;
+    cam.pan(-100, 0, H, FOV);
+    cam.stopInertia();
+    cam.update(DT);
+    const after = sample(cam, e);
+    const d = sub(after.look, before.look);
+    const m = (2 * before.r * Math.tan(FOV / 2)) / H;
+    expect(length(d) / (100 * m)).toBeCloseTo(1, 6);
+    expect(dot(normalize(d), cam.pose.right)).toBeCloseTo(1, 6);
+    expect(after.r / before.r).toBeCloseTo(1, 9);
+    expect(angleBetween((cam.view as View).dir, dir)).toBeLessThan(1e-12);
+    expect(cam.panned).toBe(true);
+  });
+
+  it('keep the panned point while zooming out past the handoff to the Sun', () => {
+    const { cam, targets } = world();
+    const e = targets.get('earth')!.pos();
+    cam.pan(-100, 0, H, FOV);
+    cam.stopInertia();
+    cam.update(DT);
+    const a = sample(cam, e).look;
+    cam.zoom(Math.log((2 * AU) / 2e7));
+    run(cam, e, 300);
+    const b = sample(cam, e);
+    expect(b.r).toBeGreaterThan(AU);
+    expect(length(sub(b.look, a))).toBeLessThan(1);
+  });
+
+  it('hold the point under the cursor still in free mode', () => {
+    const { cam, targets } = world();
+    const e = targets.get('earth')!.pos();
+    cam.freeMode = true;
+    const r0 = sample(cam, e).r;
+    const d = normalize(add(cam.pose.forward, scale(cam.pose.right, 0.2)));
+    const P = add(eye(cam, e), scale(d, r0 / dot(d, cam.pose.forward)));
+    cam.zoom(-0.5, null, d);
+    run(cam, e, 120);
+    expect(sample(cam, e).r).toBeLessThan(0.8 * r0);
+    expect(angleBetween(normalize(sub(P, eye(cam, e))), d)).toBeLessThan(1e-9);
+  });
+
+  it('settle onto the body the view was panned to, without moving the view', () => {
+    const { cam, targets } = world();
+    const e = targets.get('earth')!.pos();
+    const m = targets.get('mars')!.pos();
+    cam.offset = add(sub(m, e), [1e7, 0, 0]);
+    cam.update(DT);
+    const before = sample(cam, m);
+    cam.reanchor(['sun', 'earth', 'moon', 'mars']);
+    expect(cam.focusId).toBe('mars');
+    cam.update(DT);
+    const after = sample(cam, m);
+    expect(length(sub(after.look, before.look)) / before.r).toBeLessThan(1e-9);
+    expect(after.r / before.r).toBeCloseTo(1, 9);
+    // Near Earth still: stay on Earth.
+    const { cam: cam2 } = world();
+    cam2.offset = [1e7, 0, 0];
+    cam2.update(DT);
+    cam2.reanchor(['sun', 'earth', 'moon', 'mars']);
+    expect(cam2.focusId).toBe('earth');
+    // Beside the Moon: the Moon, though Earth's neighborhood holds it too.
+    const { cam: cam3 } = world();
+    cam3.offset = [1e7, 3.84e8, 0];
+    cam3.update(DT);
+    cam3.reanchor(['sun', 'earth', 'moon', 'mars']);
+    expect(cam3.focusId).toBe('moon');
+  });
+
+  it('fly on from a panned view without a jump, and land centered', () => {
+    const { cam, targets } = world();
+    const m = targets.get('mars')!.pos();
+    cam.pan(-200, 50, H, FOV);
+    cam.stopInertia();
+    cam.update(DT);
+    cam.flyTo('mars', FOV);
+    const s = run(cam, m, 600);
+    expect(cam.flying).toBe(false);
+    expect(cam.panned).toBe(false);
+    expectSmooth(s);
+    expect(length(sample(cam, m).look)).toBeLessThan(1);
+  });
+
+  it('keep the camera out of the body when panned into it', () => {
+    const { cam, targets } = world();
+    const earth = targets.get('earth')!;
+    const e = earth.pos();
+    cam.offset = scale((cam.view as View).dir, -(cam.view as View).r);
+    cam.update(DT);
+    expect(length(eye(cam, e))).toBeGreaterThanOrEqual((earth.radius + earth.minAltitude) * (1 - 1e-9));
+  });
+
+  it('fly through a planet and out the far side', () => {
+    const { cam, targets } = world();
+    cam.anchors = ['sun', 'earth', 'moon', 'mars'];
+    const earth = targets.get('earth')!;
+    const e = earth.pos();
+    const ahead = cam.pose.forward;
+    const start = eye(cam, e);
+    const s = run(cam, e, 1, () => cam.fly(-3, ahead));
+    s.push(...run(cam, e, 180));
+    const end = eye(cam, e);
+    // Went straight on, past the center, and came out clear of the surface.
+    expect(dot(sub(end, start), ahead) / length(sub(end, start))).toBeCloseTo(1, 9);
+    expect(dot(end, ahead)).toBeGreaterThan(earth.radius);
+    expect(length(end)).toBeGreaterThan(earth.radius + earth.minAltitude);
+    expect(cam.focusId).toBe('earth');
+    // Never pushed sideways on the way through.
+    for (const x of s) expect(length(sub(x.forward, ahead))).toBeLessThan(1e-12);
+  });
+
+  it('clear the pan on a jump', () => {
+    const { cam } = world();
+    cam.pan(-100, 0, H, FOV);
+    cam.set(['mars', 'sun'], 1e7, [0, 1, 0]);
+    expect(cam.panned).toBe(false);
   });
 });

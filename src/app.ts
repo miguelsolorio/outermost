@@ -47,6 +47,9 @@ import { bindActions, ui } from './ui/state.svelte.ts';
  */
 const PULL_BACK_RADII = 400;
 
+/** Bodies a panned view can settle onto, so it moves with whatever it's looking at. */
+const ANCHOR_IDS = BODIES.map((b) => b.id);
+
 export class App {
   readonly clock: SimClock;
   readonly world = new World();
@@ -126,6 +129,7 @@ export class App {
     this.registry.add(this.blackHoles);
     this.registry.add(this.smallBodies);
     this.camera = new CameraController((id) => this.registry.target(id));
+    this.camera.anchors = ANCHOR_IDS;
     this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
     this.userLocation = new UserLocationLayer(labelRoot);
 
@@ -144,7 +148,11 @@ export class App {
       pick: (x, y) => this.pick(x, y),
       select: (id) => this.select(id),
       flyTo: (id) => this.flyTo(id),
+      rayAt: (x, y) => this.rayAt(x, y),
       fovRad: () => FOV_DEG * DEG,
+      freeMode: () => this.camera.freeMode,
+      toggleFreeMode: () => this.setFreeMode(!this.camera.freeMode),
+      recenter: () => this.recenter(),
       onUserInteraction: () => {},
       togglePause: () => {
         this.clock.setPaused(!this.clock.paused);
@@ -236,6 +244,8 @@ export class App {
       },
       flyTo: (id, opts) => this.flyTo(id, opts),
       pullBack: () => this.pullBack(),
+      setFreeMode: (on) => this.setFreeMode(on),
+      recenter: () => this.recenter(),
       flightHigh: () => this.camera.transit?.high ?? true,
       select: (id) => this.select(id),
       nearby: (limit) => this.nearby(limit),
@@ -287,6 +297,18 @@ export class App {
     const clear = PULL_BACK_RADII * t.radius;
     if (view.r >= clear) return;
     this.camera.flyTo(id, FOV_DEG * DEG, { distance: clear, arrive: view.dir });
+  }
+
+  setFreeMode(on: boolean): void {
+    this.camera.freeMode = on;
+    ui.freeMode = on;
+  }
+
+  /** Glide back to center on the body a pan left, at the same distance and angle. */
+  recenter(): void {
+    const view = this.camera.view;
+    if (!this.camera.panned || !view) return;
+    this.camera.flyTo(this.camera.focusId, FOV_DEG * DEG, { distance: view.r, arrive: view.dir });
   }
 
   select(id: string | null): void {
@@ -367,13 +389,18 @@ export class App {
     return null;
   }
 
+  /** World ray (unit) through a pixel; the camera sits at the origin. */
+  private rayAt(x: number, y: number): Vec3 {
+    const ndc = new THREE.Vector3((x / this.canvas.clientWidth) * 2 - 1, -(y / this.canvas.clientHeight) * 2 + 1, 0.5);
+    ndc.unproject(this.rc.camera);
+    return normalize([ndc.x, ndc.y, ndc.z]);
+  }
+
   /** Direction from the focus center to the surface point under a pixel, if hit. */
   private surfaceDirAt(x: number, y: number): Vec3 | null {
     const target = this.camera.focus;
     if (target.radius <= 0) return null;
-    const ndc = new THREE.Vector3((x / this.canvas.clientWidth) * 2 - 1, -(y / this.canvas.clientHeight) * 2 + 1, 0.5);
-    ndc.unproject(this.rc.camera);
-    const d = normalize([ndc.x, ndc.y, ndc.z]);
+    const d = this.rayAt(x, y);
     const c = rel(target.pos(), this.camera.pose.position);
     const b = d[0] * c[0] + d[1] * c[1] + d[2] * c[2];
     const cc = c[0] * c[0] + c[1] * c[1] + c[2] * c[2];
@@ -642,6 +669,9 @@ export class App {
       this.uiT = now;
       // A deep link waits here until its catalog (stars, galaxies) has streamed in.
       if (this.pendingFocus) this.resolvePending();
+      this.camera.reanchor();
+      ui.panned = this.camera.panned;
+      ui.freeMode = this.camera.freeMode;
       ui.timeMs = this.clock.ms;
       ui.rate = this.clock.rate;
       ui.paused = this.clock.paused;
@@ -652,14 +682,17 @@ export class App {
       ui.focusId = id;
       ui.focusName = ui.card?.name ?? id;
       const focus = this.registry.target(id) ?? this.camera.focus;
-      const alt = id === this.camera.focusId ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
+      // Panned, the camera's altitude measures to the look point, not the body.
+      const alt = id === this.camera.focusId && !this.camera.panned ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
       const def = BODY_BY_ID.get(id);
       ui.distanceText =
         def?.kind === 'star' || !def
           ? id === 'observable-universe'
             ? `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from Earth`
             : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${def ? 'the center of the ' : ''}${ui.focusName}`
-          : alt < 50 * focus.radius
+          : alt < 0
+            ? `Passing through ${ui.focusName}`
+            : alt < 50 * focus.radius
             ? `Altitude ${formatDistance(alt)} above ${ui.focusName}`
             : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${ui.focusName}`;
     }

@@ -183,9 +183,27 @@ export class CameraController {
   tilt = 0;
   tiltTarget = 0;
 
+  /** Where the view looks, relative to the pivot (m): set by panning, so the view isn't locked onto a body. */
+  offset: Vec3 = [0, 0, 0];
+  /** Map-like controls: the wheel zooms toward the cursor and the view never re-centers on a body. */
+  freeMode = false;
+
   private azVel = 0;
   private elVel = 0;
+  /** Pan inertia, in units of r per second. */
+  private panVel: Vec3 = [0, 0, 0];
   private zoomAnchor: Vec3 | null = null;
+  /** World ray under the cursor for a free-mode zoom, kept while the zoom eases in. */
+  private zoomCursor: Vec3 | null = null;
+  /** Distance still to fly (m) along `flyRay`, eased in like a zoom. */
+  private flyLeft = 0;
+  private flyRay: Vec3 = [0, 0, 0];
+  /** A fly-through took the camera into a body: let it pass instead of pushing it out. */
+  private tunneling = false;
+  /** The look distance is easing to a fly-through's pace: hold the camera still while it does. */
+  private flyZoom = false;
+  /** Bodies a panned view can settle onto; they also set the pace of a fly-through. */
+  anchors: string[] = [];
   private flight: Flight | null = null;
   private settle: Settle | null = null;
   private lastView: View | null = null;
@@ -218,6 +236,12 @@ export class CameraController {
 
   get flying(): boolean {
     return this.flight !== null;
+  }
+
+  /** The view has been panned off its pivot. */
+  get panned(): boolean {
+    const o = this.offset;
+    return o[0] !== 0 || o[1] !== 0 || o[2] !== 0;
   }
 
   /**
@@ -308,11 +332,86 @@ export class CameraController {
 
   // ---- input ----------------------------------------------------------------
 
-  /** Wheel/pinch zoom. `amount` > 0 zooms out. `anchorDir` is the surface direction under the cursor. */
-  zoom(amount: number, anchorDir: Vec3 | null = null): void {
+  /**
+   * Wheel/pinch zoom. `amount` > 0 zooms out. `anchorDir` is the surface
+   * direction under the cursor; in free mode `cursorRay` (the world ray under
+   * the cursor) is held still on screen instead.
+   */
+  zoom(amount: number, anchorDir: Vec3 | null = null, cursorRay: Vec3 | null = null): void {
     if (this.flight) this.cancelFlight();
     this.logHTarget = clamp(this.logHTarget + amount, this.minLogH, this.maxLogH);
-    this.zoomAnchor = amount < 0 ? anchorDir : null;
+    this.flyZoom = false;
+    this.zoomAnchor = amount < 0 && !this.freeMode ? anchorDir : null;
+    this.zoomCursor = this.freeMode ? cursorRay : null;
+  }
+
+  /** Pan by a screen drag, in pixels: what's at the look distance follows the cursor. */
+  pan(dx: number, dy: number, viewportH: number, fovRad: number): void {
+    if (this.flight) this.cancelFlight();
+    this.azVel = this.elVel = 0;
+    this.zoomCursor = null;
+    const r = this.pose.r;
+    const m = (2 * r * Math.tan(fovRad / 2)) / viewportH;
+    const d = add(scale(this.pose.right, -dx * m), scale(this.pose.up, dy * m));
+    this.offset = add(this.offset, d);
+    // Remember velocity for inertia (per second, assuming ~60 Hz input).
+    this.panVel = scale(d, 60 / r);
+  }
+
+  /**
+   * Fly along a world ray (the one under the cursor), through whatever is in
+   * the way. `amount` > 0 backs away. The pace follows the nearest body: about
+   * two of its radii per unit up close, so a planet is crossed in a pinch or
+   * two, and faster out in the open, like the log zoom.
+   */
+  fly(amount: number, ray: Vec3): void {
+    if (this.flight) this.cancelFlight();
+    this.zoomAnchor = this.zoomCursor = null;
+    const cam = this.pose.position;
+    let pace = Infinity;
+    for (const id of this.anchors) {
+      const t = this.resolve(id);
+      if (t && t.radius > 0) pace = Math.min(pace, Math.max(length(sub(t.pos(), cam)), 2 * t.radius));
+    }
+    if (!Number.isFinite(pace)) pace = this.pose.r;
+    this.flyRay = ray;
+    this.flyLeft -= amount * pace;
+    this.tunneling = this.flyZoom = true;
+    // Look about one pace ahead, so panning and zooming afterward work at the scale flown to.
+    this.logHTarget = clamp(Math.log(Math.max(pace - this.focus.radius, 1)), this.minLogH, this.maxLogH);
+  }
+
+  /**
+   * Once panned, hand the view to the body that looms largest from the look
+   * point (least distance per radius, roughly whose gravity it's in), so it
+   * moves with that body instead of drifting past. The view itself doesn't move.
+   */
+  reanchor(candidates: string[] = this.anchors): void {
+    if (this.flight || !this.panned) return;
+    const r = this.distanceFor(this.chain, this.logH);
+    const look = add(this.pivotFor(this.chain, r), this.offset);
+    // A focus that isn't one of the bodies (a spacecraft, a star) keeps the view while it's near.
+    const cur = this.resolve(this.chain[0]);
+    if (cur && !candidates.includes(cur.id) && length(sub(look, cur.pos())) < (cur.handoff?.[0] ?? 10 * r)) return;
+    let best: { id: string; score: number } | null = null;
+    for (const id of candidates) {
+      const t = this.resolve(id);
+      if (!t || t.radius <= 0 || r <= t.radius + t.minAltitude) continue;
+      const dist = length(sub(look, t.pos()));
+      if (dist >= (t.handoff?.[0] ?? 0)) continue;
+      const score = dist / t.radius;
+      if (!best || score < best.score) best = { id, score };
+    }
+    if (!best || best.id === this.chain[0]) return;
+    const rTarget = this.distanceFor(this.chain, this.logHTarget);
+    this.chain = CameraController.chainFor(best.id, this.resolve);
+    const R = this.focus.radius;
+    this.logH = Math.log(r - R);
+    this.logHTarget = clamp(Math.log(Math.max(rTarget - R, 1)), this.minLogH, this.maxLogH);
+    this.offset = sub(look, this.pivotFor(this.chain, r));
+    this.zoomAnchor = null;
+    // "Up" follows the new body's pole up close: ease the turn.
+    this.beginSettle(0);
   }
 
   /** Orbit by a screen drag, in pixels, given the viewport height in pixels. */
@@ -321,6 +420,7 @@ export class CameraController {
     const r = this.pose.r;
     const h = this.altitude;
     const k = ((2 * fovRad) / viewportH) * clamp(h / r, 0.02, 1);
+    this.zoomCursor = null;
     this.applyOrbit(-dx * k, dy * k);
     // Remember velocity for inertia (per second, assuming ~60 Hz input).
     this.azVel = -dx * k * 60;
@@ -334,6 +434,7 @@ export class CameraController {
   stopInertia(): void {
     this.azVel = 0;
     this.elVel = 0;
+    this.panVel = [0, 0, 0];
   }
 
   /** Tilt the view toward the horizon (only near a surface). */
@@ -404,9 +505,16 @@ export class CameraController {
       this.chain = fromChain;
     } else {
       fromChain = [...this.chain];
-      from = this.holdPivot(fromChain, view.r);
+      // Set off from where a pan left the view; flights land centered.
+      const hold = this.holdPivot(fromChain, view.r);
+      const off = this.offset;
+      from = this.panned ? () => add(hold(), off) : hold;
       upFrom = this.holdUp(fromChain);
     }
+    this.offset = [0, 0, 0];
+    this.zoomCursor = null;
+    this.flyLeft = 0;
+    this.flyZoom = false;
 
     const upTo = this.holdUp(toChain);
     const dir1 = opts.arrive ?? this.approachDirection(target, view.lookAt, opts.from ? this.resolve(opts.from) : undefined);
@@ -616,6 +724,32 @@ export class CameraController {
         const ang = angleBetween(this.dir, this.zoomAnchor);
         if (ang > 1e-6) this.dir = normalize(slerp(this.dir, this.zoomAnchor, clamp((frac * 0.9 * ang) / ang, 0, 1)));
       }
+      const r0 = this.distanceFor(this.chain, prevLogH);
+      const r1 = this.distanceFor(this.chain, this.logH);
+      if (r1 !== r0) {
+        // Flying, the look distance follows the pace with the camera held still.
+        if (this.flyZoom) this.offset = sub(this.offset, scale(this.dir, r1 - r0));
+        // Free-mode zoom: keep the point under the cursor, on the plane through the look point, still on screen.
+        const d = this.zoomCursor;
+        const c = d ? -dot(d, this.dir) : 0;
+        if (d && c > 1e-3) this.offset = add(this.offset, scale(add(scale(this.dir, r0), scale(d, r0 / c)), 1 - r1 / r0));
+        // Once panned, the look point stays put as the pivot hands off to the parent.
+        if (this.panned) this.offset = sub(this.offset, sub(this.pivotFor(this.chain, r1), this.pivotFor(this.chain, r0)));
+      }
+
+      // Pan inertia.
+      if (length(this.panVel) > 1e-4) {
+        this.offset = add(this.offset, scale(this.panVel, r1 * dt));
+        this.panVel = scale(this.panVel, Math.exp(-dt / 0.25));
+      } else this.panVel = [0, 0, 0];
+
+      // Fly-through: camera and look point move together along the ray.
+      if (this.flyLeft !== 0) {
+        const step = this.flyLeft * a;
+        this.offset = add(this.offset, scale(this.flyRay, step));
+        this.flyLeft -= step;
+        if (Math.abs(this.flyLeft) < 1e-4 * r1) this.flyLeft = 0;
+      }
 
       // Orbit inertia.
       if (Math.abs(this.azVel) + Math.abs(this.elVel) > 1e-5) {
@@ -630,7 +764,24 @@ export class CameraController {
     }
 
     const r = this.distanceFor(this.chain, this.logH);
-    return { pivot: this.pivotFor(this.chain, r), shift: [0, 0, 0], r, dir: this.dir, up: this.upFor(this.chain, r), tilt: this.tilt };
+    const pivot = this.pivotFor(this.chain, r);
+    if (dt > 0 && this.panned) this.keepOutside(pivot, r);
+    return { pivot, shift: this.offset, r, dir: this.dir, up: this.upFor(this.chain, r), tilt: this.tilt };
+  }
+
+  /** Panned, the camera isn't over the focus any more: don't let it pass into the body. */
+  private keepOutside(pivot: Vec3, r: number): void {
+    const f = this.resolve(this.focusId);
+    if (!f || f.radius <= 0) return;
+    const v = sub(add(this.offset, scale(this.dir, r)), sub(f.pos(), pivot));
+    const d = length(v);
+    const min = f.radius + f.minAltitude;
+    if (this.tunneling) {
+      if (d >= min && this.flyLeft === 0) this.tunneling = false;
+      return;
+    }
+    if (d >= min) return;
+    this.offset = add(this.offset, scale(d > 1e-9 ? scale(v, 1 / d) : this.dir, min - d));
   }
 
   private flightSource(step: number): ViewInputs {
@@ -752,6 +903,11 @@ export class CameraController {
     this.lastView = null;
     this.vel = STILL;
     this.chain = chain;
+    this.offset = [0, 0, 0];
+    this.zoomCursor = null;
+    this.flyLeft = 0;
+    this.flyZoom = false;
+    this.tunneling = false;
     this.logH = this.logHTarget = clamp(Math.log(Math.max(altitude, 1)), this.minLogH, this.maxLogH);
     this.dir = normalize(dir);
     this.stopInertia();

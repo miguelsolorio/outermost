@@ -14,8 +14,8 @@
         ['Double-tap', 'fly to anything'],
       ]
     : [
-        ['Scroll', 'zoom from Earth to the edge of the universe'],
-        ['Drag', 'orbit · Shift-drag to tilt'],
+        ['Scroll', 'zoom from Earth to the edge of the universe · hold Space to fly through'],
+        ['Drag', 'orbit · Shift-drag to tilt · Space-drag to pan'],
         ['Double-click', `fly to anything · ${mod} to search`],
       ];
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { slide } from 'svelte/transition';
-  import { ui } from './state.svelte.ts';
+  import { actions, ui } from './state.svelte.ts';
 
   // The title doubles as the card's header: hover to peek at the facts, click to keep them open.
   let pinned = $state(false);
@@ -59,6 +59,9 @@
     </span>
     <span class="distance">{ui.distanceText}</span>
   </button>
+  {#if ui.panned && !open}
+    <button class="recenter" onclick={() => actions.recenter()} title="Center the view on {ui.focusName} again">Recenter <kbd>C</kbd></button>
+  {/if}
   {#if open && card}
     <aside id="facts" class="card" transition:slide={{ duration: 180 }} aria-label={`${card.name} facts`}>
       <div class="sub">{card.subtitle}</div>
@@ -213,6 +216,41 @@
   }
   .open .title {
     text-shadow: none;
+  }
+  .recenter {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    padding: 4px 6px 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .recenter:hover {
+    border-color: var(--accent-dim);
+  }
+  .recenter:focus-visible {
+    outline: 2px solid var(--accent-dim);
+    outline-offset: 2px;
+  }
+  .recenter kbd {
+    padding: 0 5px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+  }
+  @media (hover: none) {
+    .recenter kbd {
+      display: none;
+    }
   }
   @media (max-width: 640px) {
     /* Stacked above the search row here, so the open card covers it. */

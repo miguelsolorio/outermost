@@ -31,6 +31,25 @@
         {/if}
       </svg>
     </button>
+    <button
+      class="menu free"
+      class:on={ui.freeMode}
+      onclick={() => actions.setFreeMode(!ui.freeMode)}
+      aria-pressed={ui.freeMode}
+      aria-label="Free camera"
+      title={ui.freeMode ? 'Free camera on (F): drag pans, scroll zooms toward the cursor, right-drag orbits' : 'Free camera (F): pan and zoom anywhere without locking onto a planet'}
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          d="M12 3v18M3 12h18M12 3l-2.5 2.5M12 3l2.5 2.5M12 21l-2.5-2.5M12 21l2.5-2.5M3 12l2.5-2.5M3 12l2.5 2.5M21 12l-2.5-2.5M21 12l-2.5 2.5"
+          stroke="currentColor"
+          stroke-width="1.6"
+          fill="none"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
     <button class="menu" onclick={() => (ui.openMenu = open ? null : 'view')} aria-expanded={open} aria-label="View options">☰</button>
   </div>
   {#if open}
@@ -68,6 +87,15 @@
   }
   .sound.off {
     color: var(--muted);
+  }
+  .free {
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+  }
+  .free.on {
+    color: var(--accent);
+    border-color: var(--accent-dim);
   }
   .menu {
     width: 34px;

@@ -32,6 +32,10 @@ export const ui = $state({
   paletteOpen: false,
   /** A landmark visit is pulling back or moving the clock, before its flight. */
   visiting: false,
+  /** Map-like camera: drag pans, the wheel zooms toward the cursor. */
+  freeMode: false,
+  /** The view has been panned off the body it was centered on. */
+  panned: false,
 });
 
 export interface Actions {
@@ -48,6 +52,9 @@ export interface Actions {
   flyTo(id: string, opts?: { from?: string }): void;
   /** Rise clear of the body in view before a jump in time, so it isn't seen spinning. */
   pullBack(): void;
+  setFreeMode(on: boolean): void;
+  /** Fly back to center on the body a pan left. */
+  recenter(): void;
   /** Whether a flight under way is near the top of its climb (true when not flying). */
   flightHigh(): boolean;
   select(id: string | null): void;
@@ -68,6 +75,8 @@ export const actions: Actions = {
   now: () => {},
   flyTo: () => {},
   pullBack: () => {},
+  setFreeMode: () => {},
+  recenter: () => {},
   flightHigh: () => true,
   select: () => {},
   nearby: () => [],
