@@ -61,7 +61,7 @@ export class Director {
     return this.frame * MS;
   }
 
-  /** Remember the current time under a name (e.g. where to grab the poster frame). */
+  /** Remember the current time under a name, to find a beat in the video. */
   mark(name: string): void {
     this.marks[name] = this.t / 1000;
   }

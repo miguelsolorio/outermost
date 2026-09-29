@@ -314,18 +314,19 @@ async function main(): Promise<void> {
     console.log(`[demo] wrote ${master}`);
 
     if (final) {
+      // The poster is the first frame, which is what players show before the video plays.
+      await run('ffmpeg', ['-hide_banner', '-y', '-i', master, '-frames:v', '1', '-vf', 'scale=1600:-2', '-q:v', '3', args.poster]);
+      console.log(`[demo] wrote ${args.poster}`);
       // The committed copy: two-pass at about 4 Mbit/s, comfortably under GitHub's 50 MB warning.
       const x264 = ['-c:v', 'libx264', '-preset', 'slow', '-b:v', '4M', '-maxrate', '8M', '-bufsize', '16M', '-x264-params', 'aq-mode=3', '-passlogfile', `${CACHE}/x264`];
       const tags = ['-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
+      const plain = `${CACHE}/committed.mp4`;
       await run('ffmpeg', ['-hide_banner', '-y', '-i', master, ...x264, '-pass', '1', '-an', '-f', 'mp4', '/dev/null']);
-      await run('ffmpeg', ['-hide_banner', '-y', '-i', master, ...x264, '-pass', '2', '-vf', BT709, ...tags, '-c:a', 'copy', '-movflags', '+faststart', args.out]);
+      await run('ffmpeg', ['-hide_banner', '-y', '-i', master, ...x264, '-pass', '2', '-vf', BT709, ...tags, '-c:a', 'copy', plain]);
+      // With the poster as cover art too, for the players (Finder, VLC) that show that instead.
+      await run('ffmpeg', ['-hide_banner', '-y', '-i', plain, '-i', args.poster, '-map', '0', '-map', '1', '-c', 'copy', '-disposition:v:1', 'attached_pic', '-movflags', '+faststart', args.out]);
       console.log(`[demo] wrote ${args.out}`);
-      if (d.marks.poster !== undefined) {
-        await run('ffmpeg', ['-hide_banner', '-y', '-ss', String(d.marks.poster), '-i', master, '-frames:v', '1', '-vf', 'scale=1600:-2', '-q:v', '3', args.poster]);
-        console.log(`[demo] wrote ${args.poster}`);
-      }
-      await rm(`${CACHE}/x264-0.log`, { force: true });
-      await rm(`${CACHE}/x264-0.log.mbtree`, { force: true });
+      for (const f of [plain, `${CACHE}/x264-0.log`, `${CACHE}/x264-0.log.mbtree`]) await rm(f, { force: true });
     }
     console.log(`[demo] ${JSON.stringify({ marks: d.marks, ...stats, minutes: +((Date.now() - began) / 60000).toFixed(1) })}`);
   } finally {

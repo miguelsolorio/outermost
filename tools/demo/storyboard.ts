@@ -10,10 +10,12 @@ export const OPENING = { focus: 'earth', altitude: 2.4e7, location: [47.6062, -1
 
 /**
  * The title card, after the social preview image (public/og.png): Earth's
- * night side from this far out (m), with the Sun rising past the limb toward
- * this screen angle (degrees, 0 = right, 90 = up), and how long it all runs (s).
+ * night side from this far out (m), with the Sun just risen past the limb at
+ * this screen angle (degrees, 0 = right, 90 = up), and how long it runs (s).
+ * The video opens on it already composed, since players show the first frame
+ * before it plays, and the recorder takes that frame for the poster.
  */
-const INTRO = { seconds: 7.4, altitude: 1.1e7, sunAngle: 35 };
+const INTRO = { seconds: 5.9, altitude: 1.1e7, sunAngle: 35 };
 
 /** In the page: frame the night-side shot and remember the day-side one the script opens on. */
 function introSetup({ altitude, sunAngle, day }: { altitude: number; sunAngle: number; day: number }): void {
@@ -28,9 +30,9 @@ function introSetup({ altitude, sunAngle, day }: { altitude: number; sunAngle: n
   const e2 = cross(u, e1);
   const chain = app.chainFor('earth');
   const rho = Math.asin(6371e3 / (6371e3 + altitude));
-  // The Sun starts just behind the limb and ends clear of it, where its glare flares along the crescent.
-  const a0 = rho - (2.5 * Math.PI) / 180;
-  const a1 = rho + (9.5 * Math.PI) / 180;
+  // The Sun is clear of the limb, where its glare flares along the crescent, and keeps climbing a little.
+  const a0 = rho + (8 * Math.PI) / 180;
+  const a1 = rho + (10 * Math.PI) / 180;
   const at = (q: number[], a: number) => unit(u.map((x, i) => -x * Math.cos(a) + q[i] * Math.sin(a)));
   // Which way round the night side puts the risen Sun at the wanted angle on screen.
   const tanV = Math.tan((22.5 * Math.PI) / 180);
@@ -39,7 +41,7 @@ function introSetup({ altitude, sunAngle, day }: { altitude: number; sunAngle: n
   for (let k = 0; k < 72; k++) {
     const b = (k / 72) * 2 * Math.PI;
     const q = e1.map((x, i) => x * Math.cos(b) + e2[i] * Math.sin(b));
-    app.camera.set(chain, altitude, at(q, a1));
+    app.camera.set(chain, altitude, at(q, a0));
     const pose = app.camera.update(0);
     const r = sub(sun, pose.position);
     const z = dot(r, pose.forward);
@@ -53,7 +55,7 @@ function introSetup({ altitude, sunAngle, day }: { altitude: number; sunAngle: n
   (window as any).__intro = { u, q: best.q, a0, a1, chain, orbits, night: altitude, day, dayDir: app.defaultDir('earth') };
 }
 
-/** In the page, before frame t (s): the sunrise, the name coming up and going, and the swing round to the day side. */
+/** In the page, before frame t (s): the Sun climbing, the name going, and the swing round to the day side. */
 function introFrame({ t, end }: { t: number; end: number }): void {
   const app = (window as any).app;
   const demo = (window as any).__demo;
@@ -65,16 +67,16 @@ function introFrame({ t, end }: { t: number; end: number }): void {
     const k = Math.min(1, Math.max(0, (t - a) / (b - a)));
     return k * k * k * (k * (6 * k - 15) + 10);
   };
-  const alpha = I.a0 + (I.a1 - I.a0) * ease(0.2, 4.6);
+  // Already under way at the first frame.
+  const alpha = I.a0 + (I.a1 - I.a0) * ease(-1.5, 3.5);
   const night = unit(I.u.map((x: number, i: number) => -x * Math.cos(alpha) + I.q[i] * Math.sin(alpha)));
-  const s = ease(4.3, end);
+  const s = ease(2.8, end);
   const w = Math.acos(Math.min(1, Math.max(-1, dot(night, I.dayDir))));
   const dir = w < 1e-6 ? night : night.map((x, i) => (x * Math.sin((1 - s) * w) + I.dayDir[i] * Math.sin(s * w)) / Math.sin(w));
   app.camera.set(I.chain, Math.exp(Math.log(I.night) + (Math.log(I.day) - Math.log(I.night)) * s), dir);
   const hud = ease(end - 0.7, end);
   if (hud > 0) app.settings.orbits = I.orbits;
-  demo.cover(1 - ease(0, 1));
-  demo.titleCard(ease(1, 1.9) * (1 - ease(4, 4.6)), ease(1.5, 2.4) * (1 - ease(3.9, 4.5)), hud);
+  demo.titleCard(1 - ease(2.5, 3.1), 1 - ease(2.4, 3), hud);
 }
 
 // The timeline's opening window (src/ui/timeline/view.ts), for aiming at a date before it's been zoomed.
@@ -107,9 +109,9 @@ export async function* storyboard(d: Director): Action {
     yield* d.waitFlight();
   }
 
-  // 0–7: the title card. Earth's night side, Asia lit up, as the Sun rises
-  // past the limb; the name comes up over it, then the camera swings round
-  // to the day side over Seattle and the controls fade in.
+  // 0–6: the title card. Earth's night side, Asia lit up, the Sun just risen
+  // past the limb and the name over it; then the name goes, the camera swings
+  // round to the day side over Seattle and the controls fade in.
   d.mark('intro');
   await page.evaluate(introSetup, { altitude: INTRO.altitude, sunAngle: INTRO.sunAngle, day: OPENING.altitude });
   const frames = Math.round(INTRO.seconds * FPS);
@@ -118,7 +120,7 @@ export async function* storyboard(d: Director): Action {
     yield;
   }
 
-  // 7–13: Earth, live, with "My location" on over Seattle. The cursor turns
+  // 6–12: Earth, live, with "My location" on over Seattle. The cursor turns
   // the planet toward it and rests on the marker.
   d.mark('earth');
   yield* d.hold(0.3);
@@ -129,7 +131,7 @@ export async function* storyboard(d: Director): Action {
   yield* d.moveTo('.user-location .hit');
   yield* d.hold(0.9);
 
-  // 13–24: to Mars. Turn it, then open the speed menu and pick an hour a
+  // 12–22: to Mars. Turn it, then open the speed menu and pick an hour a
   // second, so the planet spins.
   d.mark('mars');
   yield* palette('mars', 'Mars');
@@ -140,7 +142,7 @@ export async function* storyboard(d: Director): Action {
   yield* d.click('.menu .option:has-text("1 hr/s")');
   yield* d.hold(1.2);
 
-  // 24–32: to the Sun, and drag the speed up a notch to a day a second.
+  // 22–30: to the Sun, and drag the speed up a notch to a day a second.
   d.mark('sun');
   yield* palette('sun', 'Sun');
   yield* d.moveTo('button.speed-btn');
@@ -148,7 +150,7 @@ export async function* storyboard(d: Director): Action {
   yield* d.moveTo(await d.clear([900, 300]), { seconds: 0.6 });
   yield* d.hold(1.2);
 
-  // 32–48: pause, and run back along the timeline to 1989, reading the
+  // 30–46: pause, and run back along the timeline to 1989, reading the
   // landmarks, to the outburst V404 Cygni had that year. Clicking it jumps
   // there and flies to the black hole, its accretion disk ablaze. Circle it.
   d.mark('v404');
@@ -164,9 +166,8 @@ export async function* storyboard(d: Director): Action {
   yield* d.waitFlight();
   yield* d.moveTo(await d.clear([760, 330]), { seconds: 0.5 });
   yield* d.drag([-200, -26], 2.1);
-  d.mark('poster');
 
-  // 48–53: flick outward, out of the Milky Way and past the cosmic web to
+  // 46–52: flick outward, out of the Milky Way and past the cosmic web to
   // the microwave background at the edge of what we can see.
   d.mark('zoom-out');
   yield* d.moveTo(await d.clear([560, 460]), { seconds: 0.35 });
@@ -181,7 +182,7 @@ export async function* storyboard(d: Director): Action {
     yield* d.hold(pause);
   }
 
-  // 53–end: run along the timeline from 1989 to the next total solar
+  // 52–end: run along the timeline from 1989 to the next total solar
   // eclipse, reading the landmarks, and click it: time jumps to August 2027
   // and the camera flies home to the Moon's shadow on Africa. Then circle
   // around to the night side, where the Sun comes out past the limb.
