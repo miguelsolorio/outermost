@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { ui } from './state.svelte.ts';
 
   // First-visit navigation hints; they fade once the controls have been tried.
   const KEY = 'hints-seen-v1';
@@ -17,6 +18,7 @@
         ['Scroll', 'zoom from Earth to the edge of the universe · hold Space to fly through'],
         ['Drag', 'orbit · Shift-drag to tilt · Space-drag to pan'],
         ['Double-click', `fly to anything · ${mod} to search`],
+        ['V', 'fly your own ship'],
       ];
 
   function dismiss() {
@@ -50,7 +52,8 @@
   });
 </script>
 
-{#if show}
+<!-- The cockpit shows its own keys. -->
+{#if show && !ui.shipMode}
   <div class="hints" role="note">
     {#each items as [k, v] (k)}
       <div class="hint"><span class="k">{k}</span><span class="v">{v}</span></div>

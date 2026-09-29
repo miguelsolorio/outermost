@@ -25,4 +25,16 @@ describe('url state', () => {
     writeUrlState({ focus: 'earth', altitude: 2.4e7, dir: [1, 0, 0], time: Date.UTC(2026, 8, 26), rate: 1, paused: false, location: [47.6062, -122.3321] });
     expect(replaceState.mock.calls[0][2]).toContain('l=47.6062%2C-122.3321');
   });
+
+  it('round-trips ship mode', () => {
+    at('#f=mars&m=ship');
+    expect(readUrlState().ship).toBe(true);
+    at('#f=mars&m=orbit');
+    expect(readUrlState().ship).toBeUndefined();
+    at('');
+    const replaceState = vi.fn();
+    vi.stubGlobal('history', { replaceState });
+    writeUrlState({ focus: 'mars', altitude: 1e7, dir: [1, 0, 0], time: Date.UTC(2026, 8, 26), rate: 1, paused: false, ship: true });
+    expect(replaceState.mock.calls[0][2]).toContain('m=ship');
+  });
 });

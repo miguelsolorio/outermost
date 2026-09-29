@@ -4,9 +4,12 @@
 import * as THREE from 'three';
 import { SimClock } from './astro/time.ts';
 import { AU, DEG, PC } from './astro/units.ts';
-import { add, length, normalize, smoothstep, sub, type Vec3 } from './astro/vec.ts';
+import { add, length, normalize, rotationBetween, scale, smoothstep, sub, type Vec3 } from './astro/vec.ts';
 import { Assets } from './engine/assets.ts';
-import { CameraController } from './engine/camera/controller.ts';
+import { CameraController, type CameraPose, type ViewRig } from './engine/camera/controller.ts';
+import { ShipController, type ShipKind } from './engine/camera/ship.ts';
+import { buildCockpitFrame, type CockpitFrame } from './engine/cockpit.ts';
+import { createShipInput, type ShipInput } from './engine/shipInput.ts';
 import { formatDistance } from './engine/format.ts';
 import { attachInput } from './engine/input.ts';
 import { LabelLayer, type LabelItem, type Occluder } from './engine/labels.ts';
@@ -14,7 +17,7 @@ import { createRenderContext, FOV_DEG, type RenderContext } from './engine/rende
 import { readUrlState, writeUrlState } from './engine/urlState.ts';
 import { BODIES, BODY_BY_ID, meanRadius } from './scene/catalog.ts';
 import type { FrameCtx, Settings } from './scene/frame.ts';
-import { rel } from './scene/frame.ts';
+import { rel, relPrecise } from './scene/frame.ts';
 import { BodiesLayer } from './scene/layers/bodies.ts';
 import { ConstellationsLayer, type ConstellationData } from './scene/layers/constellations.ts';
 import { OrbitsLayer } from './scene/layers/orbits.ts';
@@ -38,7 +41,8 @@ import { starDisplayName, StarsProvider } from './scene/providers/stars.ts';
 import { Registry, type SearchEntry } from './scene/registry.ts';
 import { World } from './scene/world.ts';
 import { loadEphemerisTables } from './data/tables.ts';
-import { bindActions, ui } from './ui/state.svelte.ts';
+import { BLACK_HOLE_BY_ID, BLACK_HOLES } from './data/blackHoles.ts';
+import { bindActions, cockpit, ui, type ShipReadout } from './ui/state.svelte.ts';
 
 /**
  * How far out (in radii of the body in view) a landmark visit rises. The clock
@@ -57,6 +61,10 @@ export class App {
   readonly assets: Assets;
   readonly registry = new Registry();
   readonly camera: CameraController;
+  /** The ship flown from its cockpit in ship mode. */
+  readonly ship: ShipController;
+  readonly shipInput: ShipInput;
+  shipMode = false;
   readonly bodies: BodiesLayer;
   readonly orbits = new OrbitsLayer();
   readonly glare = new SunGlareLayer();
@@ -87,6 +95,13 @@ export class App {
   /** "My location" pinned by the link (degrees), kept in the URL as it's rewritten. */
   private pinnedLocation: [number, number] | null = null;
   private searchIndex: SearchEntry[] = [];
+  /** What the ship may take its frame from, pace itself by and steer clear of: refreshed a few times a second. */
+  private shipCandidates: string[] = [];
+  /** The orbit camera's last two frames against the body in view, so switching to the ship keeps a moving view moving. */
+  private camTrail: Array<{ focus: string; rel: Vec3; forward: Vec3; dt: number }> = [];
+  /** A link asked for the cockpit: enter it once the view is placed. */
+  private pendingShip = false;
+  private names = new Map<string, string>();
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -130,6 +145,17 @@ export class App {
     this.registry.add(this.smallBodies);
     this.camera = new CameraController((id) => this.registry.target(id));
     this.camera.anchors = ANCHOR_IDS;
+    this.ship = new ShipController({
+      resolve: (id) => this.registry.target(id),
+      candidates: () => this.shipCandidates,
+      kind: (id) => this.kind(id),
+      timeRate: () => (this.clock.paused ? 0 : this.clock.rate),
+      fovRad: () => FOV_DEG * DEG,
+    });
+    this.shipInput = createShipInput(canvas, () => this.ship, {
+      face: () => this.recenter(),
+      toggleHud: () => (ui.hudHidden = !ui.hudHidden),
+    });
     this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
     this.userLocation = new UserLocationLayer(labelRoot);
 
@@ -142,8 +168,12 @@ export class App {
     const focus = url.focus && this.registry.target(url.focus) ? url.focus : 'earth';
     if (url.focus && focus !== url.focus) this.pendingFocus = url.focus;
     this.camera.set(this.chainFor(focus), url.altitude ?? 3.2e7, url.dir ?? this.defaultDir(focus));
+    this.pendingShip = !!url.ship;
 
-    attachInput(canvas, this.camera, {
+    attachInput(
+      canvas,
+      this.camera,
+      {
       surfaceDirAt: (x, y) => this.surfaceDirAt(x, y),
       pick: (x, y) => this.pick(x, y),
       select: (id) => this.select(id),
@@ -158,7 +188,11 @@ export class App {
         this.clock.setPaused(!this.clock.paused);
         ui.paused = this.clock.paused;
       },
-    });
+      shipMode: () => this.shipMode,
+      toggleShipMode: () => this.setShipMode(!this.shipMode),
+    },
+      this.shipInput,
+    );
 
     window.addEventListener('resize', () => this.resize());
     // Deep links pasted or edited by hand (replaceState never fires this).
@@ -177,6 +211,8 @@ export class App {
   }
 
   private applyUrl(): void {
+    // A link places the orbit camera; the cockpit, if asked for, is entered from there.
+    if (this.shipMode) this.setShipMode(false);
     const url = readUrlState();
     if (url.location) this.pinLocation(url.location);
     if (url.time !== undefined) this.clock.set(url.time);
@@ -185,6 +221,7 @@ export class App {
     this.world.update(this.clock.ms);
     const focus = url.focus && this.registry.target(url.focus) ? url.focus : this.camera.focusId;
     this.camera.set(this.chainFor(focus), url.altitude ?? this.camera.altitude, url.dir ?? this.defaultDir(focus));
+    this.pendingShip = !!url.ship;
   }
 
   /** Start looking at the day side from slightly north of the orbit plane. */
@@ -245,8 +282,10 @@ export class App {
       flyTo: (id, opts) => this.flyTo(id, opts),
       pullBack: (id) => this.pullBack(id),
       setFreeMode: (on) => this.setFreeMode(on),
+      setShipMode: (on) => this.setShipMode(on),
       recenter: () => this.recenter(),
-      flightHigh: () => this.camera.transit?.high ?? true,
+      // The ship doesn't rise before a landmark's jump in time: it's carried along with its body.
+      flightHigh: () => (this.shipMode ? true : (this.camera.transit?.high ?? true)),
       select: (id) => this.select(id),
       nearby: (limit) => this.nearby(limit),
       distanceTo: (id) => this.distanceTo(id),
@@ -267,12 +306,65 @@ export class App {
     const f = this.pendingFocus;
     if (!f || !this.registry.target(f)) return;
     this.pendingFocus = null;
-    if (!this.camera.flying) this.applyUrl();
+    if (!this.rig.flying && !this.shipMode) this.applyUrl();
   }
 
   /** On the way somewhere: flying, or a landmark visit's pull-back and clock jump before its flight. */
   get travelling(): boolean {
-    return this.camera.flying || ui.visiting;
+    return this.rig.flying || ui.visiting;
+  }
+
+  /** Where the view comes from: the orbit camera, or the ship's cockpit. */
+  get rig(): ViewRig {
+    return this.shipMode ? this.ship : this.camera;
+  }
+
+  /** How the ship treats a target: bodies, stars and black holes are solid; galaxies and groups are regions; the rest are points. */
+  private kind(id: string): ShipKind {
+    if (BODY_BY_ID.has(id) || id.startsWith('star-') || BLACK_HOLE_BY_ID.has(id)) return 'solid';
+    if (id === 'milky-way' || this.cosmosProvider.target(id)) return 'container';
+    // A landing site stands for its whole body.
+    return (this.registry.target(id)?.radius ?? 0) > 0 ? 'solid' : 'point';
+  }
+
+  /**
+   * Switch between the orbit camera and the ship's cockpit, with no jump: the
+   * ship starts exactly where the camera is, facing the same way and still
+   * moving; the camera takes back exactly the view from the cockpit.
+   */
+  setShipMode(on: boolean): void {
+    if (on === this.shipMode) return;
+    if (on) {
+      const cam = this.camera;
+      const dest = cam.flying ? (cam.transit?.toChain[0] ?? null) : null;
+      const focus = cam.viewFocusId;
+      const chain0 = cam.viewChain;
+      const pose = cam.pose;
+      cam.cancelFlight();
+      cam.stopInertia();
+      this.ship.enter(pose, focus, chain0, this.cameraMotion(focus, pose));
+      if (dest) this.ship.engage(dest);
+    } else {
+      const x = this.ship.exitView();
+      this.shipInput.reset();
+      this.camera.adopt(x.chain, x.view, x.r, { center: x.center, vel: x.vel, spin: x.spin });
+      if (x.destination) this.camera.flyTo(x.destination, FOV_DEG * DEG);
+    }
+    this.shipMode = on;
+    ui.shipMode = on;
+    ui.ship = on ? this.shipReadout() : null;
+    // Show the hand straight away, however ship mode was entered (key, button or link): dragging grabs the sky.
+    this.canvas.style.cursor = on ? 'grab' : '';
+    this.refreshShipCandidates();
+  }
+
+  /** The orbit camera's motion over its last frame, against `focus`: velocity (m/s) and turn rate (rad/s). */
+  private cameraMotion(focus: string, pose: CameraPose): { vel?: Vec3; spin?: Vec3 } {
+    const [a, b] = this.camTrail;
+    if (!a || !b || a.focus !== focus || b.focus !== focus || b.dt <= 0) return {};
+    const spin = scale(rotationBetween(a.forward, pose.forward), 1 / b.dt);
+    const w = length(spin);
+    return { vel: scale(sub(b.rel, a.rel), 1 / b.dt), spin: w > 2 ? scale(spin, 2 / w) : spin };
   }
 
   /**
@@ -286,6 +378,12 @@ export class App {
     if (!this.registry.target(id)) return;
     this.pendingFocus = null;
     this.select(id);
+    if (this.shipMode) {
+      // The autopilot flies there; `stay` only turns to face it.
+      if (opts.stay) this.ship.face(id);
+      else this.ship.engage(id, { from: opts.from });
+      return;
+    }
     const distance = opts.stay ? this.camera.view?.r : undefined;
     this.camera.flyTo(id, FOV_DEG * DEG, { from: opts.from, distance });
   }
@@ -298,6 +396,8 @@ export class App {
    * camera stays where it is.
    */
   pullBack(targetId: string): boolean {
+    // The ship stays put, carried along with its body through the jump in time.
+    if (this.shipMode) return targetId === this.ship.focusId;
     if (this.camera.flying) return false;
     const id = this.camera.viewFocusId;
     if (id === targetId) return true;
@@ -317,6 +417,11 @@ export class App {
 
   /** Glide back to center on the body a pan left, at the same distance and angle. */
   recenter(): void {
+    if (this.shipMode) {
+      // In the cockpit: turn to face what's selected, or the body we're with.
+      this.ship.face(this.selected && this.registry.target(this.selected) ? this.selected : this.ship.focusId);
+      return;
+    }
     const view = this.camera.view;
     if (!this.camera.panned || !view) return;
     this.camera.flyTo(this.camera.focusId, FOV_DEG * DEG, { distance: view.r, arrive: view.dir });
@@ -336,7 +441,7 @@ export class App {
   nearby(limit: number): SearchEntry[] {
     const out: Array<{ entry: SearchEntry; dist: number }> = [];
     for (const entry of this.searchIndex) {
-      if (entry.diffuse || entry.id === this.camera.focusId) continue;
+      if (entry.diffuse || entry.id === this.rig.focusId) continue;
       const dist = this.distanceTo(entry.id);
       if (dist !== null) out.push({ entry, dist });
     }
@@ -350,7 +455,7 @@ export class App {
   distanceTo(id: string): number | null {
     const t = this.registry.target(id);
     if (!t) return null;
-    const d = length(rel(t.pos(), this.camera.pose.position)) - t.radius;
+    const d = length(rel(t.pos(), this.rig.pose.position)) - t.radius;
     return Number.isFinite(d) && d >= 0 ? d : null;
   }
 
@@ -375,7 +480,7 @@ export class App {
   }
 
   pick(x: number, y: number): string | null {
-    const cam = this.camera.pose.position;
+    const cam = this.rig.pose.position;
     let best: { id: string; score: number } | null = null;
     for (const def of BODIES) {
       const vis = this.bodies.visuals.get(def.id)!;
@@ -436,7 +541,8 @@ export class App {
   tick(dt: number, now = performance.now()): void {
     this.clock.tick(dt);
     this.world.update(this.clock.ms);
-    if (!this.registry.target(this.camera.focusId)) {
+    // (The ship rehomes itself when its frame vanishes.)
+    if (!this.shipMode && !this.registry.target(this.camera.focusId)) {
       // The focus has no data at this time (e.g. before a spacecraft launched).
       // A craft that was only at a planet or moon for a while (Apollo in lunar
       // orbit, a lander) hands the view to that body where the camera is;
@@ -451,7 +557,8 @@ export class App {
         this.camera.set(this.chainFor(up), Math.max(length(d) - t.radius, t.minAltitude), d);
       } else this.camera.set(this.chainFor('sun'), Math.max(this.camera.pose.r, 5 * 1.496e11), this.camera.dir);
     }
-    const pose = this.camera.update(dt);
+    const pose = this.rig.update(dt);
+    if (!this.shipMode) this.trackCamera(dt);
 
     // Camera: fixed at the origin, rotated to the pose basis.
     const cam3 = this.rc.camera;
@@ -470,8 +577,10 @@ export class App {
       nearest = Math.min(nearest, d);
     }
     // Mid-flight both ends of the trip count, so the destination isn't clipped until landing.
-    const transit = this.camera.transit;
-    for (const id of transit ? [transit.fromChain[0], transit.toChain[0]] : [this.camera.focusId]) {
+    const transit = this.rig.transit;
+    const ends = transit ? [transit.fromChain[0], transit.toChain[0]] : [this.rig.focusId];
+    if (this.shipMode && this.ship.targetId) ends.push(this.ship.targetId);
+    for (const id of ends) {
       const t = this.registry.target(id);
       if (t && t.radius > 0) nearest = Math.min(nearest, length(rel(t.pos(), pose.position)) - t.radius);
     }
@@ -487,10 +596,10 @@ export class App {
     this.sprites.update(ctx);
     this.stars.update(ctx);
     // The focused (or selected) catalog star is drawn as a sphere when close.
-    const starId = [this.camera.viewFocusId, this.selected].find((x) => x?.startsWith('star-'));
+    const starId = [this.rig.viewFocusId, this.selected].find((x) => x?.startsWith('star-'));
     const starT = starId ? this.registry.target(starId) : undefined;
     // A black hole's companion star (Cygnus X-1's) is drawn beside it at its published size and temperature.
-    const companion = starT ? null : this.blackHoles.companion(this.camera.viewFocusId);
+    const companion = starT ? null : this.blackHoles.companion(this.rig.viewFocusId);
     if (companion) this.starBody.update(ctx, companion.index, companion.radius, companion.color);
     else this.starBody.update(ctx, starId && starT ? Number(starId.slice(5)) : -1, starT?.radius ?? 0);
     this.constellations.update(ctx);
@@ -504,6 +613,7 @@ export class App {
     this.updateLabels(ctx);
     const earth = this.bodies.visuals.get('earth')!;
     this.userLocation.update(ctx, earth.apparentPx, earth.boost);
+    if (this.shipMode) cockpit.sink?.(this.cockpitFrame(pose));
 
     this.galaxy.render();
     this.rc.render();
@@ -521,14 +631,15 @@ export class App {
   }
 
   private frameCtx(dt: number): FrameCtx {
-    const pose = this.camera.pose;
+    const rig = this.rig;
+    const pose = rig.pose;
     const h = this.canvas.clientHeight;
     const fov = FOV_DEG * DEG;
     // Mid-flight, blend from the origin's exposure to the destination's as the pan goes.
-    const transit = this.camera.transit;
+    const transit = rig.transit;
     const exposureDist = transit
       ? Math.exp(Math.log(this.exposureFor(transit.fromChain[0], pose.r)) * (1 - transit.w) + Math.log(this.exposureFor(transit.toChain[0], pose.r)) * transit.w)
-      : this.exposureFor(this.camera.focusId, pose.r);
+      : this.exposureFor(rig.focusId, pose.r);
     const bodyOf = (chain: string[]): string => chain.find((id) => BODY_BY_ID.has(id)) ?? 'sun';
     return {
       world: this.world,
@@ -541,8 +652,8 @@ export class App {
       pxPerRad: h / fov,
       exposureDist,
       skyBrightness: 0.4,
-      focusId: this.camera.viewFocusId,
-      focusBody: bodyOf(this.camera.viewChain),
+      focusId: rig.viewFocusId,
+      focusBody: bodyOf(rig.viewChain),
       focusBlend: transit ? { from: bodyOf(transit.fromChain), to: bodyOf(transit.toChain), w: transit.w } : null,
       selectedId: this.selected,
       settings: this.settings,
@@ -551,6 +662,8 @@ export class App {
   }
 
   private updateLabels(ctx: FrameCtx): void {
+    // In the cockpit, the body the ship moves with isn't singled out; where it's headed is.
+    const focusId = this.shipMode ? this.ship.targetId : this.camera.focusId;
     const items: LabelItem[] = [];
     const occluders: Occluder[] = [];
     for (const def of BODIES) {
@@ -570,9 +683,9 @@ export class App {
       // hands over to the Milky Way's once we see the Galaxy from outside.
       const fromSun = length(rel(this.world.get('sun').pos, ctx.cam));
       if (def.kind !== 'star') alpha *= 1 - smoothstep(Math.log(2000 * AU), Math.log(20000 * AU), Math.log(fromSun));
-      else if (this.camera.focusId !== 'sun') alpha *= 1 - smoothstep(Math.log(40 * PC * 1000), Math.log(400 * PC * 1000), Math.log(fromSun));
+      else if (this.rig.focusId !== 'sun') alpha *= 1 - smoothstep(Math.log(40 * PC * 1000), Math.log(400 * PC * 1000), Math.log(fromSun));
       if (vis.apparentPx > ctx.viewportH * 0.9 || !st.valid) alpha = 0;
-      const focused = def.id === this.camera.focusId || def.id === this.selected;
+      const focused = def.id === focusId || def.id === this.selected;
       items.push({
         id: def.id,
         text: def.name,
@@ -590,7 +703,7 @@ export class App {
     if (cat) {
       const sunRel = rel(this.world.get('sun').pos, ctx.cam);
       for (const m of cat.meta) {
-        const isFocus = this.camera.focusId === `star-${m.i}` || this.selected === `star-${m.i}`;
+        const isFocus = focusId === `star-${m.i}` || this.selected === `star-${m.i}`;
         if (!m.name && !isFocus) continue;
         const sp = this.stars.starPos(m.i, this.world.ms);
         const p: Vec3 = [sunRel[0] + sp[0], sunRel[1] + sp[1], sunRel[2] + sp[2]];
@@ -613,13 +726,13 @@ export class App {
     }
 
     for (const c of this.spacecraft.labels()) {
-      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      const focused = focusId === c.id || this.selected === c.id;
       items.push({ id: c.id, text: c.name, priority: focused ? 1000 : 45, pos: rel(c.pos, ctx.cam), offsetPx: 6, kind: 'craft', alpha: focused ? 1 : c.alpha, focused });
     }
 
     // Named asteroids and trans-Neptunian objects, and the populations' names.
     for (const c of this.smallBodies.labels(ctx)) {
-      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      const focused = focusId === c.id || this.selected === c.id;
       items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: rel(c.pos, ctx.cam), offsetPx: 5, kind: c.group ? 'region' : 'smallbody', alpha: focused ? 1 : c.alpha, focused });
     }
 
@@ -627,7 +740,7 @@ export class App {
     {
       const fromSunMpc = length(rel(this.world.get('sun').pos, ctx.cam)) / (PC * 1e6);
       for (const c of this.cosmosProvider.labels()) {
-        const focused = this.camera.focusId === c.id || this.selected === c.id;
+        const focused = focusId === c.id || this.selected === c.id;
         const vis = smoothstep(Math.log(c.minMpc), Math.log(c.minMpc * 3), Math.log(fromSunMpc)) * (1 - smoothstep(Math.log(c.maxMpc), Math.log(c.maxMpc * 3), Math.log(fromSunMpc)));
         if (vis < 0.02 && !focused) continue;
         items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: rel(c.pos, ctx.cam), offsetPx: 8, kind: 'galaxy', alpha: focused ? 1 : vis, focused });
@@ -636,7 +749,7 @@ export class App {
 
     // Black holes: stellar ones once we are out among the stars, supermassive ones inside their galaxy.
     for (const c of this.blackHoles.labels(ctx)) {
-      const focused = this.camera.focusId === c.id || this.selected === c.id;
+      const focused = focusId === c.id || this.selected === c.id;
       if (c.alpha < 0.02 && !focused) continue;
       items.push({ id: c.id, text: c.name, priority: (focused ? 1000 : 0) + c.priority, pos: c.rel, offsetPx: c.offsetPx, kind: 'blackhole', alpha: focused ? 1 : c.alpha, focused });
     }
@@ -645,7 +758,7 @@ export class App {
     {
       const fromSun = length(rel(this.world.get('sun').pos, ctx.cam));
       const mw = this.registry.target('milky-way')!;
-      const focused = this.camera.focusId === 'milky-way' || this.selected === 'milky-way';
+      const focused = focusId === 'milky-way' || this.selected === 'milky-way';
       items.push({
         id: 'milky-way',
         text: 'Milky Way',
@@ -691,48 +804,130 @@ export class App {
       this.uiT = now;
       // A deep link waits here until its catalog (stars, galaxies) has streamed in.
       if (this.pendingFocus) this.resolvePending();
-      this.camera.reanchor();
-      ui.panned = this.camera.panned;
+      if (this.pendingShip && !this.pendingFocus) {
+        this.pendingShip = false;
+        this.setShipMode(true);
+        // Arriving by link, the ship faces what the link was about.
+        this.ship.face(this.ship.focusId);
+      }
+      const rig = this.rig;
+      if (this.shipMode) {
+        this.refreshShipCandidates();
+        ui.ship = this.shipReadout();
+      } else this.camera.reanchor();
+      ui.panned = !this.shipMode && this.camera.panned;
       ui.freeMode = this.camera.freeMode;
       ui.timeMs = this.clock.ms;
       ui.rate = this.clock.rate;
       ui.paused = this.clock.paused;
       // The title names a clicked object until it is deselected; otherwise where the camera is.
-      const picked = this.selected && this.selected !== this.camera.focusId && this.registry.target(this.selected) ? this.selected : null;
-      const id = picked ?? (this.camera.flying ? this.camera.focusId : this.camera.dominantId());
+      const picked = this.selected && this.selected !== rig.focusId && this.registry.target(this.selected) ? this.selected : null;
+      const id = picked ?? (rig.flying ? rig.focusId : rig.dominantId());
       if (ui.card?.id !== id) ui.card = this.registry.info(id) ?? null;
       ui.focusId = id;
       ui.focusName = ui.card?.name ?? id;
-      const focus = this.registry.target(id) ?? this.camera.focus;
-      // Panned, the camera's altitude measures to the look point, not the body.
-      const alt = id === this.camera.focusId && !this.camera.panned ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
+      const focus = this.registry.target(id) ?? this.registry.target(rig.focusId) ?? this.registry.target('sun')!;
+      const at = rig.pose.position;
+      // Panned (or flying the ship), the camera's altitude measures to the look point, not the body.
+      const alt = !this.shipMode && id === this.camera.focusId && !this.camera.panned ? this.camera.altitude : length(rel(focus.pos(), at)) - focus.radius;
       const def = BODY_BY_ID.get(id);
       // A landing site frames its whole body, but the distance is to the site.
       const site = this.spacecraft.sitePosition(id);
       ui.distanceText = site
-        ? `${formatDistance(length(rel(site, this.camera.pose.position)))} from ${ui.focusName}`
+        ? `${formatDistance(length(rel(site, at)))} from ${ui.focusName}`
         :
         def?.kind === 'star' || !def
           ? id === 'observable-universe'
-            ? `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from Earth`
-            : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${def ? 'the center of the ' : ''}${ui.focusName}`
+            ? `${formatDistance(length(rel(focus.pos(), at)))} from Earth`
+            : `${formatDistance(length(rel(focus.pos(), at)))} from ${def ? 'the center of the ' : ''}${ui.focusName}`
           : alt < 0
             ? `Passing through ${ui.focusName}`
             : alt < 50 * focus.radius
             ? `Altitude ${formatDistance(alt)} above ${ui.focusName}`
-            : `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from ${ui.focusName}`;
+            : `${formatDistance(length(rel(focus.pos(), at)))} from ${ui.focusName}`;
     }
-    if (now - this.urlT > 1000 && !this.camera.flying && !this.pendingFocus) {
+    if (now - this.urlT > 1000 && !this.rig.flying && !this.pendingFocus && !this.pendingShip) {
       this.urlT = now;
       writeUrlState({
-        focus: this.camera.focusId,
-        altitude: this.camera.altitude,
-        dir: this.camera.dir,
+        ...(this.shipMode ? this.shipPlace() : { focus: this.camera.focusId, altitude: this.camera.altitude, dir: this.camera.dir }),
+        ship: this.shipMode,
         time: this.clock.ms,
         rate: this.clock.rate,
         paused: this.clock.paused,
         location: this.pinnedLocation ?? undefined,
       });
     }
+  }
+
+  // ---- ship mode ---------------------------------------------------------------
+
+  /** Remember the orbit camera's pose against the body in view, for a moving handoff to the ship. */
+  private trackCamera(dt: number): void {
+    const focus = this.camera.viewFocusId;
+    const t = this.registry.target(focus);
+    const p = this.camera.pose;
+    if (!t) return;
+    this.camTrail.push({ focus, rel: add(sub(p.pivot, t.pos()), p.offset), forward: p.forward, dt });
+    if (this.camTrail.length > 2) this.camTrail.shift();
+  }
+
+  /** Bodies, black holes, what's selected and what's labeled on screen (what you'd fly toward by hand). */
+  private refreshShipCandidates(): void {
+    const ids = new Set<string>(ANCHOR_IDS);
+    for (const b of BLACK_HOLES) ids.add(b.id);
+    if (this.selected) ids.add(this.selected);
+    for (const id of this.labels.visibleIds) ids.add(id);
+    this.shipCandidates = [...ids];
+  }
+
+  private nameOf(id: string): string {
+    let n = this.names.get(id);
+    if (!n) {
+      n = this.registry.info(id)?.name ?? id;
+      this.names.set(id, n);
+    }
+    return n;
+  }
+
+  private shipReadout(): ShipReadout {
+    const t = this.ship.telemetry();
+    return {
+      speed: t.speed,
+      throttle: t.throttle,
+      boost: t.boost,
+      fine: t.fine,
+      frame: this.nameOf(t.frame),
+      nearest: t.nearest ? { name: this.nameOf(t.nearest.id), altitude: t.nearest.altitude } : null,
+      heading: t.heading,
+      autopilot: t.autopilot ? { name: this.nameOf(t.autopilot.id), phase: t.autopilot.phase, distance: t.autopilot.distance, eta: t.autopilot.eta } : null,
+      holding: t.holding ? this.nameOf(t.holding) : null,
+    };
+  }
+
+  /** The ship's place for a link: the orbit view from where it is, looking at the body it's with. */
+  private shipPlace(): { focus: string; altitude: number; dir: Vec3 } {
+    const t = this.registry.target(this.ship.focusId);
+    const r = length(this.ship.rel);
+    return { focus: this.ship.focusId, altitude: Math.max(r - (t?.radius ?? 0), 1), dir: r > 0 ? scale(this.ship.rel, 1 / r) : [0, 0, 1] };
+  }
+
+  /** The canopy and markers for this frame: the target is the autopilot's, or what's selected. */
+  private cockpitFrame(pose: CameraPose): CockpitFrame {
+    const id = this.ship.targetId ?? this.selected;
+    const t = id ? this.registry.target(id) : undefined;
+    let target: { rel: Vec3; dist: number } | null = null;
+    if (t) {
+      const r = id === this.ship.focusId ? relPrecise(t.pos(), pose) : rel(t.pos(), pose.position);
+      target = { rel: r, dist: Math.max(length(r) - t.radius, 0) };
+    }
+    return buildCockpitFrame({
+      pose,
+      ship: { fwd: this.ship.fwd, up: this.ship.up },
+      drift: this.ship.drift,
+      target,
+      w: this.canvas.clientWidth,
+      h: this.canvas.clientHeight,
+      fov: FOV_DEG * DEG,
+    });
   }
 }

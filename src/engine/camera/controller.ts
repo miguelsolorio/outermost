@@ -173,7 +173,42 @@ export interface CameraPose {
   r: number;
 }
 
-export class CameraController {
+/** A source of the view: the orbit camera, or the ship flown from its cockpit. */
+export interface ViewRig {
+  readonly pose: CameraPose;
+  update(dt: number): CameraPose;
+  /** The target whose frame the view moves with. */
+  readonly focusId: string;
+  readonly viewFocusId: string;
+  readonly viewChain: string[];
+  /** A move from one frame to another under way (w: fraction done). */
+  readonly transit: { fromChain: string[]; toChain: string[]; w: number; high: boolean } | null;
+  readonly flying: boolean;
+  /** The chain member that dominates the view (for titles). */
+  dominantId(): string;
+}
+
+/** Default viewing distance that frames a target nicely. */
+export function framingDistance(target: FocusTarget, fovRad: number): number {
+  if (target.framing) return target.framing;
+  if (target.radius <= 0) return 1e9;
+  const r = target.radius / Math.sin(fovRad * 0.3);
+  return Math.max(r, target.radius + target.minAltitude);
+}
+
+/** View "up" for a chain at distance r: the focus body's pole up close, ecliptic north farther out. */
+export function viewUp(resolve: Resolver, chain: string[], r: number): Vec3 {
+  const f = resolve(chain[0]);
+  const pole = f?.pole() ?? null;
+  let up = ECLIPTIC_NORTH;
+  if (f && pole && f.radius > 0) up = normalize(slerp(pole, ECLIPTIC_NORTH, smoothstep(Math.log(20 * f.radius), Math.log(400 * f.radius), Math.log(r))));
+  // Beyond the stars next door, orient to the Galaxy; beyond the Local
+  // Group, to the supergalactic plane where nearby galaxies concentrate.
+  up = normalize(slerp(up, GALACTIC_NORTH, smoothstep(Math.log(3e16), Math.log(3e19), Math.log(r))));
+  return normalize(slerp(up, SUPERGALACTIC_NORTH, smoothstep(Math.log(3e22), Math.log(1e24), Math.log(r))));
+}
+
+export class CameraController implements ViewRig {
   chain: string[] = ['earth', 'sun'];
   /** ln(altitude in m) above the focus surface. */
   logH = Math.log(2e7);
@@ -316,14 +351,7 @@ export class CameraController {
 
   /** View "up": the focus body's pole up close, ecliptic north farther out. */
   upFor(chain: string[], r: number): Vec3 {
-    const f = this.resolve(chain[0])!;
-    const pole = f.pole();
-    let up = ECLIPTIC_NORTH;
-    if (pole && f.radius > 0) up = normalize(slerp(pole, ECLIPTIC_NORTH, smoothstep(Math.log(20 * f.radius), Math.log(400 * f.radius), Math.log(r))));
-    // Beyond the stars next door, orient to the Galaxy; beyond the Local
-    // Group, to the supergalactic plane where nearby galaxies concentrate.
-    up = normalize(slerp(up, GALACTIC_NORTH, smoothstep(Math.log(3e16), Math.log(3e19), Math.log(r))));
-    return normalize(slerp(up, SUPERGALACTIC_NORTH, smoothstep(Math.log(3e22), Math.log(1e24), Math.log(r))));
+    return viewUp(this.resolve, chain, r);
   }
 
   distanceFor(chain: string[], logH: number): number {
@@ -464,10 +492,7 @@ export class CameraController {
 
   /** Default viewing distance that frames a target nicely. */
   framingDistance(target: FocusTarget, fovRad: number): number {
-    if (target.framing) return target.framing;
-    if (target.radius <= 0) return 1e9;
-    const r = target.radius / Math.sin(fovRad * 0.3);
-    return Math.max(r, target.radius + target.minAltitude);
+    return framingDistance(target, fovRad);
   }
 
   /**
@@ -894,6 +919,31 @@ export class CameraController {
     }
     this.pose = { position, pivot, offset, forward, up, right, r };
     return this.pose;
+  }
+
+  /**
+   * Take over from another rig (the ship) with no jump: the first frame shows
+   * exactly `view`, as a panned view looking out along its forward, then the
+   * roll eases onto `upFor` and, with `center`, the body in front glides to
+   * the middle. `vel` (m/s, relative to the chain's focus) and `spin` (rad/s)
+   * carry the view's motion into the settle so it comes to rest instead of
+   * stopping dead.
+   */
+  adopt(chain: string[], view: { pivot: Vec3; offset: Vec3; forward: Vec3; up: Vec3 }, r: number, opts: { center: boolean; vel?: Vec3; spin?: Vec3 }): void {
+    const R = this.resolve(chain[0])?.radius ?? 0;
+    const dir = scale(view.forward, -1);
+    this.set(chain, r - R, dir);
+    const src = this.freeSource(0);
+    // The look point one view distance out along the forward, from the new pivot.
+    const look = add(add(sub(view.pivot, src.pivot), view.offset), scale(view.forward, src.r));
+    this.offset = opts.center ? [0, 0, 0] : look;
+    this.lastView = { pivot: src.pivot, shift: look, r: src.r, dir, up: view.up, tilt: 0, lookAt: add(src.pivot, look) };
+    const moving = !!(opts.vel || opts.spin);
+    if (moving) {
+      const spin = opts.spin ?? [0, 0, 0];
+      this.vel = { pivot: scale(opts.vel ?? [0, 0, 0], 1 / src.r), lnR: 0, dir: spin, up: spin, tilt: 0 };
+    }
+    this.beginSettle(moving ? CARRY : 0);
   }
 
   /** Jump without animation (used for deep links). */

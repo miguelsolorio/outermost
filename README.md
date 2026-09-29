@@ -82,17 +82,41 @@ A title card, then a minute of exploring, with sound: Earth from Seattle, Mars, 
 | Zoom | Scroll, `+` / `-` | Pinch |
 | Orbit | Drag, arrow keys | Drag |
 | Tilt toward the horizon | Shift-drag or right-drag | |
-| Fly to an object | Double-click it, or search with `/` | Double-tap |
+| Pan off the focus | `Space`-drag or middle-drag | |
+| Fly through what's in the way | `Space`-scroll | |
+| Free camera (drag pans, scroll zooms toward the cursor) | `F` | |
+| Recenter after panning | `C` | |
+| Fly to an object | Double-click it, or search with `/` or `⌘K` | Double-tap |
 | Play or pause time | `Space` | Time bar |
+| Fly your own ship | `V`, or the ship button | Ship button |
 
 Menu (☰) toggles:
 - labels
 - orbits
 - constellations
 - asteroids and the Kuiper belt
+- my location
 - size boost, which enlarges tiny bodies and is flagged on screen when active
 
 The speaker button mutes the ambient sound. The sound is procedural, and browsers start it only after your first interaction.
+
+### Ship mode
+
+Press `V` to fly from a ship's cockpit instead of orbiting. The ship starts where the camera is, and keeps moving with whatever it's near: Earth, the Moon, the ISS, or a black hole kiloparsecs away. Speeds scale with the distance to the nearest surface, so the same controls take you across a crater or between galaxies, and you slow down on your own as a surface comes up.
+
+| | Mouse / keyboard | Touch |
+|---|---|---|
+| Fly forward or back | Scroll, `W` / `S`, `+` / `-` | Pinch |
+| Strafe, rise and sink | `A` / `D`, `R` / `F` | |
+| Boost, fine control | Hold `Shift`, `Alt` | |
+| Steer | Drag (grab the sky; flick to keep turning), arrow keys | Drag |
+| Roll | `Q` / `E` | |
+| Look around the cockpit | Right-drag or `Alt`-drag (springs back) | |
+| Autopilot to an object | Double-click it, or search | Double-tap |
+| Face the selected object | `C` | |
+| All stop, level | `X`, `L` | |
+| Hide the cockpit | `H` | |
+| Show the keys | `?` | |
 
 ## Accuracy
 

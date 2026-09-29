@@ -7,7 +7,13 @@
   import Credits from './Credits.svelte';
   import Hints from './Hints.svelte';
   import CommandPalette from './CommandPalette.svelte';
+  import Cockpit from './Cockpit.svelte';
 </script>
+
+<!-- First, so the top bar and timeline sit over the canopy. -->
+{#if ui.shipMode}
+  <Cockpit />
+{/if}
 
 <header class="topbar">
   <InfoCard />
@@ -94,6 +100,10 @@
     .topbar {
       flex-direction: column;
       padding: 12px 16px;
+    }
+    /* Full width, so the search box gives way to the buttons. */
+    .right {
+      align-self: stretch;
     }
   }
 </style>

@@ -3,7 +3,24 @@
 
 import type { ObjectInfo, SearchEntry } from '../scene/registry.ts';
 import type { Landmark } from '../data/landmarks.ts';
+import type { CockpitFrame } from '../engine/cockpit.ts';
 export type { SearchEntry };
+
+/** Cockpit instruments, refreshed about ten times a second in ship mode. */
+export interface ShipReadout {
+  /** m/s relative to the frame. */
+  speed: number;
+  /** Forward drift as a share of full boost (−1..1). */
+  throttle: number;
+  boost: boolean;
+  fine: boolean;
+  /** Name of the body the ship is moving with. */
+  frame: string;
+  nearest: { name: string; altitude: number } | null;
+  heading: { lon: number; lat: number; system: 'ecliptic' | 'galactic' };
+  autopilot: { name: string; phase: 'turning' | 'cruising' | 'arriving' | 'facing'; distance: number; eta: number } | null;
+  holding: string | null;
+}
 
 export const ui = $state({
   ready: false,
@@ -36,6 +53,11 @@ export const ui = $state({
   freeMode: false,
   /** The view has been panned off the body it was centered on. */
   panned: false,
+  /** Flying a ship from its cockpit instead of orbiting. */
+  shipMode: false,
+  ship: null as ShipReadout | null,
+  /** The canopy and instruments are hidden (H), e.g. for a screenshot. */
+  hudHidden: false,
 });
 
 export interface Actions {
@@ -56,6 +78,7 @@ export interface Actions {
    */
   pullBack(targetId: string): boolean;
   setFreeMode(on: boolean): void;
+  setShipMode(on: boolean): void;
   /** Fly back to center on the body a pan left. */
   recenter(): void;
   /** Whether a flight under way is near the top of its climb (true when not flying). */
@@ -79,6 +102,7 @@ export const actions: Actions = {
   flyTo: () => {},
   pullBack: () => false,
   setFreeMode: () => {},
+  setShipMode: () => {},
   recenter: () => {},
   flightHigh: () => true,
   select: () => {},
@@ -87,6 +111,12 @@ export const actions: Actions = {
   toggle: () => {},
   setSound: () => {},
 };
+
+/**
+ * The cockpit overlay's per-frame hook: the engine calls it from its frame
+ * loop, so the canopy and markers never lag the render.
+ */
+export const cockpit = { sink: null as ((f: CockpitFrame) => void) | null };
 
 export function bindActions(a: Actions): void {
   Object.assign(actions, a);

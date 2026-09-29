@@ -172,3 +172,71 @@ test('flights glide: no per-frame jumps, including a retarget and a grab mid-fli
   }
   expect(result.map((t) => t.focus)).toEqual(['saturn', 'voyager-1', 'bh-v404-cyg', 'moon', 'earth']);
 });
+
+test('ship mode: fly from the cockpit, autopilot to Mars, and hand back to the orbit camera', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/#f=earth&h=2e7&p=1');
+  await ready(page);
+  type V = [number, number, number];
+  interface Ship {
+    pose: { position: V; pivot: V; offset: V; r: number };
+    focusId: string;
+    flying: boolean;
+    hold: string | null;
+  }
+  const state = () =>
+    page.evaluate(() => {
+      const a = (window as unknown as { app: { shipMode: boolean; ship: Ship; registry: { target(id: string): { pos(): V } } } }).app;
+      const e = a.registry.target('earth').pos();
+      const p = a.ship.pose;
+      return {
+        shipMode: a.shipMode,
+        focus: a.ship.focusId,
+        flying: a.ship.flying,
+        hold: a.ship.hold,
+        fromEarth: Math.hypot(...p.position.map((x, i) => x - e[i])),
+        finite: p.position.every(Number.isFinite) && Number.isFinite(p.r),
+      };
+    });
+  const tick = (n: number) =>
+    page.evaluate((n) => {
+      const a = (window as unknown as { app: AppHandle }).app;
+      for (let i = 0; i < n; i++) a.tick(1 / 30);
+    }, n);
+
+  await page.keyboard.press('v');
+  await expect(page.locator('.cockpit')).toBeVisible();
+  await tick(2);
+  const start = await state();
+  expect(start.shipMode).toBe(true);
+
+  // Thrust ahead (the ship faces Earth, as the camera did).
+  await page.keyboard.down('KeyW');
+  await tick(60);
+  await page.keyboard.up('KeyW');
+  await tick(30);
+  const moved = await state();
+  expect(moved.finite).toBe(true);
+  expect(moved.fromEarth).toBeLessThan(start.fromEarth * 0.9);
+
+  // The palette sends the autopilot.
+  await page.keyboard.press('ControlOrMeta+K');
+  await page.keyboard.type('mars');
+  await expect(page.getByRole('option').first()).toContainText('Mars');
+  await page.keyboard.press('Enter');
+  await tick(900);
+  const there = await state();
+  expect(there).toMatchObject({ focus: 'mars', flying: false, hold: 'mars', finite: true });
+  await expect(page.locator('.focus')).toHaveText('Mars');
+
+  // Leaving the cockpit hands Mars to the orbit camera.
+  await page.keyboard.press('v');
+  await expect(page.locator('.cockpit')).toBeHidden();
+  await tick(60);
+  expect(await page.evaluate(() => (window as unknown as { app: AppHandle }).app.camera.focusId)).toBe('mars');
+  expect(errors).toEqual([]);
+});

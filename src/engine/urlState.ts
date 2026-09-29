@@ -1,7 +1,7 @@
 // Shareable deep links: the view is mirrored into the URL hash, e.g.
 // #f=mars&h=2.1e6&d=0.123,-0.456,0.789&t=2026-09-25T12:00:00.000Z&r=3600
 // l=47.6062,-122.3321 pins "My location" to a latitude and longitude instead
-// of asking the browser.
+// of asking the browser. m=ship opens in the cockpit, where the view is.
 
 import type { Vec3 } from '../astro/vec.ts';
 
@@ -14,6 +14,8 @@ export interface UrlState {
   paused?: boolean;
   /** "My location", in degrees of latitude and longitude. */
   location?: [number, number];
+  /** Flying the ship: `focus`, `altitude` and `dir` place it; it faces the focus. */
+  ship?: boolean;
   settings?: Partial<{ labels: boolean; orbits: boolean; boost: boolean }>;
 }
 
@@ -36,10 +38,11 @@ export function readUrlState(): UrlState {
   if (p.get('p') === '1') out.paused = true;
   const l = p.get('l')?.split(',').map(Number);
   if (l && l.length === 2 && l.every(Number.isFinite) && Math.abs(l[0]) <= 90 && Math.abs(l[1]) <= 180) out.location = l as [number, number];
+  if (p.get('m') === 'ship') out.ship = true;
   return out;
 }
 
-export function writeUrlState(s: Required<Omit<UrlState, 'settings' | 'location'>> & Pick<UrlState, 'location'>): void {
+export function writeUrlState(s: Required<Omit<UrlState, 'settings' | 'location' | 'ship'>> & Pick<UrlState, 'location' | 'ship'>): void {
   const p = new URLSearchParams();
   p.set('f', s.focus);
   p.set('h', s.altitude.toPrecision(4));
@@ -48,6 +51,7 @@ export function writeUrlState(s: Required<Omit<UrlState, 'settings' | 'location'
   if (s.rate !== 1) p.set('r', String(s.rate));
   if (s.paused) p.set('p', '1');
   if (s.location) p.set('l', s.location.map((x) => x.toFixed(4)).join(','));
+  if (s.ship) p.set('m', 'ship');
   const hash = '#' + p.toString();
   if (hash !== location.hash) history.replaceState(null, '', hash);
 }

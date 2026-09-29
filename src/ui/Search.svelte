@@ -175,6 +175,9 @@
   .search {
     position: relative;
     width: 240px;
+    /* Gives way to the toolbar buttons on a narrow phone. */
+    min-width: 0;
+    flex-shrink: 1;
   }
   input {
     width: 100%;

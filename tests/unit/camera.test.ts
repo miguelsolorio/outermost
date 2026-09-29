@@ -1,43 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CameraController, type FocusTarget, type View } from '../../src/engine/camera/controller.ts';
+import { CameraController, type View } from '../../src/engine/camera/controller.ts';
 import { add, angleBetween, dot, length, normalize, scale, sub, type Vec3 } from '../../src/astro/vec.ts';
 
-const AU = 1.496e11;
-const FOV = (45 * Math.PI) / 180;
-const DT = 1 / 60;
-const TILT = (23.4 * Math.PI) / 180;
+import { AU, DT, FOV, fakeTargets } from './fakeWorld.ts';
 
 /** A small static solar system plus far-away targets. `now.t` moves Earth when set. */
 function world() {
-  const now = { t: 0, speed: 0 };
-  const earth = (): Vec3 => {
-    const a = now.t * now.speed;
-    return [AU * Math.cos(a), AU * Math.sin(a), 0];
-  };
-  const body = (id: string, pos: () => Vec3, radius: number, parent: string | null, extra: Partial<FocusTarget> = {}): FocusTarget => ({
-    id,
-    radius,
-    minAltitude: radius > 0 ? 0.01 * radius : 1e5,
-    pos,
-    pole: () => (radius > 0 ? [0, -Math.sin(TILT), Math.cos(TILT)] : null),
-    handoff: null,
-    parent,
-    ...extra,
-  });
-  const targets = new Map<string, FocusTarget>();
-  for (const t of [
-    body('sun', () => [0, 0, 0], 6.96e8, null),
-    body('earth', earth, 6.371e6, 'sun', { handoff: [0.3 * AU, 1.5 * AU] }),
-    body('moon', () => add(earth(), [0, 3.84e8, 0]), 1.737e6, 'earth', { handoff: [1.2e9, 3.8e9] }),
-    body('mars', () => [-1.2 * AU, 1.1 * AU, 0.03 * AU], 3.39e6, 'sun', { handoff: [0.46 * AU, 2.3 * AU] }),
-    body('saturn', () => [8 * AU, -4 * AU, 0.3 * AU], 5.8e7, 'sun', { handoff: [2.9 * AU, 14 * AU] }),
-    // Framed inside its own handoff range: landing must still match the free camera.
-    body('craft', () => [100 * AU, 120 * AU, 30 * AU], 0, 'sun', { handoff: [2 * AU, 20 * AU], framing: 40 * AU }),
-    // A black hole kiloparsecs away, framed at 110 rs.
-    body('far', () => [6e19, 3e19, 2.5e19], 2.66e4, null, { framing: 110 * 2.66e4, minAltitude: 1e4 }),
-    body('uni', () => [0, 0, 0], 0, null, { framing: 1.05e27 }),
-  ])
-    targets.set(t.id, t);
+  const { targets, now } = fakeTargets();
   const cam = new CameraController((id) => targets.get(id));
   cam.set(['earth', 'sun'], 2e7, [0.3, -0.9, 0.3]);
   cam.update(0);

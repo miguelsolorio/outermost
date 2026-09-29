@@ -33,7 +33,26 @@
     </button>
     <button
       class="menu free"
-      class:on={ui.freeMode}
+      class:on={ui.shipMode}
+      onclick={() => actions.setShipMode(!ui.shipMode)}
+      aria-pressed={ui.shipMode}
+      aria-label="Fly a ship"
+      title={ui.shipMode ? 'Flying the ship (V to leave): scroll or W/S flies, drag steers, right-drag looks around' : 'Fly a ship (V): pilot your own ship from its cockpit'}
+    >
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path
+          d="M12 3.5l6.5 15.5-6.5-3.6-6.5 3.6z"
+          stroke="currentColor"
+          stroke-width="1.6"
+          fill="none"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </button>
+    <button
+      class="menu free"
+      class:on={ui.freeMode && !ui.shipMode}
+      disabled={ui.shipMode}
       onclick={() => actions.setFreeMode(!ui.freeMode)}
       aria-pressed={ui.freeMode}
       aria-label="Free camera"
@@ -96,6 +115,10 @@
   .free.on {
     color: var(--accent);
     border-color: var(--accent-dim);
+  }
+  .free:disabled {
+    opacity: 0.4;
+    cursor: default;
   }
   .menu {
     width: 34px;

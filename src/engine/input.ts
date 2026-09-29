@@ -5,10 +5,12 @@
 //  - Space-wheel / Space-pinch: fly toward the cursor, through whatever is in the way
 //  - Double-click: fly to what's under the cursor
 //  - Arrows orbit, +/- zoom, F toggles free mode, C recenters
+//  - V switches to flying a ship from its cockpit (see shipInput.ts) and back
 // Free mode is map-like: drag pans, the wheel zooms toward the cursor,
 // right/Shift drag orbits, Alt drag tilts and the arrows pan.
 
 import type { CameraController } from './camera/controller.ts';
+import type { ShipInput } from './shipInput.ts';
 import type { Vec3 } from '../astro/vec.ts';
 
 export interface InputHooks {
@@ -27,11 +29,15 @@ export interface InputHooks {
   recenter(): void;
   onUserInteraction(): void;
   togglePause?(): void;
+  /** Flying the ship: input goes to `ship` instead of the camera. */
+  shipMode?(): boolean;
+  toggleShipMode?(): void;
 }
 
-export function attachInput(el: HTMLElement, cam: CameraController, hooks: InputHooks): () => void {
+export function attachInput(el: HTMLElement, cam: CameraController, hooks: InputHooks, ship?: ShipInput): () => void {
   let dragging = false;
-  let mode: 'orbit' | 'tilt' | 'pan' = 'orbit';
+  let mode: 'orbit' | 'tilt' | 'pan' | 'ship' = 'orbit';
+  const piloting = () => !!ship && !!hooks.shipMode?.();
   // Space held to pan; a tap without a drag plays/pauses on release.
   let spaceHeld = false;
   let spacePanned = false;
@@ -42,7 +48,9 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
   let pinchDist = 0;
 
   const setCursor = () => {
-    el.style.cursor = dragging && mode === 'pan' ? 'grabbing' : spaceHeld || hooks.freeMode() ? 'grab' : '';
+    // In the cockpit a drag grabs the sky, like the orbit drag.
+    if (piloting()) el.style.cursor = dragging ? 'grabbing' : 'grab';
+    else el.style.cursor = dragging && mode === 'pan' ? 'grabbing' : spaceHeld || hooks.freeMode() ? 'grab' : '';
   };
 
   const onWheel = (e: WheelEvent) => {
@@ -50,6 +58,7 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     hooks.onUserInteraction();
     // Normalize: trackpads send small pixel deltas, wheels send lines.
     const unit = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 400 : 1;
+    if (piloting()) return ship!.wheel(e);
     const dy = e.deltaY * unit;
     const speed = e.ctrlKey ? 0.01 : 0.0022; // ctrl+wheel = trackpad pinch
     if (spaceHeld) {
@@ -66,6 +75,8 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+      // A second finger turns a steer into a pinch: let go of the view.
+      if (dragging && mode === 'ship') ship!.up();
       dragging = false;
       return;
     }
@@ -73,7 +84,11 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     if (e.button === 1) e.preventDefault();
     dragging = true;
     const free = hooks.freeMode();
-    if (spaceHeld || e.button === 1 || (free && e.button === 0 && !e.shiftKey && !e.altKey)) mode = 'pan';
+    // The mode at the press owns the whole drag, even if V is pressed partway.
+    if (piloting()) {
+      mode = 'ship';
+      ship!.down(e);
+    } else if (spaceHeld || e.button === 1 || (free && e.button === 0 && !e.shiftKey && !e.altKey)) mode = 'pan';
     else if (free) mode = e.altKey ? 'tilt' : 'orbit';
     else mode = e.shiftKey || e.button === 2 ? 'tilt' : 'orbit';
     if (spaceHeld) spacePanned = true;
@@ -89,7 +104,10 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       const d = Math.hypot(a.x - b.x, a.y - b.y);
-      if (pinchDist > 0 && d > 0) cam.zoom(-Math.log(d / pinchDist) * 1.6);
+      if (pinchDist > 0 && d > 0) {
+        if (piloting()) ship!.pinch(d / pinchDist);
+        else cam.zoom(-Math.log(d / pinchDist) * 1.6);
+      }
       pinchDist = d;
       return;
     }
@@ -102,7 +120,10 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     lastX = e.clientX;
     lastY = e.clientY;
     moved += Math.abs(dx) + Math.abs(dy);
-    if (mode === 'pan') cam.pan(dx, dy, el.clientHeight, hooks.fovRad());
+    if (mode === 'ship') {
+      if (piloting()) ship!.move(e, dx, dy);
+    } else if (piloting()) return;
+    else if (mode === 'pan') cam.pan(dx, dy, el.clientHeight, hooks.fovRad());
     else if (mode === 'tilt') cam.tiltBy(dy, el.clientHeight);
     else cam.orbit(dx, dy, el.clientHeight, hooks.fovRad());
   };
@@ -112,10 +133,11 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
     if (pointers.size < 2) pinchDist = 0;
     if (!dragging) return;
     dragging = false;
+    if (mode === 'ship') ship!.up();
     setCursor();
     if (moved < 4) {
       // A click: select what's under the cursor (or clear).
-      cam.stopInertia();
+      if (mode !== 'ship') cam.stopInertia();
       hooks.select(hooks.pick(e.offsetX, e.offsetY));
     }
   };
@@ -127,6 +149,24 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
 
   const onKey = (e: KeyboardEvent) => {
     if ((e.target as HTMLElement)?.closest('input, textarea, select')) return;
+    const plainKey = !e.metaKey && !e.ctrlKey && !e.altKey;
+    if (ship && hooks.toggleShipMode && e.code === 'KeyV' && plainKey && !e.shiftKey) {
+      if (!e.repeat) {
+        hooks.toggleShipMode();
+        setCursor();
+      }
+      e.preventDefault();
+      hooks.onUserInteraction();
+      return;
+    }
+    if (piloting() && e.key !== ' ') {
+      if (e.metaKey || e.ctrlKey) return;
+      if (ship!.keydown(e)) {
+        e.preventDefault();
+        hooks.onUserInteraction();
+      }
+      return;
+    }
     const step = 40;
     // Arrows pan in free mode, orbit otherwise.
     const move = (dx: number, dy: number) =>
@@ -179,6 +219,8 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
   };
 
   const onKeyUp = (e: KeyboardEvent) => {
+    // Let go of held ship keys wherever focus went (a search box opened mid-thrust).
+    ship?.keyup(e);
     if (e.key !== ' ' || !spaceHeld) return;
     spaceHeld = false;
     setCursor();
@@ -188,6 +230,7 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
 
   const onBlur = () => {
     spaceHeld = false;
+    ship?.reset();
     setCursor();
   };
 
