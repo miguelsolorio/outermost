@@ -8,9 +8,10 @@ Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs
 
 ## Demo
 
-[![A minute in Outermost: flying from Earth to Mars, the Sun, the black hole V404 Cygni in its 1989 outburst and the cosmic microwave background](docs/screenshots/demo.jpg)](docs/demo.mp4)
 
-A title card, then a minute of exploring, with sound: Earth from Seattle, Mars, the Sun, the black hole V404 Cygni flaring in 1989, the edge of the observable universe, and along the timeline to the next total eclipse. **[Watch the video](docs/demo.mp4)** (MP4, 1080p, 37 MB).
+https://github.com/user-attachments/assets/7ce25900-6c54-4bd5-a46e-64fde7c64146
+
+A title card, then a minute of exploring, with sound: Earth from Seattle, Mars, the Sun, the black hole V404 Cygni flaring in 1989, the edge of the observable universe, and along the timeline to the next total eclipse. **[Watch the video](docs/demo.mp4)**.
 
 ## Screenshots
 
