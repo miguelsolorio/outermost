@@ -78,5 +78,7 @@ export function findNearest(keep: SearchEntry[], limit: number): { matches: Matc
 /** Fly to a place, or move the clock to a landmark and fly to its object. */
 export function go(m: Match): void {
   if (m.event) nav.visit(m.event);
+  // A spacecraft that isn't there at this date: go to when it was.
+  else if (m.when !== undefined && actions.distanceTo(m.id) === null) nav.visit(LANDMARKS.find((l) => l.target === m.id) ?? { ms: m.when, name: m.name, kind: 'mission', target: m.id });
   else actions.flyTo(m.id);
 }

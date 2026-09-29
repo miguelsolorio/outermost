@@ -34,6 +34,8 @@ export interface SearchEntry {
   diffuse?: boolean;
   /** Marks the result's category with a colored dot (CSS color). */
   color?: string;
+  /** A date it exists (UTC ms), for objects only there on some dates: picking it moves the clock there. */
+  when?: number;
 }
 
 export interface Provider {

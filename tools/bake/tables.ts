@@ -30,7 +30,13 @@ export const TABLES: TableSpec[] = [
   { id: 'voyager-2', name: 'Voyager 2', command: '-32', center: '500@10', start: '1977-08-21', stop: '2100-01-01', step: '5 d' },
   { id: 'new-horizons', name: 'New Horizons', command: '-98', center: '500@10', start: '2006-01-20', stop: '2100-01-01', step: '5 d' },
   { id: 'jwst', name: 'James Webb Space Telescope', command: '-170', center: '500@399', start: '2022-01-25', stop: '2030-01-01', step: '1 d' },
+  // Cassini's last orbit and its plunge into Saturn, finely sampled for the
+  // fast periapsis passes. The trajectory ends at entry; past it Horizons rides
+  // the impact point around with the planet.
+  { id: 'cassini', name: 'Cassini', command: '-82', center: '500@699', start: '2017-09-09 10:35', stop: '2017-09-15 10:35', step: '5 m' },
 ];
+
+const CENTERS: Record<string, string> = { '500@10': 'sun', '500@399': 'earth', '500@699': 'saturn' };
 
 async function horizonsVectors(spec: TableSpec, start: string, stop: string): Promise<string> {
   const q = {
@@ -56,8 +62,9 @@ async function horizonsVectors(spec: TableSpec, start: string, stop: string): Pr
   return res.result ?? res.error ?? '';
 }
 
-export async function bakeTables(dir: string): Promise<void> {
-  for (const spec of TABLES) {
+/** Bake every table, or only those named. */
+export async function bakeTables(dir: string, ids?: string[]): Promise<void> {
+  for (const spec of TABLES.filter((t) => !ids?.length || ids.includes(t.id))) {
     let text = await horizonsVectors(spec, spec.start, spec.stop);
     // Spacecraft kernels end at some date: Horizons reports the available span; retry within it.
     const span = text.match(/(?:prior to|after) A\.D\. (\d{4}-[A-Z]{3}-\d{2})/i) ?? text.match(/No ephemeris for target .* (?:after|prior to) A\.D\. (\d{4}-[A-Z]{3}-\d{2})/i);
@@ -82,7 +89,7 @@ export async function bakeTables(dir: string): Promise<void> {
       name: spec.name,
       source: 'JPL Horizons, geometric state vectors (ICRF, km, km/s), TDB',
       horizons_command: spec.command,
-      center: spec.center === '500@10' ? 'sun' : spec.center === '500@399' ? 'earth' : spec.center,
+      center: CENTERS[spec.center] ?? spec.center,
       retrieved: today(),
       jd0_tdb: jd0,
       step_days: step,

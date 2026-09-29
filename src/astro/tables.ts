@@ -28,6 +28,11 @@ export function tableRange(id: string): [number, number] | null {
   return t ? [t.jd0_tdb, t.jd0_tdb + (t.count - 1) * t.step_days] : null;
 }
 
+/** Sample spacing (days). */
+export function tableStep(id: string): number | null {
+  return loaded.get(id)?.step_days ?? null;
+}
+
 /** Position (km) and velocity (km/s) at a TDB Julian date, or null outside the table. */
 export function tableState(id: string, jdTdb: number): { pos: [number, number, number]; vel: [number, number, number] } | null {
   const t = loaded.get(id);

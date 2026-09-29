@@ -20,6 +20,15 @@
       "credit": "JPL Horizons, NASA/JPL-Caltech"
     },
     {
+      "id": "apollo-by-the-numbers",
+      "kind": "data",
+      "title": "Apollo by the Numbers: A Statistical Reference (SP-2000-4029): Apollo 8 and 11 lunar orbit burns and orbits",
+      "publisher": "NASA History Division (R. W. Orloff)",
+      "url": "https://www.nasa.gov/wp-content/uploads/2023/04/sp-4029.pdf",
+      "license": "PD",
+      "credit": "NASA, Apollo by the Numbers (R. W. Orloff)"
+    },
+    {
       "id": "celestrak",
       "kind": "data",
       "title": "CelesTrak GP element sets (ISS, NORAD 25544)",

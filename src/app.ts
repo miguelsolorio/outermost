@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { SimClock } from './astro/time.ts';
 import { AU, DEG, PC } from './astro/units.ts';
-import { length, normalize, smoothstep, sub, type Vec3 } from './astro/vec.ts';
+import { add, length, normalize, smoothstep, sub, type Vec3 } from './astro/vec.ts';
 import { Assets } from './engine/assets.ts';
 import { CameraController } from './engine/camera/controller.ts';
 import { formatDistance } from './engine/format.ts';
@@ -280,6 +280,9 @@ export class App {
    * current distance, only turning to the arrival side (already at `id`).
    */
   flyTo(id: string, opts: { from?: string; stay?: boolean } = {}): void {
+    // Straight after a jump in time (a landmark visit), catch the bodies up to
+    // the clock so an object that only exists at the new date can be found.
+    if (this.world.ms !== this.clock.ms) this.world.update(this.clock.ms);
     if (!this.registry.target(id)) return;
     this.pendingFocus = null;
     this.select(id);
@@ -435,7 +438,18 @@ export class App {
     this.world.update(this.clock.ms);
     if (!this.registry.target(this.camera.focusId)) {
       // The focus has no data at this time (e.g. before a spacecraft launched).
-      this.camera.set(this.chainFor('sun'), Math.max(this.camera.pose.r, 5 * 1.496e11), this.camera.dir);
+      // A craft that was only at a planet or moon for a while (Apollo in lunar
+      // orbit, a lander) hands the view to that body where the camera is;
+      // otherwise go out to the Sun.
+      const up = this.camera.chain.slice(1).find((id) => id !== 'sun' && this.registry.target(id));
+      const t = up ? this.registry.target(up) : undefined;
+      if (up && t && t.radius > 0) {
+        // The bodies have already moved to the new time; place the camera
+        // against the body as it was placed against the craft.
+        const craft = this.spacecraft.lastFocusOffset(this.camera.focusId);
+        const d = craft && up === this.camera.chain[1] ? add(this.camera.pose.offset, craft) : sub(this.camera.pose.position, t.pos());
+        this.camera.set(this.chainFor(up), Math.max(length(d) - t.radius, t.minAltitude), d);
+      } else this.camera.set(this.chainFor('sun'), Math.max(this.camera.pose.r, 5 * 1.496e11), this.camera.dir);
     }
     const pose = this.camera.update(dt);
 
@@ -693,7 +707,11 @@ export class App {
       // Panned, the camera's altitude measures to the look point, not the body.
       const alt = id === this.camera.focusId && !this.camera.panned ? this.camera.altitude : length(rel(focus.pos(), this.camera.pose.position)) - focus.radius;
       const def = BODY_BY_ID.get(id);
-      ui.distanceText =
+      // A landing site frames its whole body, but the distance is to the site.
+      const site = this.spacecraft.sitePosition(id);
+      ui.distanceText = site
+        ? `${formatDistance(length(rel(site, this.camera.pose.position)))} from ${ui.focusName}`
+        :
         def?.kind === 'star' || !def
           ? id === 'observable-universe'
             ? `${formatDistance(length(rel(focus.pos(), this.camera.pose.position)))} from Earth`
