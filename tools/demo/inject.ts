@@ -8,6 +8,7 @@
 //   - input events are counted, so each lands before its frame renders
 //   - a drawn cursor (headless capture has none) follows the real pointer
 //   - SVG (SMIL) animations, like the location marker's pulse, follow the frame step
+//   - the intro's title card and the fades to and from black are drawn over the page
 // Everything here must be self-contained: Playwright serializes the function.
 
 export interface CursorState {
@@ -31,6 +32,10 @@ export interface DemoHooks {
   clearPoint(x: number, y: number): [number, number];
   /** Resolve after a real rendering frame, when Chrome delivers queued pointer and wheel events. */
   flush(): Promise<void>;
+  /** Black over everything, cursor included: 0 clear to 1 black. */
+  cover(opacity: number): void;
+  /** The intro: how far the name and the tagline have come in (0 to 1), and how much of the app's HUD shows. */
+  titleCard(title: number, tagline: number, hud: number): void;
   track: { t: number; viewScale: number; fromSun: number }[];
 }
 
@@ -205,7 +210,7 @@ export function inject(): void {
   let wasDown = false;
   let alpha = 1;
   const build = () => {
-    const base = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2147483647;transition:none;will-change:transform,opacity;';
+    const base = 'position:fixed;left:0;top:0;pointer-events:none;z-index:2147483646;transition:none;will-change:transform,opacity;';
     rippleEl = document.createElement('div');
     rippleEl.style.cssText = `${base}width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;border:2px solid rgb(255 255 255 / 0.85);background:rgb(255 255 255 / 0.14);opacity:0;`;
     cursorEl = document.createElement('div');
@@ -266,6 +271,44 @@ export function inject(): void {
       }
     }
     return [x, y];
+  };
+
+  // ---- title card and fades ----------------------------------------------------------
+
+  let coverEl: HTMLDivElement | null = null;
+  hooks.cover = (opacity) => {
+    if (!coverEl) {
+      coverEl = document.createElement('div');
+      coverEl.style.cssText = 'position:fixed;inset:0;background:#000;pointer-events:none;z-index:2147483647;transition:none;';
+      document.documentElement.append(coverEl);
+    }
+    coverEl.style.opacity = String(opacity);
+  };
+
+  // Set like the social preview image (public/og.png): the name large over the planet's night side, a quiet line under it.
+  let nameEl: HTMLDivElement | null = null;
+  let taglineEl: HTMLDivElement | null = null;
+  hooks.titleCard = (title, tagline, hud) => {
+    if (!nameEl) {
+      const box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:8.5vw;top:56vh;pointer-events:none;z-index:2147483645;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;text-shadow:0 2px 24px rgb(0 0 0 / 0.6);';
+      nameEl = document.createElement('div');
+      nameEl.textContent = 'Outermost';
+      nameEl.style.cssText = 'font-size:104px;font-weight:600;letter-spacing:-0.025em;line-height:1;color:#f3f5f9;';
+      taglineEl = document.createElement('div');
+      taglineEl.textContent = 'Explore the observable universe to scale.';
+      taglineEl.style.cssText = 'margin-top:26px;font-size:26px;font-weight:400;color:rgb(196 204 220 / 0.88);';
+      box.append(nameEl, taglineEl);
+      document.documentElement.append(box);
+    }
+    for (const [el, k] of [[nameEl, title], [taglineEl!, tagline]] as const) {
+      el.style.opacity = String(k);
+      el.style.transform = `translateY(${((1 - k) * 16).toFixed(2)}px)`;
+    }
+    for (const id of ['ui', 'labels']) {
+      const el = document.getElementById(id);
+      if (el) el.style.opacity = hud >= 1 ? '' : String(hud);
+    }
   };
 
   hooks.frame = (t, dt, cursor) => {

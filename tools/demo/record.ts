@@ -32,7 +32,10 @@ const { values: args } = parseArgs({
   },
 });
 
-const SECONDS = 60;
+/** The video runs as long as the storyboard, plus a moment to fade out, up to this long (s). */
+const MAX_SECONDS = 90;
+/** After the storyboard: a hold that fades to black over its last FADE seconds. */
+const TAIL = 2;
 /** The day the recording claims to be "live". */
 const T0 = Date.UTC(2026, 8, 26, 17, 30);
 /** App time per video frame. The fake clock fires animation frames every 16 ms, so one step is exactly one frame. */
@@ -45,9 +48,9 @@ const BT709 = 'setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:
 const CACHE = '.cache/demo';
 const draft = args.draft;
 const start = Number(args.start);
-const end = Math.min(SECONDS, Number(args.end ?? SECONDS));
+const end = args.end === undefined ? MAX_SECONDS : Math.min(MAX_SECONDS, Number(args.end));
 const seed = Number(args.seed);
-const final = !draft && start === 0 && end === SECONDS;
+const final = !draft && start === 0 && args.end === undefined;
 const every = draft ? 2 : 1;
 /**
  * 1280×720 CSS px at 1.5× is 1920×1080, and the renderer caps its pixel ratio
@@ -220,13 +223,12 @@ async function main(): Promise<void> {
     await page.evaluate(() => ((window as unknown as Win).__demo.track.length = 0));
 
     const video = `${CACHE}/video.mp4`;
-    const shown = end - start;
     encoder = spawn(
       'ffmpeg',
       [
         ...['-hide_banner', '-loglevel', 'error', '-y', '-f', 'image2pipe', '-framerate', String(FPS / every), '-c:v', 'mjpeg', '-i', '-'],
         // Chrome's JPEGs are full-range BT.601; tag and convert to broadcast BT.709 so dark scenes don't shift.
-        ...['-vf', `scale=in_color_matrix=bt601:in_range=full:out_color_matrix=bt709:out_range=tv,format=yuv420p,${BT709},fade=t=out:st=${shown - FADE}:d=${FADE}`],
+        ...['-vf', `scale=in_color_matrix=bt601:in_range=full:out_color_matrix=bt709:out_range=tv,format=yuv420p,${BT709}`],
         ...['-c:v', 'libx264', '-preset', draft ? 'veryfast' : 'slow', '-crf', draft ? '20' : '14', '-x264-params', 'aq-mode=3'],
         ...['-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv', video],
       ],
@@ -234,25 +236,30 @@ async function main(): Promise<void> {
     );
     const encoded = once(encoder, 'close');
 
-    const total = Math.round(end * FPS);
+    const last = Math.round(end * FPS);
     const first = Math.round(start * FPS);
     const story = storyboard(d);
     let rest: AsyncGenerator<void, void, void> | null = null;
     const began = Date.now();
-    while (d.frame < total) {
+    while (d.frame < last) {
       if (!rest && (await story.next()).done) {
-        console.log(`\n[demo] storyboard finished at ${(d.t / 1000).toFixed(2)} s; holding to ${SECONDS} s`);
-        rest = d.hold(SECONDS);
+        console.log(`\n[demo] storyboard finished at ${(d.t / 1000).toFixed(2)} s`);
+        rest = (async function* () {
+          yield* d.hold(TAIL - FADE);
+          yield* d.fade(0, 1, FADE);
+        })();
       }
-      if (rest) await rest.next();
+      if (rest && (await rest.next()).done) break;
       await step(d.frame >= first && d.frame % every === 0);
       d.frame++;
       if (d.frame % 30 === 0) {
         const el = (Date.now() - began) / 1000;
-        process.stdout.write(`\r[demo] ${(d.t / 1000).toFixed(1)} s / ${SECONDS} s  (${(d.frame / el).toFixed(1)} frames/s, ${stats.ackMisses} input misses, ${stats.gateWaits} load waits)   `);
+        process.stdout.write(`\r[demo] ${(d.t / 1000).toFixed(1)} s  (${(d.frame / el).toFixed(1)} frames/s, ${stats.ackMisses} input misses, ${stats.gateWaits} load waits)   `);
       }
     }
-    if (!rest && end === SECONDS) console.warn(`\n[demo] the storyboard runs past ${SECONDS} s; cut there`);
+    if (!rest && args.end === undefined) console.warn(`\n[demo] the storyboard runs past ${MAX_SECONDS} s; cut there`);
+    const seconds = d.frame / FPS;
+    const shown = seconds - start;
     await checkScale('after recording');
     encoder.stdin!.end();
     const [code] = await encoded;
@@ -287,7 +294,7 @@ async function main(): Promise<void> {
         for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
         return btoa(s);
       },
-      { seconds: SECONDS, seed },
+      { seconds, seed },
     );
     const audio = `${CACHE}/audio.wav`;
     await writeFile(audio, Buffer.from(wav, 'base64'));

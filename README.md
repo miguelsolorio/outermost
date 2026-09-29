@@ -10,7 +10,7 @@ Everything shown comes from NASA, ESA, JPL, USGS, the IAU and published catalogs
 
 [![A minute in Outermost: flying from Earth to Mars, the Sun, the black hole V404 Cygni in its 1989 outburst and the cosmic microwave background](docs/screenshots/demo.jpg)](docs/demo.mp4)
 
-A minute of exploring, with sound: Earth from Seattle, Mars, the Sun, the black hole V404 Cygni flaring in 1989, the edge of the observable universe, and along the timeline to the next total eclipse. **[Watch the video](docs/demo.mp4)** (MP4, 1080p, 31 MB).
+A title card, then a minute of exploring, with sound: Earth from Seattle, Mars, the Sun, the black hole V404 Cygni flaring in 1989, the edge of the observable universe, and along the timeline to the next total eclipse. **[Watch the video](docs/demo.mp4)** (MP4, 1080p, 37 MB).
 
 ## Screenshots
 
@@ -150,7 +150,7 @@ Without processed assets the app still runs, with bodies in flat colors. There a
 
 `npm run bake` refreshes the small reference data committed under `data/baked/` and `tests/fixtures/` from JPL Horizons, the SBDB, SIMBAD, CelesTrak and NSSDCA. The app itself never calls Horizons: it has no CORS headers, so everything is baked at build time.
 
-`npm run demo` records the video above. It drives a production build in headless Chromium through the beats in `tools/demo/storyboard.ts`, with a drawn cursor, and steps the app one frame at a time on a fake clock, so the motion is smooth and a run plays out the same way every time. The soundtrack is the app's own ambient audio, rendered offline along the camera's path. A full render takes about six minutes on an M1 Pro. While working on the storyboard, `node tools/demo/record.ts --draft` renders 720p at 30 fps into `.cache/demo/`, and `--start` and `--end` (in seconds) narrow it to the part you're changing.
+`npm run demo` records the video above. It drives a production build in headless Chromium through the beats in `tools/demo/storyboard.ts`, with a drawn cursor, and steps the app one frame at a time on a fake clock, so the motion is smooth and a run plays out the same way every time. The soundtrack is the app's own ambient audio, rendered offline along the camera's path. A full render takes about seven minutes on an M1 Pro. While working on the storyboard, `node tools/demo/record.ts --draft` renders 720p at 30 fps into `.cache/demo/`, and `--start` and `--end` (in seconds) narrow it to the part you're changing.
 
 ### Layout
 

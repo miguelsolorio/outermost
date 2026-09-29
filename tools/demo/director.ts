@@ -274,6 +274,19 @@ export class Director {
     if (row !== name) throw new Error(`demo: expected Enter in ${list} to pick "${name}", not "${row}"`);
   }
 
+  /** Hold while the frame fades between clear (0) and black (1). */
+  async *fade(from: number, to: number, seconds: number): Action {
+    const n = this.frames(seconds);
+    const cover = async function* (this: Director): Action {
+      for (let i = 1; i <= n; i++) {
+        const u = i / n;
+        await this.page.evaluate((o) => (window as unknown as { __demo: { cover(o: number): void } }).__demo.cover(o), from + (to - from) * u * u * (3 - 2 * u));
+        yield;
+      }
+    };
+    yield* this.together(this.hold(seconds), cover.call(this));
+  }
+
   /** Run actions side by side, one frame at a time, until all have finished. */
   async *together(...actions: Action[]): Action {
     let live = actions;
