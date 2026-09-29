@@ -48,6 +48,13 @@
     query = '';
   }
 
+  // Picking a result flies there, then clears the search and gets out of the way.
+  function pick(entry: Match) {
+    go(entry);
+    close();
+    input.blur();
+  }
+
   function onInput() {
     ui.openMenu = 'search';
     active = 0;
@@ -76,7 +83,7 @@
       move(active - 1);
       e.preventDefault();
     } else if (e.key === 'Enter' && open && rows[active]) {
-      go(rows[active].entry);
+      pick(rows[active].entry);
     } else if (e.key === 'Enter' && open && list.more && active === rows.length) {
       showMore();
     }
@@ -108,7 +115,7 @@
     bind:this={input}
     id="search"
     type="search"
-    placeholder="Search  /"
+    placeholder="Search / or ⌘+K"
     autocomplete="off"
     spellcheck="false"
     bind:value={query}
@@ -135,7 +142,7 @@
                 tabindex="-1"
                 class:active={i === active}
                 class:current={r.entry.id === ui.selectedId}
-                onclick={() => ((active = i), go(r.entry))}
+                onclick={() => pick(r.entry)}
                 onmouseenter={() => (active = i)}
               >
                 <ResultRow match={r.entry} dist={r.dist} />
