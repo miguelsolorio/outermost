@@ -48,10 +48,13 @@ export interface Actions {
   setPaused(p: boolean): void;
   setTime(ms: number): void;
   now(): void;
-  /** `from`: arrive on the side of `id` facing this object. */
-  flyTo(id: string, opts?: { from?: string }): void;
-  /** Rise clear of the body in view before a jump in time, so it isn't seen spinning. */
-  pullBack(): void;
+  /** `from`: arrive on the side of `id` facing this object. `stay`: keep the current distance. */
+  flyTo(id: string, opts?: { from?: string; stay?: boolean }): void;
+  /**
+   * Rise clear of the body in view before a jump in time, so it isn't seen
+   * spinning. True when the landmark is on the body in view (stay put instead).
+   */
+  pullBack(targetId: string): boolean;
   setFreeMode(on: boolean): void;
   /** Fly back to center on the body a pan left. */
   recenter(): void;
@@ -74,7 +77,7 @@ export const actions: Actions = {
   setTime: () => {},
   now: () => {},
   flyTo: () => {},
-  pullBack: () => {},
+  pullBack: () => false,
   setFreeMode: () => {},
   recenter: () => {},
   flightHigh: () => true,

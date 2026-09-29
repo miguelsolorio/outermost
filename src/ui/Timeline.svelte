@@ -145,19 +145,20 @@
   });
 
   /** A landmark visit waiting for the camera to climb before the clock moves. */
-  let pending: Landmark | null = null;
+  let pending: { lm: Landmark; stay: boolean } | null = null;
 
   /**
    * Clicking a landmark sets the camera rising and moves time once it's far
    * enough out that the planet in view isn't seen spinning, while it's still
    * rising. When the clock lands, the flight to the landmark's object (which may
-   * only exist at that date) takes over mid-rise, so it's one motion.
+   * only exist at that date) takes over mid-rise, so it's one motion. A landmark
+   * on the body already in view skips the rise: the clock moves in place and
+   * the camera turns to the landmark's side at the same distance.
    */
   function visit(lm: Landmark) {
     scrub.cancelTween();
-    pending = lm;
     ui.visiting = true;
-    actions.pullBack();
+    pending = { lm, stay: actions.pullBack(lm.target) };
   }
 
   function jumpWhenHigh() {
@@ -167,11 +168,11 @@
       ui.visiting = false;
     }
     if (!pending || !actions.flightHigh()) return;
-    const lm = pending;
+    const { lm, stay } = pending;
     pending = null;
     scrub.animateTo(lm.ms, 650, () => {
       ui.visiting = false;
-      actions.flyTo(lm.target, { from: lm.from });
+      actions.flyTo(lm.target, { from: lm.from, stay });
     });
   }
 

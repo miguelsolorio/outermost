@@ -243,7 +243,7 @@ export class App {
         this.clock.setPaused(false);
       },
       flyTo: (id, opts) => this.flyTo(id, opts),
-      pullBack: () => this.pullBack(),
+      pullBack: (id) => this.pullBack(id),
       setFreeMode: (on) => this.setFreeMode(on),
       recenter: () => this.recenter(),
       flightHigh: () => this.camera.transit?.high ?? true,
@@ -275,28 +275,36 @@ export class App {
     return this.camera.flying || ui.visiting;
   }
 
-  /** `from`: arrive on the side of `id` facing this object. */
-  flyTo(id: string, opts: { from?: string } = {}): void {
+  /**
+   * `from`: arrive on the side of `id` facing this object. `stay`: keep the
+   * current distance, only turning to the arrival side (already at `id`).
+   */
+  flyTo(id: string, opts: { from?: string; stay?: boolean } = {}): void {
     if (!this.registry.target(id)) return;
     this.pendingFocus = null;
     this.select(id);
-    this.camera.flyTo(id, FOV_DEG * DEG, { from: opts.from });
+    const distance = opts.stay ? this.camera.view?.r : undefined;
+    this.camera.flyTo(id, FOV_DEG * DEG, { from: opts.from, distance });
   }
 
   /**
-   * Before the clock jumps: rise straight up from the body in view, looking the
-   * same way, so it's a dot (not seen spinning) by the time the clock moves.
-   * Nothing to do when already that far out, or mid-flight.
+   * Before the clock jumps for a landmark on `targetId`: rise straight up from
+   * the body in view, looking the same way, so it's a dot (not seen spinning)
+   * by the time the clock moves. Nothing to do when already that far out, or
+   * mid-flight. Returns true when the landmark is on the body in view: then the
+   * camera stays where it is.
    */
-  pullBack(): void {
-    if (this.camera.flying) return;
+  pullBack(targetId: string): boolean {
+    if (this.camera.flying) return false;
     const id = this.camera.viewFocusId;
+    if (id === targetId) return true;
     const t = this.registry.target(id);
     const view = this.camera.view;
-    if (!t || !view || t.radius <= 0) return;
+    if (!t || !view || t.radius <= 0) return false;
     const clear = PULL_BACK_RADII * t.radius;
-    if (view.r >= clear) return;
+    if (view.r >= clear) return false;
     this.camera.flyTo(id, FOV_DEG * DEG, { distance: clear, arrive: view.dir });
+    return false;
   }
 
   setFreeMode(on: boolean): void {
