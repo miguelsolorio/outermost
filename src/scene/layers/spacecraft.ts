@@ -321,6 +321,10 @@ export class SpacecraftLayer implements Provider {
       } else if (hasTable(def.id)) {
         const s = tableState(def.id, jdTdb(ms));
         o = s && [s.pos[0] * 1e3, s.pos[1] * 1e3, s.pos[2] * 1e3];
+      } else {
+        // Its table is still loading: don't remember the miss, or a paused clock
+        // would keep the craft missing after the table arrives.
+        return null;
       }
     }
     v.offset = o;
@@ -571,6 +575,7 @@ export class SpacecraftLayer implements Provider {
       rank: 1,
       // Only there on some dates: picking it moves the clock there first.
       ...(Number.isFinite(v.window[0]) ? { when: v.window[0] } : {}),
+      ...(Number.isFinite(v.window[1]) ? { until: v.window[1] } : {}),
     }));
   }
 

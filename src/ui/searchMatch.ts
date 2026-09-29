@@ -47,7 +47,24 @@ function search(query: string): Match[] {
       if (!seen.has(s.item.id) && terms.every((t) => s.words.some((w) => w.startsWith(t)))) hits.push({ item: s.item, score: SUBTEXT_SCORE });
     }
   }
-  return hits.sort((a, b) => a.score + a.item.rank * 0.02 - (b.score + b.item.rank * 0.02)).map((h) => h.item);
+  const ranked = hits.map((h) => ({ item: h.item, key: h.score + h.item.rank * 0.02, behind: false }));
+  // A craft only there on some dates is part of a landmark from those dates ("apollo 11" is the
+  // landing, not Columbia or Eagle), so it follows a matching one, unless its own name was typed.
+  // Fuse alone ranks the craft first: their names are shorter than a landmark's sentence.
+  const events = ranked.filter((r) => r.item.event);
+  const typed = terms.join(' ');
+  for (const r of ranked) {
+    const { when, until = Infinity } = r.item;
+    if (when === undefined || [r.item.name, ...(r.item.aliases ?? [])].some((n) => words(n).join(' ') === typed)) continue;
+    for (const e of events) {
+      const ms = e.item.event!.ms;
+      if (ms >= when && ms <= until && e.key >= r.key) {
+        r.key = e.key;
+        r.behind = true;
+      }
+    }
+  }
+  return ranked.sort((a, b) => a.key - b.key || Number(a.behind) - Number(b.behind)).map((r) => r.item);
 }
 
 export function findMatches(index: SearchEntry[], query: string, limit: number): { matches: Match[]; more: boolean; total: number } {

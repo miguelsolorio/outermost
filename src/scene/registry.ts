@@ -36,6 +36,8 @@ export interface SearchEntry {
   color?: string;
   /** A date it exists (UTC ms), for objects only there on some dates: picking it moves the clock there. */
   when?: number;
+  /** When those dates end (UTC ms), if they do. */
+  until?: number;
 }
 
 export interface Provider {

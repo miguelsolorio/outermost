@@ -88,7 +88,8 @@ test('searching an event jumps the clock to it and flies to its object', async (
     const a = (window as unknown as { app: AppHandle }).app;
     for (let i = 0; i < 400; i++) a.tick(1 / 30);
   });
-  await expect(page.locator('.focus')).toHaveText('Moon');
+  // The landing goes to the lander at its site, not just the Moon.
+  await expect(page.locator('.focus')).toHaveText('Apollo 11 Eagle');
 });
 
 test('journey: Earth -> observable universe -> Earth keeps a finite, consistent camera', async ({ page }) => {
