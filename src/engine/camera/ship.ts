@@ -33,6 +33,7 @@ import {
 import { AU, DEG, OBLIQUITY_J2000 } from '../../astro/units.ts';
 import { toGalactic } from '../../astro/galactic.ts';
 import { framingDistance, MAX_DISTANCE, viewUp, type CameraPose, type FocusTarget, type Resolver, type ViewRig } from './controller.ts';
+import { attitude } from '../instruments.ts';
 
 /**
  * How the ship treats a target: `solid` things (bodies, stars, black holes)
@@ -65,10 +66,15 @@ export interface ShipControls {
 export interface ShipTelemetry {
   /** Speed relative to the frame (m/s). */
   speed: number;
-  /** Forward drift as a share of full boost (−1..1). */
-  throttle: number;
+  /** Forward drift the throttle lever holds, and the drift the ship actually has (pace units per second). */
+  lever: number;
+  drive: number;
+  /** The autopilot has the throttle. */
+  servo: boolean;
   boost: boolean;
   fine: boolean;
+  /** Close to a surface: within a few closest-altitudes of the nearest body's shell. */
+  prox: boolean;
   /** Distance to the nearest surface (m): the scale speeds are measured in. */
   pace: number;
   frame: string;
@@ -79,10 +85,25 @@ export interface ShipTelemetry {
   holding: string | null;
 }
 
-/** Cruise drift, pace units per second; boost and fine scale it. */
-const CRUISE = 1;
-const BOOST = 4;
-const FINE = 0.2;
+/** What the instruments show every frame: cheap to read, no search over the neighborhood. */
+export interface ShipGauges {
+  lever: number;
+  drive: number;
+  servo: boolean;
+  /** How fast the ship drifts, pace units per second. */
+  drift: number;
+  phase: 'turning' | 'cruising' | 'arriving' | 'facing' | null;
+  /** Nose above the local level plane, and bank (right wing down +), radians. */
+  pitch: number;
+  bank: number;
+  /** Heading longitude (degrees) in the telemetry's system. */
+  heading: number;
+}
+
+/** Cruise drift, pace units per second; boost and fine scale it. The throttle lever spans −CRUISE..BOOST. */
+export const CRUISE = 1;
+export const BOOST = 4;
+export const FINE = 0.2;
 /** Drift easing (s): spooling up, coasting to rest, an all-stop, and under autopilot (fast enough not to overshoot). */
 const SPOOL = 0.35;
 const COAST = 0.45;
@@ -180,6 +201,12 @@ export class ShipController implements ViewRig {
   /** Looking around the cockpit: yaw (right +) and pitch (up +) from straight ahead. */
   head = { yaw: 0, pitch: 0, vYaw: 0, vPitch: 0, held: false };
   controls: ShipControls = { thrust: [0, 0, 0], turn: [0, 0, 0], boost: false, fine: false };
+  /**
+   * The throttle lever: forward drift it holds (pace units per second) with no
+   * keys down, like cruise control. The keys add to it. The autopilot takes
+   * the throttle and hands it back at stop.
+   */
+  lever = 0;
   /** After arriving somewhere (or entering ship mode at it), stay in its frame while near. */
   hold: string | null = null;
   /** Distance to the nearest surface at the last step (m). */
@@ -204,6 +231,7 @@ export class ShipController implements ViewRig {
   private chain: string[] = ['earth', 'sun'];
   private lastRefPos: Vec3 = [0, 0, 0];
   private refParentOffset: Vec3 | null = null;
+  private headingSystem: ShipTelemetry['heading']['system'] = 'ecliptic';
 
   constructor(private hooks: ShipHooks) {}
 
@@ -264,6 +292,7 @@ export class ShipController implements ViewRig {
     this.grabRate = [0, 0, 0];
     this.auto = null;
     this.glide = 0;
+    this.lever = 0;
     this.braking = this.leveling = false;
     // A spacecraft or a galaxy isn't a place the ship would otherwise pick as its frame: stay with it while near.
     this.hold = this.hooks.kind(t.id) === 'solid' ? null : t.id;
@@ -360,11 +389,34 @@ export class ShipController implements ViewRig {
     this.glide += amount;
   }
 
-  /** All stop. */
+  /** All stop: the lever back to stop, and brake. */
   stop(): void {
     this.cancelAuto();
     this.glide = 0;
+    this.lever = 0;
     this.braking = true;
+  }
+
+  /** Set the throttle lever (forward drift, pace units per second); stop is an all-stop. Manual: the autopilot lets go. */
+  setLever(drift: number): void {
+    const v = clamp(drift, -CRUISE, BOOST);
+    if (v === 0) return this.stop();
+    this.cancelAuto();
+    this.braking = false;
+    this.lever = v;
+  }
+
+  /**
+   * Take hold of the lever: under autopilot it's wherever the autopilot was
+   * driving, so taking over doesn't change speed. Returns where it is.
+   */
+  takeLever(): number {
+    if (this.auto) {
+      if (!this.auto.faceOnly) this.lever = clamp(dot(this.u, this.fwd), -CRUISE, BOOST);
+      this.cancelAuto();
+      this.braking = false;
+    }
+    return this.lever;
   }
 
   /** Roll level with the local north (the body's pole up close, ecliptic north farther out). */
@@ -396,6 +448,8 @@ export class ShipController implements ViewRig {
     if (!this.hooks.resolve(id)) return;
     this.braking = this.leveling = false;
     this.glide = 0;
+    // The autopilot has the throttle; it hands it back at stop.
+    this.lever = 0;
     this.auto = { id, from: opts.from, distance: opts.distance, faceOnly: false, phase: 'turning', L: Infinity, Ad: 0 };
   }
 
@@ -442,18 +496,39 @@ export class ShipController implements ViewRig {
     const sun = env.get('sun');
     const fromSun = sun ? length(this.local(sun, env)) : Infinity;
     const heading = fromSun > 1e4 * AU ? galactic(this.fwd) : ecliptic(this.fwd);
+    this.headingSystem = heading.system;
+    const near = nearest ? env.get(nearest.id) : undefined;
     const a = this.auto;
     return {
       speed: this.speed,
-      throttle: clamp(dot(this.u, this.fwd) / BOOST, -1, 1),
+      lever: this.lever,
+      drive: dot(this.u, this.fwd),
+      servo: this.flying,
       boost: this.controls.boost,
       fine: this.controls.fine,
+      prox: !!nearest && !!near && nearest.altitude < 3 * near.t.minAltitude,
       pace: this.pace,
       frame: this.ref,
       nearest,
       heading,
       autopilot: a ? { id: a.id, phase: a.phase, distance: a.L, eta: a.faceOnly ? 0 : Math.max(0, Math.log(Math.max(a.L, 1) / Math.max(0.01 * a.Ad, 1)) / 3) } : null,
       holding: this.hold,
+    };
+  }
+
+  /** The instruments' per-frame reading. */
+  gauges(): ShipGauges {
+    const level = viewUp(this.hooks.resolve, this.chain, Math.max(length(this.rel), 1));
+    const { pitch, bank } = attitude(this.fwd, this.up, level);
+    return {
+      lever: this.lever,
+      drive: dot(this.u, this.fwd),
+      servo: this.flying,
+      drift: length(this.u),
+      phase: this.auto?.phase ?? null,
+      pitch,
+      bank,
+      heading: (this.headingSystem === 'galactic' ? galactic(this.fwd) : ecliptic(this.fwd)).lon,
     };
   }
 
@@ -560,6 +635,8 @@ export class ShipController implements ViewRig {
       const c = this.controls;
       const mult = CRUISE * (c.boost ? BOOST : c.fine ? FINE : 1);
       uT = scale(add(add(scale(right, c.thrust[0]), scale(this.up, c.thrust[1])), scale(this.fwd, c.thrust[2])), mult);
+      // The lever holds its drift along the heading; the keys add to it.
+      uT = add(uT, scale(this.fwd, this.lever));
       const tm = c.fine ? FINE_TURN : 1;
       const pitch = c.turn[0] * KEY_TURN * tm;
       const yaw = c.turn[1] * KEY_TURN * tm;
@@ -794,7 +871,8 @@ export class ShipController implements ViewRig {
         this.auto = null;
         return null;
       }
-      return { u: [0, 0, 0], w: turnTo(toT) };
+      // Turning in place keeps whatever the lever holds.
+      return { u: scale(this.fwd, this.lever), w: turnTo(toT) };
     }
 
     const Ad = this.arrival(T.t);

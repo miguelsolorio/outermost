@@ -7,7 +7,7 @@
 // would, out to the side windows. Pure math, no DOM, so it can be tested.
 
 import type { CameraPose } from './camera/controller.ts';
-import { add, dot, scale, type Vec3 } from '../astro/vec.ts';
+import { add, dot, scale, type Mat3, type Vec3 } from '../astro/vec.ts';
 
 const DEG = Math.PI / 180;
 
@@ -45,6 +45,17 @@ export interface CockpitFrame {
   drift: ScreenPoint | null;
   /** On screen: a bracket at x, y. Off screen or behind: an arrow on the edge, pointing at `angle` (rad, counterclockwise from right). */
   target: { x: number; y: number; dist: number; edge: boolean; angle: number } | null;
+  /** Focal length (CSS px): the perspective the console is drawn with. */
+  focal: number;
+  /**
+   * The head's turn in the ship's axes: rows are the camera's right, up and
+   * forward in (ship right, ship up, ship forward).
+   */
+  head: Mat3;
+  /** Looking straight ahead. */
+  rest: boolean;
+  /** Where the heading tape sits on the windshield, just under the top of the frame. */
+  tape: ScreenPoint | null;
 }
 
 /** Keeps the target arrow this far (CSS px) inside the edges. */
@@ -98,7 +109,10 @@ function arc(c: [number, number], r: number, a0: number, a1: number): Array<[num
 }
 
 const BOW = 17;
-const SILL = -14;
+/** The windshield's bottom edge: the console fills the view below it. */
+export const SILL = -10;
+/** Screen px kept clear above the console for markers, past its raised center module. */
+export const ABOVE_CONSOLE = 56;
 const HALF = 30;
 const CORNER = 5;
 /** How far round the canopy goes (azimuth, degrees); behind that is your seat. */
@@ -231,12 +245,23 @@ function polygonPath(pts: Array<[number, number]>, input: CockpitInput, f: numbe
 /** Keep far-off projections finite and short in the path string. */
 const clampPx = (v: number): string => Math.max(-1e5, Math.min(1e5, v)).toFixed(1);
 
-/** Where on the inset edge an arrow at `angle` (counterclockwise from right) sits. */
-export function edgePoint(angle: number, w: number, h: number): ScreenPoint {
+/** Height of the view (CSS px) the console covers when looking straight ahead: everything below the sill. */
+export function consoleHeight(h: number, fov: number): number {
+  return h / 2 + (h / 2) * (Math.tan(SILL * DEG) / Math.tan(fov / 2));
+}
+
+/**
+ * Where on the inset edge an arrow at `angle` (counterclockwise from right)
+ * sits. `bottom` keeps it that far above the bottom instead (clear of the
+ * console).
+ */
+export function edgePoint(angle: number, w: number, h: number, bottom = EDGE_INSET): ScreenPoint {
   const a = Math.max(w / 2 - EDGE_INSET, 1);
-  const b = Math.max(h / 2 - EDGE_INSET, 1);
+  const top = h / 2 - EDGE_INSET;
+  const low = Math.max(h / 2 - bottom, 1);
   const c = Math.cos(angle);
   const s = Math.sin(angle);
+  const b = s >= 0 ? Math.max(top, 1) : low;
   const k = Math.min(Math.abs(c) > 1e-9 ? a / Math.abs(c) : Infinity, Math.abs(s) > 1e-9 ? b / Math.abs(s) : Infinity);
   return { x: w / 2 + c * k, y: h / 2 - s * k };
 }
@@ -268,20 +293,35 @@ function canopy(input: CockpitInput, f: number): NonNullable<typeof canopyCache>
   return canopyCache;
 }
 
+/** The head's turn in ship axes (see `CockpitFrame.head`). */
+function headBasis(pose: CameraPose, ship: CockpitInput['ship']): Mat3 {
+  const R: Vec3 = [
+    ship.fwd[1] * ship.up[2] - ship.fwd[2] * ship.up[1],
+    ship.fwd[2] * ship.up[0] - ship.fwd[0] * ship.up[2],
+    ship.fwd[0] * ship.up[1] - ship.fwd[1] * ship.up[0],
+  ];
+  const row = (v: Vec3) => [dot(v, R), dot(v, ship.up), dot(v, ship.fwd)];
+  return [...row(pose.right), ...row(pose.up), ...row(pose.forward)] as Mat3;
+}
+
 export function buildCockpitFrame(input: CockpitInput): CockpitFrame {
   const { pose, w, h, fov } = input;
   const f = h / 2 / Math.tan(fov / 2);
   const c = canopy(input, f);
+  const head = headBasis(pose, input.ship);
+  const rest = Math.abs(head[0] - 1) + Math.abs(head[4] - 1) + Math.abs(head[8] - 1) < 1e-9;
+  // Off-screen targets point from above the console, not from behind it.
+  const bottom = Math.max(EDGE_INSET, rest ? consoleHeight(h, fov) + ABOVE_CONSOLE : EDGE_INSET);
   let target: CockpitFrame['target'] = null;
   if (input.target) {
     const c = toCamera(input.target.rel, pose);
     const p = c[2] > 1e-9 * Math.hypot(c[0], c[1], c[2]) ? screen(c, w, h, f) : null;
-    const inside = p && p.x >= EDGE_INSET && p.x <= w - EDGE_INSET && p.y >= EDGE_INSET && p.y <= h - EDGE_INSET;
+    const inside = p && p.x >= EDGE_INSET && p.x <= w - EDGE_INSET && p.y >= EDGE_INSET && p.y <= h - bottom;
     if (p && inside) target = { x: p.x, y: p.y, dist: input.target.dist, edge: false, angle: 0 };
     else {
       // Off screen or behind: point the way to turn. Dead astern, point down.
       const angle = Math.hypot(c[0], c[1]) > 1e-9 ? Math.atan2(c[1], c[0]) : -Math.PI / 2;
-      const e = edgePoint(angle, w, h);
+      const e = edgePoint(angle, w, h, bottom);
       target = { x: e.x, y: e.y, dist: input.target.dist, edge: true, angle };
     }
   }
@@ -295,5 +335,47 @@ export function buildCockpitFrame(input: CockpitInput): CockpitFrame {
     nose: project(input.ship.fwd, pose, w, h, fov),
     drift: input.drift ? project(input.drift, pose, w, h, fov) : null,
     target,
+    focal: f,
+    head,
+    rest,
+    tape: project(shipDir(input.ship, 0, BOW - 2.5), pose, w, h, fov),
   };
+}
+
+/**
+ * The CSS transform that draws a console panel as part of the ship: a flat
+ * panel laid out at rest at (x0, y0) in a w × h view is a plane at depth f
+ * facing the eye, turned with the head and seen through `perspective: f px`
+ * (origin at the view's center, the panel's transform-origin at its top
+ * left). It projects exactly as `project()` would: the console stays glued to
+ * the canopy. `eye` moves the eye (ship axes, px) to lean in. `depth` is how
+ * squarely the panel's nearest corner is in front (cosine off the view axis):
+ * fade the panel as it nears 0.2 so no corner goes behind the eye.
+ */
+export function panelTransform(
+  rect: { x: number; y: number; w: number; h: number },
+  head: Mat3,
+  eye: Vec3,
+  w: number,
+  h: number,
+  f: number,
+): { matrix: string; depth: number } {
+  const [r0, r1, r2, u0, u1, u2, k0, k1, k2] = head;
+  // The panel's top left in ship axes (px): right, up, forward.
+  const P0: Vec3 = [rect.x - w / 2 - eye[0], h / 2 - rect.y - eye[1], f - eye[2]];
+  const cam = (p: Vec3): Vec3 => [r0 * p[0] + r1 * p[1] + r2 * p[2], u0 * p[0] + u1 * p[1] + u2 * p[2], k0 * p[0] + k1 * p[1] + k2 * p[2]];
+  const c0 = cam(P0);
+  // A panel point (x right, y down) is P0 + x·right − y·up; CSS wants (x right, y down, z toward the eye).
+  const m = [
+    r0, -u0, -k0, 0,
+    -r1, u1, k1, 0,
+    0, 0, 1, 0,
+    w / 2 + c0[0] - rect.x, h / 2 - c0[1] - rect.y, f - c0[2], 1,
+  ];
+  let depth = Infinity;
+  for (const [x, y] of [[0, 0], [rect.w, 0], [0, rect.h], [rect.w, rect.h]]) {
+    const c = cam([P0[0] + x, P0[1] - y, P0[2]]);
+    depth = Math.min(depth, c[2] / Math.hypot(c[0], c[1], c[2]));
+  }
+  return { matrix: `matrix3d(${m.map((v) => +v.toFixed(6)).join(',')})`, depth };
 }

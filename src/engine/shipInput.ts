@@ -3,7 +3,7 @@
 //  - W/S thrust, A/D strafe, R/F rise and sink, Shift boost, Alt fine
 //  - Drag: steer by grabbing the sky (it follows the pointer, and a flick keeps turning); arrows pitch and yaw, Q/E roll
 //  - Right-drag / Alt-drag: look around the cockpit (springs back on release)
-//  - X all stop, C face the selected object, L level, H hide the canopy and instruments
+//  - X all stop, C face the selected object, L level, H hide the canopy and instruments, T the timeline
 // Keys are matched by physical position (e.code), so they work on any layout.
 
 import type { ShipController } from './camera/ship.ts';
@@ -13,6 +13,8 @@ export interface ShipInputHooks {
   /** Turn to face the selected object (or the body the ship is with). */
   face(): void;
   toggleHud(): void;
+  /** Raise or stow the full timeline over the console. */
+  toggleTime(): void;
 }
 
 export interface ShipInput {
@@ -117,6 +119,9 @@ export function createShipInput(el: HTMLElement, ship: () => ShipController, hoo
           return true;
         case 'KeyH':
           hooks.toggleHud();
+          return true;
+        case 'KeyT':
+          hooks.toggleTime();
           return true;
       }
       return false;

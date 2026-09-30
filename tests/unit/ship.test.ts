@@ -401,6 +401,114 @@ describe('ship: autopilot', () => {
   });
 });
 
+describe('ship: throttle lever', () => {
+  /** Heading straight out from Earth, 2e7 m up. */
+  const outbound = () => {
+    const w = world();
+    w.ship.enter(poseAt(w, 'earth', [6.371e6 + 2e7, 0, 0], [1, 0, 0]), 'earth', ['earth', 'sun']);
+    return w;
+  };
+  const run = (w: ReturnType<typeof world>, frames: number) => {
+    for (let i = 0; i < frames; i++) w.ship.update(DT);
+  };
+
+  it('holds its pace with no keys held', () => {
+    const w = outbound();
+    const d0 = length(relTo(w, 'earth'));
+    w.ship.setLever(1);
+    run(w, 180);
+    expect(Math.abs(dot(w.ship.u, w.ship.fwd) - 1)).toBeLessThan(0.02);
+    expect(length(relTo(w, 'earth'))).toBeGreaterThan(5 * d0);
+  });
+
+  it('adds the keys on top', () => {
+    const w = outbound();
+    w.ship.setLever(1);
+    w.ship.setControls({ ...noInput, thrust: [0, 0, 1] });
+    run(w, 180);
+    expect(Math.abs(dot(w.ship.u, w.ship.fwd) - 2)).toBeLessThan(0.05);
+  });
+
+  it('pulls back to stop and brakes, from the lever or an all-stop', () => {
+    for (const halt of [(w: ReturnType<typeof world>) => w.ship.stop(), (w: ReturnType<typeof world>) => w.ship.setLever(0)]) {
+      const w = outbound();
+      w.ship.setLever(4);
+      run(w, 60);
+      halt(w);
+      expect(w.ship.lever).toBe(0);
+      run(w, 60);
+      expect(length(w.ship.u)).toBeLessThan(0.01);
+    }
+  });
+
+  it('stays within reverse and boost', () => {
+    const w = outbound();
+    w.ship.setLever(10);
+    expect(w.ship.lever).toBe(4);
+    w.ship.setLever(-5);
+    expect(w.ship.lever).toBe(-1);
+  });
+
+  it('is the autopilot’s while it flies, and handed back at stop', () => {
+    const w = world();
+    w.ship.setLever(1);
+    w.ship.engage('mars');
+    expect(w.ship.lever).toBe(0);
+    expect(w.ship.gauges().servo).toBe(true);
+    for (let i = 0; i < 60 * 20 && w.ship.flying; i++) w.ship.update(DT);
+    expect(w.ship.flying).toBe(false);
+    expect(w.ship.lever).toBe(0);
+    expect(w.ship.hold).toBe('mars');
+    expect(w.ship.telemetry().servo).toBe(false);
+  });
+
+  it('takes over from the autopilot at the speed it was flying', () => {
+    const w = world();
+    w.ship.engage('mars');
+    run(w, 150);
+    expect(w.ship.flying).toBe(true);
+    const drive = dot(w.ship.u, w.ship.fwd);
+    const a = relTo(w, 'sun');
+    w.ship.update(DT);
+    const b = relTo(w, 'sun');
+    const lever = w.ship.takeLever();
+    expect(w.ship.flying).toBe(false);
+    expect(lever).toBeCloseTo(Math.max(-1, Math.min(4, drive)), 6);
+    w.ship.update(DT);
+    const c = relTo(w, 'sun');
+    const v0 = sub(b, a);
+    expect(length(sub(sub(c, b), v0))).toBeLessThan(0.1 * length(v0));
+  });
+
+  it('keeps cruising while turning to face something', () => {
+    const w = outbound();
+    w.ship.setLever(1);
+    run(w, 60);
+    w.ship.face('mars');
+    for (let i = 0; i < 60 * 5 && w.ship.targetId; i++) w.ship.update(DT);
+    expect(w.ship.targetId).toBe(null);
+    expect(w.ship.lever).toBe(1);
+    expect(Math.abs(dot(w.ship.u, w.ship.fwd) - 1)).toBeLessThan(0.05);
+  });
+
+  it('starts at stop on entering', () => {
+    const w = outbound();
+    w.ship.setLever(2);
+    w.ship.enter(w.cam.pose, 'earth', w.cam.viewChain);
+    expect(w.ship.lever).toBe(0);
+  });
+
+  it('reads bank right wing down as positive, and level after leveling', () => {
+    const w = world();
+    w.ship.level();
+    run(w, 180);
+    expect(Math.abs(w.ship.gauges().bank)).toBeLessThan(0.5 * DEG);
+    w.ship.setControls({ ...noInput, turn: [0, 0, 1] });
+    run(w, 12);
+    expect(w.ship.gauges().bank).toBeGreaterThan(2 * DEG);
+  });
+});
+
 describe('ship: leaving', () => {
   it('hands the view back to the orbit camera exactly, then eases the roll', () => {
     const w = world();

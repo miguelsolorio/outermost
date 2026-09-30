@@ -122,6 +122,16 @@ export class Ambient {
     this.graph.master.gain.setTargetAtTime(this.volume, ctx.currentTime, 2.5);
   }
 
+  /**
+   * The audio context and master bus, for other sounds to play through (so
+   * they mute and fade with the soundscape), or null before sound has
+   * started. `start`: start it now (only from a user's press).
+   */
+  bus(start = false): { ctx: AudioContext; out: AudioNode } | null {
+    if (start && this.enabled && !this.started) this.start();
+    return this.ctx && this.graph ? { ctx: this.ctx, out: this.graph.master } : null;
+  }
+
   /** Update from the camera's distance to what it looks at (m) and the distance from the Sun (m). */
   update(viewScale: number, fromSun: number): void {
     if (!this.ctx || !this.graph) return;

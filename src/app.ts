@@ -6,9 +6,10 @@ import { SimClock } from './astro/time.ts';
 import { AU, DEG, PC } from './astro/units.ts';
 import { add, length, normalize, rotationBetween, scale, smoothstep, sub, type Vec3 } from './astro/vec.ts';
 import { Assets } from './engine/assets.ts';
-import { CameraController, type CameraPose, type ViewRig } from './engine/camera/controller.ts';
+import { CameraController, ECLIPTIC_NORTH, type CameraPose, type ViewRig } from './engine/camera/controller.ts';
 import { ShipController, type ShipKind } from './engine/camera/ship.ts';
 import { buildCockpitFrame, type CockpitFrame } from './engine/cockpit.ts';
+import { radarBlip, subPoint } from './engine/instruments.ts';
 import { createShipInput, type ShipInput } from './engine/shipInput.ts';
 import { formatDistance } from './engine/format.ts';
 import { attachInput } from './engine/input.ts';
@@ -30,6 +31,7 @@ import { SpacecraftLayer } from './scene/layers/spacecraft.ts';
 import { SmallBodiesLayer } from './scene/layers/smallBodies.ts';
 import { UserLocationLayer } from './scene/layers/userLocation.ts';
 import { Ambient } from './audio/ambient.ts';
+import { Foley } from './audio/foley.ts';
 import { CosmosLayer } from './scene/layers/cosmos.ts';
 import { CosmosProvider } from './scene/providers/cosmos.ts';
 import { BlackHolesProvider } from './scene/providers/blackHoles.ts';
@@ -42,7 +44,7 @@ import { Registry, type SearchEntry } from './scene/registry.ts';
 import { World } from './scene/world.ts';
 import { loadEphemerisTables } from './data/tables.ts';
 import { BLACK_HOLE_BY_ID, BLACK_HOLES } from './data/blackHoles.ts';
-import { bindActions, cockpit, ui, type ShipReadout } from './ui/state.svelte.ts';
+import { bindActions, cockpit, pilot, sfx, ui, type RadarContact, type ShipReadout } from './ui/state.svelte.ts';
 
 /**
  * How far out (in radii of the body in view) a landmark visit rises. The clock
@@ -81,6 +83,8 @@ export class App {
   readonly sprites: GalaxySpritesLayer;
   readonly smallBodies: SmallBodiesLayer;
   readonly audio = new Ambient();
+  /** The cockpit's switches, levers and engine hum. */
+  readonly foley = new Foley(this.audio);
   readonly labels: LabelLayer;
   readonly userLocation: UserLocationLayer;
   settings: Settings = { labels: true, orbits: true, boost: false, constellations: false, smallBodies: true, location: true };
@@ -155,6 +159,7 @@ export class App {
     this.shipInput = createShipInput(canvas, () => this.ship, {
       face: () => this.recenter(),
       toggleHud: () => (ui.hudHidden = !ui.hudHidden),
+      toggleTime: () => (ui.timeOpen = !ui.timeOpen),
     });
     this.labels = new LabelLayer(labelRoot, (id) => this.flyTo(id), (id) => (ui.hoverId = id));
     this.userLocation = new UserLocationLayer(labelRoot);
@@ -299,6 +304,20 @@ export class App {
         if (key === 'location') this.userLocation.setEnabled(this.settings.location);
       },
     });
+    // The cockpit console's controls.
+    Object.assign(pilot, {
+      takeLever: () => this.ship.takeLever(),
+      setLever: (drift: number) => this.ship.setLever(drift),
+      stop: () => this.ship.stop(),
+      level: () => this.ship.level(),
+      face: () => this.recenter(),
+      engage: () => {
+        if (this.selected) this.flyTo(this.selected);
+      },
+      disengage: () => this.ship.cancelAuto(),
+      eject: () => this.setShipMode(false),
+    });
+    sfx.play = (name) => this.foley.play(name);
   }
 
   /** Apply a deep link once its target's catalog has loaded (a star, a galaxy's black hole). */
@@ -352,6 +371,7 @@ export class App {
     }
     this.shipMode = on;
     ui.shipMode = on;
+    ui.timeOpen = false;
     ui.ship = on ? this.shipReadout() : null;
     // Show the hand straight away, however ship mode was entered (key, button or link): dragging grabs the sky.
     this.canvas.style.cursor = on ? 'grab' : '';
@@ -613,7 +633,7 @@ export class App {
     this.updateLabels(ctx);
     const earth = this.bodies.visuals.get('earth')!;
     this.userLocation.update(ctx, earth.apparentPx, earth.boost);
-    if (this.shipMode) cockpit.sink?.(this.cockpitFrame(pose));
+    if (this.shipMode) cockpit.sink?.(this.cockpitFrame(pose), this.ship.gauges());
 
     this.galaxy.render();
     this.rc.render();
@@ -815,6 +835,8 @@ export class App {
         this.refreshShipCandidates();
         ui.ship = this.shipReadout();
       } else this.camera.reanchor();
+      // The engine hums in the cockpit, rising with the ship's drift.
+      this.foley.engine(this.shipMode && !ui.hudHidden, length(this.ship.u));
       ui.panned = !this.shipMode && this.camera.panned;
       ui.freeMode = this.camera.freeMode;
       ui.timeMs = this.clock.ms;
@@ -893,15 +915,58 @@ export class App {
     const t = this.ship.telemetry();
     return {
       speed: t.speed,
-      throttle: t.throttle,
+      pace: t.pace,
+      lever: t.lever,
+      drive: t.drive,
+      servo: t.servo,
       boost: t.boost,
       fine: t.fine,
+      prox: t.prox,
       frame: this.nameOf(t.frame),
-      nearest: t.nearest ? { name: this.nameOf(t.nearest.id), altitude: t.nearest.altitude } : null,
+      rebasing: !!this.ship.transit,
+      nearest: t.nearest ? { name: this.nameOf(t.nearest.id), altitude: t.nearest.altitude, ...this.underShip(t.nearest.id) } : null,
+      selected: this.selected && this.registry.target(this.selected) ? this.nameOf(this.selected) : null,
+      radar: this.radarContacts(),
       heading: t.heading,
       autopilot: t.autopilot ? { name: this.nameOf(t.autopilot.id), phase: t.autopilot.phase, distance: t.autopilot.distance, eta: t.autopilot.eta } : null,
       holding: t.holding ? this.nameOf(t.holding) : null,
     };
+  }
+
+  /** The point on a body under the ship (degrees), longitude from local noon; null without a pole or a sun to measure from. */
+  private underShip(id: string): { lat: number | null; lon: number | null } {
+    const b = this.registry.target(id);
+    const sun = this.registry.target('sun');
+    if (!b || !sun || id === 'sun' || b.radius <= 0) return { lat: null, lon: null };
+    const bp = b.pos();
+    const toSun = sub(sun.pos(), bp);
+    if (length(toSun) === 0) return { lat: null, lon: null };
+    const p = subPoint(sub(this.ship.pose.position, bp), b.pole() ?? ECLIPTIC_NORTH, normalize(toSun));
+    return { lat: p.lat, lon: p.lon };
+  }
+
+  /** What's around the ship for the radar: the target and the frame body always, and the nearest others in range. */
+  private radarContacts(): RadarContact[] {
+    const s = this.ship;
+    const pose = s.pose;
+    const target = s.targetId ?? this.selected;
+    const out: RadarContact[] = [];
+    const ids = new Set(this.shipCandidates);
+    if (target) ids.add(target);
+    for (const id of ids) {
+      const t = this.registry.target(id);
+      if (!t) continue;
+      // Target minus ship, exact against the frame body.
+      const d = id === s.focusId ? relPrecise(t.pos(), pose) : rel(t.pos(), pose.position);
+      const dist = length(d);
+      if (!(dist > 0) || !Number.isFinite(dist)) continue;
+      const role = id === target ? 'target' : id === s.focusId ? 'frame' : 'other';
+      const b = radarBlip(d, s.fwd, s.up, s.pace);
+      if (b.clipped && role === 'other') continue;
+      out.push({ id, name: this.nameOf(id), ...b, role, distance: dist });
+    }
+    out.sort((a, b) => (a.role === 'other' ? 1 : 0) - (b.role === 'other' ? 1 : 0) || a.distance - b.distance);
+    return out.slice(0, 24);
   }
 
   /** The ship's place for a link: the orbit view from where it is, looking at the body it's with. */

@@ -241,3 +241,93 @@ test('ship mode: fly from the cockpit, autopilot to Mars, and hand back to the o
   expect(await page.evaluate(() => (window as unknown as { app: AppHandle }).app.camera.focusId)).toBe('mars');
   expect(errors).toEqual([]);
 });
+
+test('ship mode: the console flies the ship, runs the clock and ejects', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('console', (m) => {
+    if (m.type() === 'error') errors.push(m.text());
+  });
+  page.on('pageerror', (e) => errors.push(e.message));
+  await page.goto('/#f=earth&h=2e7&p=1');
+  await ready(page);
+  interface Cockpit {
+    shipMode: boolean;
+    select(id: string): void;
+    clock: { rate: number; paused: boolean };
+    ship: { lever: number; flying: boolean; fwd: number[]; pose: { position: number[] } };
+    registry: { target(id: string): { pos(): number[] } };
+    tick(dt: number): void;
+  }
+  const read = () =>
+    page.evaluate(() => {
+      const a = (window as unknown as { app: Cockpit }).app;
+      const e = a.registry.target('earth').pos();
+      return {
+        shipMode: a.shipMode,
+        lever: a.ship.lever,
+        flying: a.ship.flying,
+        fwd: a.ship.fwd.slice(),
+        rate: a.clock.rate,
+        paused: a.clock.paused,
+        fromEarth: Math.hypot(...a.ship.pose.position.map((x, i) => x - e[i])),
+      };
+    });
+  const tick = (n: number) =>
+    page.evaluate((n) => {
+      const a = (window as unknown as { app: Cockpit }).app;
+      for (let i = 0; i < n; i++) a.tick(1 / 30);
+    }, n);
+
+  await page.keyboard.press('v');
+  await expect(page.getByRole('group', { name: 'Flight console' })).toBeVisible();
+
+  // The timeline is stowed under the console; the TIME key raises it and Escape stows it again.
+  const dock = page.locator('.dock');
+  await expect(dock).toHaveClass(/stowed/);
+  await page.getByRole('button', { name: 'Timeline' }).click();
+  await expect(dock).toHaveClass(/raised/);
+  await page.keyboard.press('Escape');
+  await expect(dock).toHaveClass(/stowed/);
+
+  // The throttle holds its speed with no keys down.
+  const throttle = page.getByRole('slider', { name: 'Throttle' });
+  await throttle.focus();
+  await throttle.press('PageUp');
+  await throttle.press('PageUp');
+  await expect(throttle).toHaveAttribute('aria-valuetext', 'Cruise');
+  const before = await read();
+  expect(before.lever).toBe(1);
+  await tick(45);
+  expect((await read()).fromEarth).toBeLessThan(before.fromEarth * 0.9);
+  // Arrows on the lever move it, not the ship; the ship's keys still work with it focused.
+  const fwd = (await read()).fwd;
+  await throttle.press('ArrowUp');
+  await tick(10);
+  const turned = await read();
+  expect(turned.fwd.every((v, i) => Math.abs(v - fwd[i]) < 1e-9)).toBe(true);
+  expect(turned.lever).toBeGreaterThan(1);
+  await throttle.press('x');
+  expect((await read()).lever).toBe(0);
+
+  // The warp knob steps the clock's speed; the clock switch runs it.
+  const knob = page.getByRole('slider', { name: 'Time warp' });
+  await knob.focus();
+  await knob.press('ArrowRight');
+  expect((await read()).rate).toBe(60);
+  const paused = (await read()).paused;
+  await page.getByRole('switch', { name: 'Clock running' }).click();
+  expect((await read()).paused).toBe(!paused);
+
+  // The engage lever sends the autopilot to what's selected.
+  await page.evaluate(() => (window as unknown as { app: Cockpit }).app.select('mars'));
+  const engage = page.getByRole('button', { name: 'Engage the autopilot to Mars' });
+  await expect(engage).toBeVisible();
+  await engage.click();
+  expect((await read()).flying).toBe(true);
+
+  // Eject: a keypress fires it at once.
+  await page.getByRole('button', { name: 'Eject: leave the cockpit' }).press('Enter');
+  await expect(page.locator('.cockpit')).toBeHidden();
+  expect((await read()).shipMode).toBe(false);
+  expect(errors).toEqual([]);
+});

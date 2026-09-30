@@ -27,7 +27,14 @@
 <Hints />
 <CommandPalette />
 
-<button class="credit-link" onclick={() => (ui.creditsOpen = true)}><span class="long">Data &amp; imagery: NASA, ESA, JPL, USGS, ESO, NOIRLab, IAU · </span>Credits</button>
+<!-- In the cockpit the console fills the bottom of the view; the credits are still in the ☰ menu. -->
+{#if !ui.shipMode}
+  <button class="credit-link" onclick={() => (ui.creditsOpen = true)}><span class="long">Data &amp; imagery: NASA, ESA, JPL, USGS, ESO, NOIRLab, IAU · </span>Credits</button>
+{/if}
+
+{#if ui.shipMode && ui.hudHidden}
+  <button class="hud-chip" onclick={() => (ui.hudHidden = false)}>Show cockpit <kbd>H</kbd></button>
+{/if}
 
 {#if ui.creditsOpen}
   <Credits />
@@ -83,6 +90,32 @@
   }
   .credit-link:hover {
     color: rgb(255 255 255 / 0.75);
+  }
+  .hud-chip {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--panel);
+    backdrop-filter: blur(10px);
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+  .hud-chip:hover {
+    color: var(--text);
+  }
+  .hud-chip kbd {
+    font: 600 10.5px var(--mono);
+    color: var(--text);
   }
   .notice {
     position: fixed;

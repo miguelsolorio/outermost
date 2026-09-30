@@ -4,22 +4,52 @@
 import type { ObjectInfo, SearchEntry } from '../scene/registry.ts';
 import type { Landmark } from '../data/landmarks.ts';
 import type { CockpitFrame } from '../engine/cockpit.ts';
-export type { SearchEntry };
+import type { ShipGauges } from '../engine/camera/ship.ts';
+import type { Sfx } from '../audio/foley.ts';
+export type { SearchEntry, ShipGauges, Sfx };
+
+/** A contact on the cockpit radar: on a unit disc, ahead up. */
+export interface RadarContact {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  /** Above (+) or below (−) the wings, radians. */
+  el: number;
+  /** Past the scope's range, pinned to its rim. */
+  clipped: boolean;
+  role: 'target' | 'frame' | 'other';
+  /** From the ship to its center, m. */
+  distance: number;
+}
 
 /** Cockpit instruments, refreshed about ten times a second in ship mode. */
 export interface ShipReadout {
   /** m/s relative to the frame. */
   speed: number;
-  /** Forward drift as a share of full boost (−1..1). */
-  throttle: number;
+  /** Distance to the nearest surface (m): the scale speeds are measured in. */
+  pace: number;
+  /** Forward drift the throttle lever holds, and the ship's actual forward drift (pace units per second). */
+  lever: number;
+  drive: number;
+  /** The autopilot has the throttle. */
+  servo: boolean;
   boost: boolean;
   fine: boolean;
+  /** Close to a surface. */
+  prox: boolean;
   /** Name of the body the ship is moving with. */
   frame: string;
-  nearest: { name: string; altitude: number } | null;
+  /** Changing frames: the view is easing over to moving with a new body. */
+  rebasing: boolean;
+  /** The nearest body; `lat`/`lon` (degrees) of the point under the ship, longitude from local noon. */
+  nearest: { name: string; altitude: number; lat: number | null; lon: number | null } | null;
   heading: { lon: number; lat: number; system: 'ecliptic' | 'galactic' };
   autopilot: { name: string; phase: 'turning' | 'cruising' | 'arriving' | 'facing'; distance: number; eta: number } | null;
   holding: string | null;
+  /** Name of what's selected: where the engage lever would send the autopilot. */
+  selected: string | null;
+  radar: RadarContact[];
 }
 
 export const ui = $state({
@@ -58,6 +88,8 @@ export const ui = $state({
   ship: null as ShipReadout | null,
   /** The canopy and instruments are hidden (H), e.g. for a screenshot. */
   hudHidden: false,
+  /** In the cockpit, the full timeline is raised over the console. */
+  timeOpen: false,
 });
 
 export interface Actions {
@@ -114,9 +146,44 @@ export const actions: Actions = {
 
 /**
  * The cockpit overlay's per-frame hook: the engine calls it from its frame
- * loop, so the canopy and markers never lag the render.
+ * loop, so the canopy, markers and instruments never lag the render.
  */
-export const cockpit = { sink: null as ((f: CockpitFrame) => void) | null };
+export const cockpit = { sink: null as ((f: CockpitFrame, g: ShipGauges) => void) | null };
+
+/** The cockpit's controls, bound to the ship by the app. */
+export interface PilotActions {
+  /** Take hold of the throttle lever (the autopilot lets go); returns the drift it holds. */
+  takeLever(): number;
+  /** Set the lever's drift (pace units per second); 0 is an all-stop. */
+  setLever(drift: number): void;
+  stop(): void;
+  level(): void;
+  /** Turn to face the selection, or the body the ship is with. */
+  face(): void;
+  /** Autopilot to the selection. */
+  engage(): void;
+  /** Let the autopilot go: the lever is at stop, so the ship coasts to rest. */
+  disengage(): void;
+  /** Leave the cockpit. */
+  eject(): void;
+  /** Star streaks for a thrown engage lever (set by the cockpit). */
+  kick(): void;
+}
+
+export const pilot: PilotActions = {
+  takeLever: () => 0,
+  setLever: () => {},
+  stop: () => {},
+  level: () => {},
+  face: () => {},
+  engage: () => {},
+  disengage: () => {},
+  eject: () => {},
+  kick: () => {},
+};
+
+/** Mechanical sounds for the cockpit's controls (silent when sound is off). */
+export const sfx = { play: (_name: Sfx) => {} };
 
 export function bindActions(a: Actions): void {
   Object.assign(actions, a);
@@ -127,5 +194,9 @@ export const nav = {
   visit(lm: Landmark): void {
     actions.setTime(lm.ms);
     actions.flyTo(lm.target, { from: lm.from });
+  },
+  /** Play or pause; the timeline swaps in its own, which settles a scrub under way first. */
+  togglePlay(): void {
+    actions.setPaused(!actions.readClock().paused);
   },
 };

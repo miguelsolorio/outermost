@@ -148,7 +148,10 @@ export function attachInput(el: HTMLElement, cam: CameraController, hooks: Input
   };
 
   const onKey = (e: KeyboardEvent) => {
-    if ((e.target as HTMLElement)?.closest('input, textarea, select')) return;
+    const target = e.target as HTMLElement;
+    if (target?.closest?.('input, textarea, select')) return;
+    // Space on a focused button, switch or slider presses it; it doesn't also play or pause.
+    if (e.key === ' ' && target?.closest?.('button, [role=switch], [role=slider], [role=button]')) return;
     const plainKey = !e.metaKey && !e.ctrlKey && !e.altKey;
     if (ship && hooks.toggleShipMode && e.code === 'KeyV' && plainKey && !e.shiftKey) {
       if (!e.repeat) {

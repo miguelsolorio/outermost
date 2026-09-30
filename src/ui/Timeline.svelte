@@ -7,9 +7,8 @@
   import DatePicker from './DatePicker.svelte';
   import { Scrubber } from './timeline/scrub.ts';
   import { TimelineView } from './timeline/view.ts';
+  import { RATES } from './timeRates.ts';
 
-  // Speeds in simulated seconds per real second.
-  const RATES = [1, 60, 3600, 86_400, 7 * 86_400, 30.4375 * 86_400, 365.25 * 86_400];
   const PICKER_W = 272;
 
   const scrub = new Scrubber({
@@ -158,6 +157,8 @@
   function visit(lm: Landmark) {
     scrub.cancelTween();
     ui.visiting = true;
+    // In the cockpit, stow the timeline again to watch the visit out of the window.
+    ui.timeOpen = false;
     pending = { lm, stay: actions.pullBack(lm.target) };
   }
 
@@ -192,6 +193,7 @@
 
   onMount(() => {
     nav.visit = visit;
+    nav.togglePlay = () => scrub.togglePlay();
     const v = new TimelineView(track, canvas, { scrub, visit });
     view = v;
     let raf = 0;
@@ -238,13 +240,25 @@
     if (dateOpen && !picker?.contains(t) && !whenBtn?.contains(t)) dateOpen = false;
   }}
   onkeydown={(e) => {
-    if (e.key === 'Escape') speedOpen = dateOpen = false;
+    if (e.key !== 'Escape') return;
+    // In the cockpit, Escape with no menu open stows the timeline back under the console.
+    if (!speedOpen && !dateOpen && ui.timeOpen) ui.timeOpen = false;
+    speedOpen = dateOpen = false;
   }}
 />
 
-<div class="scrim" aria-hidden="true"></div>
+<!-- In the cockpit the timeline is stowed (the console has the clock) until TIME raises it over the console.
+     It stays mounted: landmark visits from search run through it. -->
+<div class="scrim" class:away={ui.shipMode} aria-hidden="true"></div>
 
-<div class="dock" role="group" aria-label="Time controls">
+<div
+  class="dock"
+  class:stowed={ui.shipMode && !ui.timeOpen}
+  class:raised={ui.shipMode && ui.timeOpen}
+  inert={ui.shipMode && !ui.timeOpen}
+  role="group"
+  aria-label="Time controls"
+>
   <div class="corners">
     <div class="grp" bind:offsetWidth={leftW}>
       <button class="btn play" onclick={() => scrub.togglePlay()} title={paused ? 'Play (Space)' : 'Pause (Space)'} aria-label={paused ? 'Play' : 'Pause'}>
@@ -711,6 +725,33 @@
     bottom: calc(100% + 40px);
   }
 
+  .scrim,
+  .dock {
+    transition:
+      transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 0.2s;
+  }
+  .scrim.away {
+    opacity: 0;
+  }
+  .dock.stowed {
+    transform: translate(-50%, calc(100% + 80px));
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1),
+      opacity 0.2s,
+      visibility 0s 0.28s;
+  }
+  /* Raised over the cockpit console, on a panel of its own. */
+  .dock.raised {
+    padding: 10px 14px 12px;
+    background: var(--panel-solid);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: 0 18px 48px rgb(0 0 0 / 0.6);
+  }
+
   @media (max-width: 640px) {
     .dock {
       width: calc(100% - 20px);
@@ -720,6 +761,13 @@
     .zl,
     .when .t {
       display: none;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scrim,
+    .dock,
+    .dock.stowed {
+      transition: none;
     }
   }
 </style>

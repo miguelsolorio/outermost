@@ -115,8 +115,29 @@ Press `V` to fly from a ship's cockpit instead of orbiting. The ship starts wher
 | Autopilot to an object | Double-click it, or search | Double-tap |
 | Face the selected object | `C` | |
 | All stop, level | `X`, `L` | |
+| Raise the timeline over the console | `T` | |
 | Hide the cockpit | `H` | |
 | Show the keys | `?` | |
+
+The console below the windshield has physical controls:
+
+- **Throttle.** A lever that holds its speed, like cruise control. It has detents at reverse, stop, fine, cruise and boost. While the autopilot flies, the lever moves by itself, then slides back to stop.
+- **Engage.** A lever that sends the autopilot to what's selected.
+- **Clock and settings.**
+  - A time-warp knob that turns through the clock's speeds, backward and forward.
+  - A switch that runs or holds the clock.
+  - Guarded switches for labels, orbits, constellations and sound.
+- **Keys and eject.**
+  - Keys for stop, level, face and hiding the cockpit.
+  - An eject handle back to the orbit view, which you hold or pull.
+- **Instruments.**
+  - An attitude ball.
+  - A radar you can click contacts on.
+  - A hologram of the nearest body.
+  - The speed and its trace.
+  - Status lights.
+
+Look around and the console turns with the canopy, as part of the ship. The switches, levers and engine make sounds, which the sound button mutes.
 
 ## Accuracy
 
